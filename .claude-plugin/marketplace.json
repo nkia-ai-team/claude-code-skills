@@ -1,0 +1,13 @@
+{
+  "name": "nkia-ai-marketplace",
+  "owner": {
+    "name": "NKIA-AI Team"
+  },
+  "plugins": [
+    {
+      "name": "nkia-ai-tools",
+      "source": "./nkia-ai-tools",
+      "description": "NKIA-AI 팀 개발 워크플로우 도구 모음 - 코드 리뷰, Linear 이슈 생성/검증"
+    }
+  ]
+}
