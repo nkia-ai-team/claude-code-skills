@@ -7,6 +7,6 @@
   },
   "repository": "https://github.com/nkia-ai/claude-code-plugins",
   "license": "MIT",
-  "keywords": ["code-review", "linear", "workflow", "automation"],
+  "keywords": ["code-review", "linear", "workflow", "automation", "commit", "git"],
   "skills": "./skills"
 }
