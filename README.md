@@ -44,6 +44,13 @@ Linear 프로젝트를 체계적인 문서와 함께 생성합니다.
 /linear-project-creator
 ```
 
+### confluence-manager
+Confluence 문서를 검색, 조회, 생성, 수정합니다.
+
+```bash
+/confluence-manager
+```
+
 ## 업데이트
 
 ```bash
