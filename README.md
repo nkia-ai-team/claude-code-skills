@@ -123,6 +123,45 @@ Linear 이슈를 템플릿 기반으로 빠르게 생성합니다.
 
 ---
 
+### commit
+
+Git 커밋 시 NKIA 팀 컨벤션에 맞는 커밋 메시지를 자동 생성합니다.
+
+**주요 기능:**
+- 브랜치명에서 PIMS 번호 자동 추출
+- 변경사항 분석하여 Type 키워드 자동 결정
+- `#{PIMS번호} {Type} : {설명}` 형식 메시지 생성
+- 커밋 전 미리보기 및 수정 가능
+
+**Type Keywords:**
+| Type | 용도 |
+|------|------|
+| Feat | 새로운 기능 추가 |
+| Fix | 오류 수정 |
+| Refactor | 리팩토링/성능 개선 |
+| Cleanup | 불필요한 코드 정리 |
+| Docs | 문서 변경 |
+| Config | 설정 파일 변경 |
+| Test | 테스트 코드 |
+| Style | 코드 스타일 수정 |
+
+**사용 예시:**
+```bash
+# 기본 사용 (자동 분석)
+/commit
+
+# 메시지 힌트와 함께
+/commit API 엔드포인트 추가
+
+# Type 직접 지정
+/commit --type Fix
+
+# PIMS 번호 직접 지정
+/commit --pims 114667
+```
+
+---
+
 ### linear-project-creator
 
 Linear 프로젝트를 체계적인 문서와 함께 생성합니다.
