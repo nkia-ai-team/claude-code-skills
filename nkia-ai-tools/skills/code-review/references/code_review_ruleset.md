@@ -25,9 +25,11 @@ AI 코드 리뷰는 다음 순서로 진행합니다:
 
 ### 2.1 검증 규칙
 
+**Linear 자동 생성 브랜치 형식을 사용합니다.**
+
 **정규식 패턴:**
 ```regex
-^(feature|bugfix|hotfix|refactor|docs|test|config)/PIMS-[0-9]+-[a-z0-9-]+$
+^(feature|bugfix|hotfix|refactor|docs|test|config)/[a-z]+-[0-9]+-[a-z0-9-]+$
 ```
 
 **검증 항목:**
@@ -35,8 +37,12 @@ AI 코드 리뷰는 다음 순서로 진행합니다:
 | 항목 | 규칙 | 예시 |
 |------|------|------|
 | Type Prefix | feature, bugfix, hotfix, refactor, docs, test, config 중 하나 | `feature/` |
-| PIMS 번호 | `PIMS-` + 숫자 형식 필수 | `PIMS-114667` |
-| 설명 | kebab-case, 소문자, 3-5단어 | `api-diff-notification` |
+| Linear 이슈 번호 | `{팀키}-{이슈번호}` 형식 (소문자) | `nkiaai-129` |
+| 설명 | kebab-case, 소문자 | `improve-rca-logging-system` |
+
+**예시:**
+- `feature/nkiaai-129-improve-rca-logging-system-for-operator-readability`
+- `bugfix/nkiaai-130-fix-login-error`
 
 ### 2.2 브랜치-작업 타입 일치 검증
 
@@ -55,12 +61,12 @@ AI 코드 리뷰는 다음 순서로 진행합니다:
 ```markdown
 ## 브랜치명 검증
 
-**브랜치:** `feature/PIMS-114667-api-diff-slack-notification`
+**브랜치:** `feature/nkiaai-129-api-diff-slack-notification`
 
 | 항목 | 상태 | 비고 |
 |------|------|------|
 | Type Prefix | ✅ | feature |
-| PIMS 번호 | ✅ | PIMS-114667 |
+| Linear 이슈 번호 | ✅ | nkiaai-129 |
 | 네이밍 규칙 | ✅ | kebab-case 준수 |
 | 타입-작업 일치 | ✅ | 새 기능 추가 작업 |
 ```
@@ -73,14 +79,14 @@ AI 코드 리뷰는 다음 순서로 진행합니다:
 
 **정규식 패턴:**
 ```regex
-^#[0-9]+ (Feat|Fix|Refactor|Cleanup|Wip|Revert|Style|Merge|Docs|Config|Dependency|Test) : .+$
+^[a-z]+-[0-9]+ (Feat|Fix|Refactor|Cleanup|Wip|Revert|Style|Merge|Docs|Config|Dependency|Test) : .+$
 ```
 
 **검증 항목:**
 
 | 항목 | 규칙 | 예시 |
 |------|------|------|
-| PIMS 번호 | `#` + 숫자 형식 | `#114667` |
+| Linear 이슈 번호 | `{팀키}-{이슈번호}` 형식 (소문자) | `nkiaai-129` |
 | Type | 허용된 타입 키워드 | `Feat` |
 | 구분자 | ` : ` (공백 포함 콜론) | ` : ` |
 | 내용 | 한글/영문, 명확한 설명 | `API 변경 감지 시스템 구축` |
@@ -99,13 +105,13 @@ AI 코드 리뷰는 다음 순서로 진행합니다:
 | Config | 설정 파일 변경 | 빌드/배포 설정 |
 | Test | 테스트 코드 | *Test.java, *Spec.java |
 
-### 3.3 브랜치-커밋 PIMS 일치 검증
+### 3.3 브랜치-커밋 Linear 이슈 번호 일치 검증
 
 ```
-브랜치: feature/PIMS-114667-api-diff-notification
-커밋: #114667 Feat : API 변경 감지 시스템 구축
-      ^^^^^^^^
-      동일한 PIMS 번호 사용 필수
+브랜치: feature/nkiaai-129-api-diff-notification
+커밋: nkiaai-129 Feat : API 변경 감지 시스템 구축
+      ^^^^^^^^^^
+      동일한 Linear 이슈 번호 사용 필수
 ```
 
 ### 3.4 리뷰 코멘트 예시
@@ -115,11 +121,11 @@ AI 코드 리뷰는 다음 순서로 진행합니다:
 
 **총 커밋 수:** 3개
 
-| 커밋 | PIMS | Type | 상태 | 비고 |
-|------|------|------|------|------|
-| `#114667 Feat : API 변경 감지 시스템 구축` | ✅ | ✅ Feat | ✅ | - |
-| `#114667 Fix : Slack 웹훅 URL 수정` | ✅ | ✅ Fix | ✅ | - |
-| `update readme` | ❌ | ❌ | ❌ | PIMS 번호, Type 누락 |
+| 커밋 | Linear 이슈 | Type | 상태 | 비고 |
+|------|-------------|------|------|------|
+| `nkiaai-129 Feat : API 변경 감지 시스템 구축` | ✅ | ✅ Feat | ✅ | - |
+| `nkiaai-129 Fix : Slack 웹훅 URL 수정` | ✅ | ✅ Fix | ✅ | - |
+| `update readme` | ❌ | ❌ | ❌ | Linear 이슈 번호, Type 누락 |
 
 ⚠️ **수정 필요:** 3번째 커밋 메시지가 규칙을 준수하지 않습니다.
 ```
@@ -340,6 +346,18 @@ if (size > MAX_PAGE_SIZE) {
     throw new IllegalArgumentException("Page size cannot exceed " + MAX_PAGE_SIZE);
 }
 ```
+
+---
+
+### 📦 파일: `trace_callback.py` (대용량 파일)
+
+> ℹ️ **대용량 파일**: diff가 축소되어 전체 내용을 별도 조회하여 리뷰했습니다.
+
+#### 전체 리뷰 결과: 🟢 양호
+
+- 파일 크기: +646 lines
+- 신규 파일로 전체 내용 검토 완료
+- 특이 사항 없음
 ```
 
 ### 6.3 심각도 레벨

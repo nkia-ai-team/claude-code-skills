@@ -1,6 +1,6 @@
 ---
 name: commit
-description: Generate commit messages following NKIA team conventions. Analyzes staged changes and creates properly formatted commit messages with PIMS number, type keyword, and clear description. Use this skill when you want to commit changes with a well-structured message.
+description: Generate commit messages following NKIA team conventions. Analyzes staged changes and creates properly formatted commit messages with Linear issue number, type keyword, and clear description. Use this skill when you want to commit changes with a well-structured message.
 ---
 
 # Commit Message Generator Skill
@@ -11,7 +11,7 @@ Git 커밋 시 NKIA 팀 컨벤션에 맞는 커밋 메시지를 자동 생성합
 
 **주요 기능:**
 - Staged 변경사항 분석
-- PIMS 번호 자동 추출 (브랜치명에서)
+- Linear 이슈 번호 자동 추출 (브랜치명에서)
 - Type 키워드 자동 결정
 - 명확하고 간결한 커밋 메시지 생성
 
@@ -32,17 +32,17 @@ Git 커밋 시 NKIA 팀 컨벤션에 맞는 커밋 메시지를 자동 생성합
 
 ### 정규식 패턴
 ```regex
-^#[0-9]+ (Feat|Fix|Refactor|Cleanup|Wip|Revert|Style|Merge|Docs|Config|Dependency|Test) : .+$
+^[a-z]+-[0-9]+ (Feat|Fix|Refactor|Cleanup|Wip|Revert|Style|Merge|Docs|Config|Dependency|Test) : .+$
 ```
 
 ### 구조
 ```
-#{PIMS번호} {Type} : {설명}
+{Linear이슈번호} {Type} : {설명}
 ```
 
 | 항목 | 규칙 | 예시 |
 |------|------|------|
-| PIMS 번호 | `#` + 숫자 형식 | `#114667` |
+| Linear 이슈 번호 | `{팀키}-{이슈번호}` 형식 (소문자) | `nkiaai-129` |
 | Type | 허용된 타입 키워드 | `Feat` |
 | 구분자 | ` : ` (공백 포함 콜론) | ` : ` |
 | 설명 | 한글/영문, 명확한 설명 | `API 변경 감지 시스템 구축` |
@@ -85,30 +85,30 @@ $ git add <파일명>
 $ git add .  # 모든 변경사항
 ```
 
-### Step 2: Extract PIMS Number from Branch
+### Step 2: Extract Linear Issue Number from Branch
 
-현재 브랜치에서 PIMS 번호 추출:
+현재 브랜치에서 Linear 이슈 번호 추출:
 
 ```bash
 git branch --show-current
 ```
 
-**브랜치 패턴:**
+**브랜치 패턴 (Linear 자동 생성):**
 ```regex
-^(feature|bugfix|hotfix|refactor|docs|test|config)/PIMS-([0-9]+)-.*$
+^(feature|bugfix|hotfix|refactor|docs|test|config)/([a-z]+-[0-9]+)-.*$
 ```
 
 **예시:**
 ```
-브랜치: feature/PIMS-114667-api-diff-notification
-PIMS 번호: #114667
+브랜치: feature/nkiaai-129-api-diff-notification
+Linear 이슈 번호: nkiaai-129
 ```
 
-**PIMS 번호를 찾을 수 없는 경우:**
-사용자에게 PIMS 번호 입력 요청:
+**Linear 이슈 번호를 찾을 수 없는 경우:**
+사용자에게 Linear 이슈 번호 입력 요청:
 ```
-브랜치명에서 PIMS 번호를 찾을 수 없습니다.
-PIMS 번호를 입력해주세요 (예: 114667):
+브랜치명에서 Linear 이슈 번호를 찾을 수 없습니다.
+Linear 이슈 번호를 입력해주세요 (예: nkiaai-129):
 ```
 
 ### Step 3: Analyze Changes
@@ -159,11 +159,11 @@ git diff --cached --name-only
 
 **예시:**
 ```
-#114667 Feat : API 변경 감지 시스템 구축
-#114667 Fix : Slack 웹훅 URL 오류 수정
-#114667 Refactor : TraceService 쿼리 최적화
-#114667 Docs : README 설치 가이드 추가
-#114667 Config : Docker 환경변수 설정 추가
+nkiaai-129 Feat : API 변경 감지 시스템 구축
+nkiaai-129 Fix : Slack 웹훅 URL 오류 수정
+nkiaai-129 Refactor : TraceService 쿼리 최적화
+nkiaai-129 Docs : README 설치 가이드 추가
+nkiaai-129 Config : Docker 환경변수 설정 추가
 ```
 
 ### Step 6: Show Preview and Confirm
@@ -173,7 +173,7 @@ git diff --cached --name-only
 ```
 === 커밋 메시지 미리보기 ===
 
-#114667 Feat : 사용자 인증 API 엔드포인트 추가
+nkiaai-129 Feat : 사용자 인증 API 엔드포인트 추가
 
 변경 파일:
 - src/api/auth.ts (+150)
@@ -195,7 +195,7 @@ git diff --cached --name-only
 사용자 확인 후 커밋 실행:
 
 ```bash
-git commit -m "#114667 Feat : 사용자 인증 API 엔드포인트 추가"
+git commit -m "nkiaai-129 Feat : 사용자 인증 API 엔드포인트 추가"
 ```
 
 **커밋 성공 시:**
@@ -203,7 +203,7 @@ git commit -m "#114667 Feat : 사용자 인증 API 엔드포인트 추가"
 커밋이 완료되었습니다!
 
 커밋: abc1234
-메시지: #114667 Feat : 사용자 인증 API 엔드포인트 추가
+메시지: nkiaai-129 Feat : 사용자 인증 API 엔드포인트 추가
 변경: 3 files changed, 275 insertions(+)
 ```
 
@@ -227,10 +227,10 @@ Git 저장소를 초기화하거나 올바른 디렉토리로 이동하세요:
 $ git init
 ```
 
-### Invalid PIMS Number
+### Invalid Linear Issue Number
 ```
-PIMS 번호 형식이 올바르지 않습니다.
-숫자만 입력해주세요 (예: 114667)
+Linear 이슈 번호 형식이 올바르지 않습니다.
+{팀키}-{이슈번호} 형식으로 입력해주세요 (예: nkiaai-129)
 ```
 
 ---
@@ -239,37 +239,37 @@ PIMS 번호 형식이 올바르지 않습니다.
 
 ### Example 1: New Feature
 ```
-브랜치: feature/PIMS-114667-user-auth
+브랜치: feature/nkiaai-129-user-auth
 변경: src/api/auth.ts (신규), src/models/user.ts (수정)
 
-생성 메시지: #114667 Feat : 사용자 인증 API 구현
+생성 메시지: nkiaai-129 Feat : 사용자 인증 API 구현
 ```
 
 ### Example 2: Bug Fix
 ```
-브랜치: bugfix/PIMS-114890-login-error
+브랜치: bugfix/nkiaai-130-login-error
 변경: src/services/login.ts (수정)
 
-생성 메시지: #114890 Fix : 로그인 시 세션 만료 오류 수정
+생성 메시지: nkiaai-130 Fix : 로그인 시 세션 만료 오류 수정
 ```
 
 ### Example 3: Documentation
 ```
-브랜치: docs/PIMS-115000-api-docs
+브랜치: docs/nkiaai-131-api-docs
 변경: docs/API.md (신규), README.md (수정)
 
-생성 메시지: #115000 Docs : API 문서 및 README 업데이트
+생성 메시지: nkiaai-131 Docs : API 문서 및 README 업데이트
 ```
 
 ### Example 4: Multiple Changes
 ```
-브랜치: feature/PIMS-114667-api-improvement
+브랜치: feature/nkiaai-129-api-improvement
 변경:
 - src/api/trace.ts (수정 - 새 엔드포인트)
 - src/utils/parser.ts (수정 - 리팩토링)
 - tests/trace.test.ts (신규)
 
-생성 메시지: #114667 Feat : Trace API 엔드포인트 추가 및 파서 개선
+생성 메시지: nkiaai-129 Feat : Trace API 엔드포인트 추가 및 파서 개선
 ```
 
 ---
@@ -283,8 +283,8 @@ PIMS 번호 형식이 올바르지 않습니다.
 /commit --type Refactor 쿼리 최적화
 ```
 
-PIMS 번호 직접 지정:
+Linear 이슈 번호 직접 지정:
 
 ```
-/commit --pims 114667
+/commit --linear nkiaai-129
 ```

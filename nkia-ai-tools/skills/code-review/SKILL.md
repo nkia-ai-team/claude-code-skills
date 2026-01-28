@@ -112,6 +112,9 @@ gh pr view {url} --json title,body,author,state,additions,deletions,files,baseRe
 
 # PR diff
 gh pr diff {url}
+
+# For large files (if diff is truncated), fetch full content:
+gh api /repos/{owner}/{repo}/contents/{file_path}?ref={head_branch} --jq '.content' | base64 -d
 ```
 
 **For GitLab MR:**
@@ -139,6 +142,22 @@ GITLAB_HOST={hostname} glab api "/projects?search={project_name}"
 GITLAB_HOST={hostname} glab api "/projects/{project_id}/merge_requests/{mr_number}"
 GITLAB_HOST={hostname} glab api "/projects/{project_id}/merge_requests/{mr_number}/changes"
 GITLAB_HOST={hostname} glab api "/projects/{project_id}/merge_requests/{mr_number}/commits"
+
+# Step 3-4: Handle Large Files (diff truncated or empty)
+# Check each file in changes response:
+# - If "diff" is empty but "new_file": true or additions > 0, it's a large file
+# - Fetch the full file content separately
+GITLAB_HOST={hostname} glab api "/projects/{project_id}/repository/files/{file_path_url_encoded}/raw?ref={source_branch}"
+# Example: file_path "src/shared/core/trace_callback.py" -> "src%2Fshared%2Fcore%2Ftrace_callback.py"
+```
+
+**Large File Detection Logic:**
+```
+For each file in MR changes:
+  IF (additions > 0 OR deletions > 0) AND (diff is empty OR diff is truncated):
+    → Mark as "large file"
+    → Fetch full content via repository files API
+    → Include in code review with note: "📦 대용량 파일 - 전체 내용 조회됨"
 ```
 
 **GitLab URL Parsing Example:**
@@ -155,14 +174,14 @@ URL-encoded  = "gitlab%2Flucida-ai-develop"
 
 Validate the source branch name according to the ruleset in `references/code_review_ruleset.md`.
 
-**Validation Pattern:**
+**Validation Pattern (Linear 자동 생성 브랜치):**
 ```regex
-^(feature|bugfix|hotfix|refactor|docs|test|config)/PIMS-[0-9]+-[a-z0-9-]+$
+^(feature|bugfix|hotfix|refactor|docs|test|config)/[a-z]+-[0-9]+-[a-z0-9-]+$
 ```
 
 **Check Items:**
 1. Type prefix (feature, bugfix, hotfix, refactor, docs, test, config)
-2. PIMS number format (PIMS-XXXXX)
+2. Linear issue number format ({team-key}-{issue-number}, e.g., nkiaai-129)
 3. Description in kebab-case
 4. Branch type matches work type
 
@@ -172,14 +191,14 @@ Validate all commit messages according to the ruleset.
 
 **Validation Pattern:**
 ```regex
-^#[0-9]+ (Feat|Fix|Refactor|Cleanup|Wip|Revert|Style|Merge|Docs|Config|Dependency|Test) : .+$
+^[a-z]+-[0-9]+ (Feat|Fix|Refactor|Cleanup|Wip|Revert|Style|Merge|Docs|Config|Dependency|Test) : .+$
 ```
 
 **Check Items:**
-1. PIMS number present (#XXXXX)
+1. Linear issue number present ({team-key}-{issue-number}, e.g., nkiaai-129)
 2. Valid type keyword
 3. Proper separator (` : `)
-4. PIMS number matches branch PIMS number
+4. Linear issue number matches branch issue number
 
 ### Step 6: Perform Code Review
 
