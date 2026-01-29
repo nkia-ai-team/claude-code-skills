@@ -1,12 +1,12 @@
 {
   "name": "nkia-ai-tools",
-  "version": "1.0.0",
-  "description": "NKIA-AI 팀 개발 워크플로우 도구 모음 - 코드 리뷰, Linear 이슈 검증",
+  "version": "1.1.0",
+  "description": "NKIA-AI 팀 개발 워크플로우 도구 모음 - 코드 리뷰, Linear 이슈 관리, 커밋 자동화",
   "author": {
     "name": "NKIA-AI Team"
   },
   "repository": "https://github.com/nkia-ai/claude-code-plugins",
   "license": "MIT",
-  "keywords": ["code-review", "linear", "workflow", "automation", "commit", "git"],
+  "keywords": ["code-review", "linear", "workflow", "automation", "commit", "git", "issue-updater"],
   "skills": "./skills"
 }
