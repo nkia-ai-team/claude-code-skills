@@ -138,7 +138,7 @@ AI 코드 리뷰는 다음 순서로 진행합니다:
 
 | 항목 | 필수 | 검증 내용 |
 |------|------|----------|
-| Title | ✅ | PIMS 번호 포함, 명확한 설명 |
+| Title | ✅ | Linear 이슈 번호 포함, 명확한 설명 |
 | Description | ✅ | 기능 상세 설명 작성 |
 | Part (FE/BE) | ✅ | 해당 파트 선택 |
 | Target Branch | ✅ | develop (master 아님) |
