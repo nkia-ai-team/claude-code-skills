@@ -2,7 +2,7 @@
 
 ## tokens.json 경로
 
-    shared/styles/tokens.json
+프로젝트 설정 파일(.figma-to-react.config.md)의 `tokensPath` 값을 사용한다.
 
 파일이 없으면 빈 객체 `{}` 로 생성한다.
 
@@ -121,6 +121,41 @@ Figma MCP는 색상을 RGBA(0~1 범위)로 반환한다.
         "family": { "default": "Spoqa Han Sans Neo, sans-serif" }
       }
     }
+
+## 공식 MCP 토큰 이름 매핑
+
+Figma 공식 MCP(get_design_context)는 디자인 토큰을 이름+값 형태로 직접 제공한다:
+
+    text-secondary-default(#5C6061)
+    text-standard-default(#1D1F20)
+    text-tertiary-default(#797F81)
+    line-standard-default(#EBEDED)
+    line-inverse-default(#C9CBCF)
+
+### 매핑 규칙
+
+공식 MCP 토큰 이름을 tokens.json 네이밍으로 변환한다:
+
+    공식 MCP 이름                → tokens.json 키
+    text-secondary-default       → color.text.secondary
+    text-standard-default        → color.text.standard
+    text-tertiary-default        → color.text.tertiary
+    line-standard-default        → color.line.standard
+    line-inverse-default         → color.line.inverse
+
+### 변환 패턴
+
+    {category}-{semantic}-{state} → color.{category}.{semantic}
+    state가 default면 생략, hover/active 등이면 suffix로 추가
+
+### 활용
+
+- 공식 MCP 사용 시: 응답의 토큰 이름으로 tokens.json 검색 → 없으면 위 규칙으로 신규 생성
+- Framelink MCP 사용 시: 기존 RGBA → HEX 변환 방식 유지
+- CSS 변수 전환 시: tokens.json 키를 CSS 변수명으로 변환 (향후)
+
+    // tokens.json 키 → CSS 변수
+    color.text.secondary → var(--color-text-secondary)
 
 ## 중복 검출 로직
 

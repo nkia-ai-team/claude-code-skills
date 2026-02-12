@@ -17,7 +17,7 @@ Code Connect는 이미 만들어진 React 컴포넌트를 Figma 디자인 컴포
 
     [연결 후] Figma MCP 응답
     <CodeConnectSnippet>
-      import: import { NdsButton } from '@/shared/components/commons/ai-portal'
+      import: import { NdsButton } from '{config.componentPath}'
       snippet: <NdsButton tone="primary" variant="filled" size="lg">Label</NdsButton>
       instructions: "tone, variant, size props 사용"
     </CodeConnectSnippet>
@@ -38,7 +38,7 @@ Code Connect는 이미 만들어진 React 컴포넌트를 Figma 디자인 컴포
 ### A. 컴포넌트 단위 생성 (기존 방식)
 
 사용자가 개별 컴포넌트 URL을 직접 지정하여 실행.
-기존 pipeline_workflow.md Step 1~7 + Step 8(매핑 등록).
+기존 pipeline_workflow.md Step 1~8 + Step 9(시각적 비교 루프) + Step 10(매핑 등록).
 
     /figma-to-react https://www.figma.com/design/{fileKey}?node-id={컴포넌트-노드-id}
 
@@ -116,18 +116,20 @@ MCP 응답을 분석하여 화면에 사용된 모든 컴포넌트를 목록화�
 
 #### 각 컴포넌트 빌드 절차
 
-미연결 컴포넌트 하나당 기존 파이프라인 Step 1~8을 실행한다:
+미연결 컴포넌트 하나당 기존 파이프라인 Step 1~10을 실행한다:
 
     1. 해당 컴포넌트의 Figma 노드 데이터 추출
     2. 어노테이션 파싱
     3. 기존 컴포넌트 탐색 (이미 로컬에 있으면 재사용)
-    4. 디자인 토큰 매칭/생성
-    5. React 컴포넌트 생성
-    6. Storybook 스토리 생성
-    7. Playwright E2E 테스트
-    8. Code Connect 매핑 등록 (.figma.tsx + publish)
+    4. 아이콘/에셋 다운로드
+    5. 디자인 토큰 매칭/생성
+    6. React 컴포넌트 생성
+    7. Storybook 스토리 생성
+    8. Playwright E2E 테스트
+    9. 시각적 비교 루프 (Storybook ↔ Figma)
+    10. Code Connect 매핑 등록 (.figma.tsx + publish)
 
-단, 단순 컴포넌트(아이콘, 디바이더 등)는 Storybook/테스트를 생략하고
+단, 단순 컴포넌트(아이콘, 디바이더 등)는 Storybook/테스트/시각적 비교를 생략하고
 코드 + Code Connect 매핑만 생성한다.
 
 #### 빌드 대상 판단
@@ -144,9 +146,9 @@ MCP 응답을 분석하여 화면에 사용된 모든 컴포넌트를 목록화�
 모든 컴포넌트가 준비되면 화면을 조립한다.
 
     // 모든 import는 Code Connect에서 제공된 경로 사용
-    import { NdsButton } from '@/shared/components/commons/ai-portal'
-    import { NdsInput } from '@/shared/components/commons/ai-portal'
-    import { NdsCheckbox } from '@/shared/components/commons/ai-portal'
+    import { NdsButton } from '{config.componentPath}'
+    import { NdsInput } from '{config.componentPath}'
+    import { NdsCheckbox } from '{config.componentPath}'
 
     // 레이아웃만 새로 작성
     export function LoginPage() {
@@ -265,9 +267,9 @@ figma.instance()가 참조하는 자식 컴포넌트가 아직 등록되지 않�
 
 컴포넌트 파일과 동일 디렉토리에 .figma.tsx 확장자로 생성:
 
-    shared/components/commons/ai-portal/
-    ├── NdsButton.tsx           # 컴포넌트
-    ├── NdsButton.figma.tsx     # Code Connect 매핑
+    {config.componentPath}/
+    ├── {Prefix}Button.tsx           # 컴포넌트
+    ├── {Prefix}Button.figma.tsx     # Code Connect 매핑
     └── index.ts
 
 ### figma.connect() 기본 구조
@@ -341,7 +343,7 @@ Code Connect에 AI 에이전트용 사용 지침을 추가할 수 있다.
         props: { ... },
         example: ({ ... }) => ...,
         links: [
-            { name: 'Storybook', url: 'http://localhost:6007/?path=/story/ndsbutton' },
+            { name: 'Storybook', url: 'http://localhost:{config.storybookPort}/?path=/story/{component}' },
         ],
     })
 
@@ -352,16 +354,16 @@ Figma UI에서는 "Add instructions for MCP" 기능으로도 추가 가능:
 
 ### Publish
 
-    npx figma connect publish
+프로젝트 package.json의 figma 관련 scripts를 확인하여 실행한다.
+명령어는 변경될 수 있으므로 하드코딩하지 않고, 실행 전 package.json을 읽어 확인할 것.
 
 성공 시 Figma Dev Mode에서 해당 컴포넌트 선택 시 코드 스니펫이 표시된다.
 MCP Server에서도 CodeConnectSnippet으로 제공된다.
 
 ### 관리 명령어
 
-    npx figma connect publish      # 매핑 배포
-    npx figma connect unpublish    # 매핑 제거
-    npx figma connect create       # 대화형 매핑 파일 생성
+프로젝트 package.json scripts에 figma 관련 명령어(parse, publish, unpublish 등)가 정의되어 있다.
+실행 전 반드시 package.json을 읽어 최신 명령어를 확인할 것.
 
 ---
 

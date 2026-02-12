@@ -7,17 +7,59 @@
     입력: https://www.figma.com/design/{fileKey}?node-id={nodeId}&...
     추출: fileKey, nodeId
 
-### Figma MCP 호출
+### MCP 호출 (방식별)
 
-Figma MCP의 get_file 또는 get_node 함수로 컴포넌트 데이터를 요청한다.
 node-id를 지정하여 해당 컴포넌트만 조회한다 (페이지 전체 조회 금지 — 토큰 절약).
+
+#### Framelink MCP — 신규 컴포넌트 빌드용
+
+    도구: get_figma_data
+    입력: url (Figma URL), nodeId
+    응답: Compact YAML (~13KB) — 레이아웃, 색상, 폰트, componentProperties 포함
+    특징: componentProperties에 Figma variant 값(tone, variant, size) 포함
+    토큰: ~3.4K tokens
+    용도: 개별 컴포넌트를 처음 만들 때 (시각적 일치도 최고 79/100)
+
+#### Figma 공식 MCP + Code Connect — 화면 조립용
+
+    도구: get_design_context
+    입력: url (Figma URL)
+    응답: React 코드 + 디자인 토큰 + CodeConnectSnippet (~10.5KB)
+    특징: 등록된 컴포넌트는 import 경로+props가 바로 제공 → 코드베이스 탐색 불필요
+    토큰: ~2.6K tokens
+    용도: Code Connect 매핑된 컴포넌트들로 화면을 조립할 때
+
+#### Raw JSON (REST API curl) — 사용 금지
+
+    706KB(~176K 토큰) 응답으로 컨텍스트 폭발
+    숨김 요소(visible 플래그 없음) 오판으로 레이아웃 왜곡
+    시각적 일치도 최저(55/100)
 
 ### 추출 대상 데이터
 - variant property 이름과 값 목록
-- 각 변형의 fill/stroke 색상 (RGBA)
+- 각 변형의 fill/stroke 색상 (RGBA 또는 HEX)
 - 텍스트 스타일 (font-family, font-size, font-weight, line-height)
 - 레이아웃 정보 (padding, gap, border-radius)
 - 컴포넌트 Description ([MCP:ComponentSpec] 어노테이션 포함 여부 확인)
+- CodeConnectSnippet (공식 MCP 사용 시 — import 경로 + props 매핑)
+- 디자인 토큰 이름 (공식 MCP 사용 시 — text-secondary-default 등)
+
+### Figma 원본 이미지 다운로드
+
+MCP 구조 데이터와 함께 컴포넌트의 원본 렌더링 이미지를 다운로드한다.
+이 이미지는 Step 6(컴포넌트 생성) 시 시각적 참고 자료로 사용하고,
+Step 9(시각적 비교 루프)에서 비교 기준 이미지로 재사용한다.
+
+    Framelink MCP:
+        도구: download_figma_images
+        입력: nodeId, format: "png"
+        저장: temp/visual-comparison/{ComponentName}/figma-original.png
+
+    공식 MCP:
+        응답에 포함된 에셋 URL로 직접 다운로드 (7일 만료 — 즉시 저장)
+        저장: temp/visual-comparison/{ComponentName}/figma-original.png
+
+다운로드 실패 시: 경고 출력 후 진행. Step 9 시각적 비교 루프는 건너뛴다.
 
 ## Step 2: 어노테이션 파싱
 
@@ -43,15 +85,18 @@ node-id를 지정하여 해당 컴포넌트만 조회한다 (페이지 전체 �
 
 ### 탐색 순서
 
-#### 1순위: Code Connect 매핑 확인 (MCP 응답)
+#### 1순위: Code Connect 매핑 확인 (MCP 응답) — 최우선
+
 MCP 응답에 CodeConnectSnippet이 포함되어 있으면 해당 컴포넌트는 이미 등록되어 있다.
 - CodeConnectSnippet에 import 경로와 사용법이 포함됨
+- **Glob/Grep/Read 코드베이스 탐색을 하지 않는다** (도구 호출 92% 절감의 핵심)
 - 추가 탐색 없이 바로 사용 가능
 - 이 경우 Step 4~5를 건너뛰고 조립 단계로 진행
+- 단, props 인터페이스 확인이 필요하면 Read 1회만 허용
 
 #### 2순위: 로컬 코드베이스 탐색
 CodeConnectSnippet이 없는 경우 기존 방식으로 탐색한다.
-컴포넌트 경로(기본: shared/components/commons/ai-portal/)에서
+프로젝트 설정의 {config.componentPath} 에서
 동일 이름 또는 유사 용도의 컴포넌트를 검색한다.
 
 ### 판단 기준
@@ -82,10 +127,53 @@ CodeConnectSnippet이 없는 경우 기존 방식으로 탐색한다.
 ### 신규 생성 시
 Step 5로 진행한다.
 
-## Step 4: 디자인 토큰 매칭/생성
+## Step 4: 아이콘/에셋 다운로드
+
+### 목적
+MCP 방식과 무관하게 아이콘(IMAGE-SVG 타입)은 벡터 데이터가 응답에 포함되지 않는다.
+인라인 근사치 SVG를 생성하면 시각적 일치도가 크게 떨어진다 (실험 M10 아이콘 항목 8~13/25).
+실제 SVG 에셋을 다운로드하여 사용한다.
+
+### 대상 식별
+MCP 응답에서 아래 유형의 노드를 식별한다:
+- IMAGE-SVG 타입 노드 (아이콘, 로고, 일러스트)
+- 에셋 URL이 포함된 노드 (공식 MCP의 경우 7일 만료 URL)
+
+### 다운로드 방식
+
+#### Framelink MCP 사용 시
+
+    도구: download_figma_images
+    입력: nodeId, format: "svg"
+    저장: {config.assetPath}/icons/{icon-name}.svg
+
+#### 공식 MCP 사용 시
+응답에 포함된 에셋 URL로 직접 다운로드한다.
+단, URL은 7일 만료이므로 즉시 다운로드하여 로컬에 저장한다.
+
+### 다운로드 불가 시
+- placeholder SVG + TODO 주석을 남긴다
+- 결과 요약에 "placeholder {N}개 — 수동 에셋 제공 필요" 명시
+- 사용자에게 SVG 에셋 제공을 안내한다
+
+### 에셋 파일 구조
+
+    {config.assetPath}/
+    ├── icons/         # 아이콘 SVG
+    ├── logos/         # 로고 SVG
+    └── images/        # 아바타, 일러스트 등
+
+### 아이콘 소스 우선순위
+
+프로젝트 설정에 {config.iconSvgSource} 가 있으면 로컬 SVG 파일을 먼저 검색한다:
+1. {config.iconSvgSource} 에서 아이콘 이름으로 검색
+2. 있으면: 로컬 파일을 {config.assetPath}/icons/ 에 복사하여 사용
+3. 없으면: download_figma_images로 Figma에서 다운로드
+
+## Step 5: 디자인 토큰 매칭/생성
 
 ### tokens.json 경로
-    shared/styles/tokens.json
+    {config.tokensPath}
 
 ### 절차
 1. tokens.json 읽기 (없으면 빈 객체 {} 로 생성)
@@ -106,7 +194,12 @@ Step 5로 진행한다.
     radius.{component}: "{value}"            (예: radius.button)
     font.weight.{name}: "{value}"            (예: font.weight.normal)
 
-## Step 5: React 컴포넌트 생성 또는 수정
+## Step 6: React 컴포넌트 생성 또는 수정
+
+### 시각적 참조
+Step 1에서 다운로드한 Figma 원본 이미지(temp/visual-comparison/{ComponentName}/figma-original.png)를
+참고하면서 코드를 작성한다. MCP 구조 데이터만으로는 놓칠 수 있는 시각적 디테일(간격, 비율, 정렬 등)을
+이미지를 보면서 확인한다.
 
 ### 기술 스택
 - @headlessui/react: 접근성 보장 기본 컴포넌트
@@ -115,7 +208,7 @@ Step 5로 진행한다.
 - TypeScript: 타입 안전성
 
 ### 파일 구조
-    shared/components/commons/ai-portal/
+    {config.componentPath}/
     ├── {ComponentName}.tsx   # 컴포넌트
     └── index.ts              # barrel export
 
@@ -146,16 +239,16 @@ Step 5로 진행한다.
 
 ### 주의사항
 - forwardRef 패턴 필수
-- Nds 접두사 필수 (NdsButton, NdsInput 등)
+- {config.componentPrefix} 접두사 필수 (예: NdsButton, NdsInput)
 - interface와 컴포넌트 모두 export
 - index.ts에서 barrel export
 - hover/focus/active는 Tailwind pseudo-class(hover:, focus:, active:)로만 처리
 - disabled는 Headless UI의 disabled prop + disabled: pseudo-class
 
-## Step 6: Storybook 스토리 생성
+## Step 7: Storybook 스토리 생성
 
 ### 경로
-    temp/ai-portal-storybook/stories/{ComponentName}.stories.tsx
+    {config.storybookPath}/stories/{ComponentName}.stories.tsx
 
 ### 필수 스토리
 1. **Default**: 기본 상태
@@ -168,16 +261,27 @@ Step 5로 진행한다.
 - CustomContent: 슬롯 콘텐츠
 
 ### Storybook 설정
-- 포트: 6007
+- 포트: {config.storybookPort}
 - .storybook/main.ts: @storybook/react-vite + @tailwindcss/vite 플러그인
 - .storybook/preview.ts: globals.css import
-- globals.css: @import "tailwindcss" + @source 디렉티브
+- globals.css: 아래 템플릿 필수 (없으면 Tailwind 임의값 클래스가 생성되지 않음)
+
+### globals.css 템플릿 (필수)
+
+    @import "tailwindcss";
+    @source "./*.tsx";
+    @source "./stories/*.tsx";
+    @source "{config.componentPath 로의 상대경로}/*.tsx";
+
+CRITICAL: @source 디렉티브가 없으면 bg-[#1D1F20], w-[280px] 등 Tailwind 임의값 클래스가
+CSS에 포함되지 않아 스타일이 적용되지 않는다.
+@source 경로는 globals.css 위치 기준 상대경로로, {config.componentPath}를 가리켜야 한다.
 
 ### import 주의
 - render 함수 사용 시 import React from 'react' 필수
 - 컴포넌트는 상대경로로 import
 
-## Step 7: Playwright E2E 테스트
+## Step 8: Playwright E2E 테스트
 
 ### 실행 방식
 Playwright MCP (browser_run_code)를 사용한다. npx playwright test가 아님.
@@ -206,19 +310,121 @@ Playwright MCP (browser_run_code)를 사용한다. npx playwright test가 아님
 - TC-{PREFIX}-011: Disabled 시 cursor: not-allowed
 
 ### 스토리 URL 패턴
-    http://localhost:6007/iframe.html?id={story-id}&viewMode=story
+    http://localhost:{config.storybookPort}/iframe.html?id={story-id}&viewMode=story
 
 ### loadStory 헬퍼 패턴
 
     async function loadStory(page, storyId) {
-        await page.goto(`http://localhost:6007/iframe.html?id=${storyId}&viewMode=story`, {
+        const port = {config.storybookPort}
+        await page.goto(`http://localhost:${port}/iframe.html?id=${storyId}&viewMode=story`, {
             waitUntil: 'networkidle',
             timeout: 15000
         })
         await page.waitForSelector('#storybook-root', { timeout: 10000 })
     }
 
-## Step 8: Code Connect 매핑 등록
+## Step 9: 시각적 비교 루프 (Storybook ↔ Figma)
+
+### 목적
+Storybook에 렌더링된 컴포넌트와 Figma 원본 디자인을 시각적으로 비교하여,
+차이가 있으면 컴포넌트 코드를 수정하고 다시 비교하는 과정을 반복한다.
+Claude의 비전 기능으로 두 이미지를 직접 비교하여 피드백을 생성한다.
+
+### 반복 제한
+- 기본 최대 반복 횟수: 10회
+- 사용자 설정: {config.maxVisualComparisonLoops} (config에 지정 시 해당 값 사용)
+- 조기 종료: 시각적으로 동일하다고 판단되면 즉시 루프 종료
+
+### 전제 조건
+- Step 1에서 다운로드한 Figma 원본 이미지가 존재해야 한다:
+  temp/visual-comparison/{ComponentName}/figma-original.png
+- 원본 이미지가 없으면 이 Step을 건너뛴다 (Step 1에서 다운로드 실패한 경우)
+
+### 절차
+
+#### 9-1. Storybook 스크린샷 캡처
+
+Playwright MCP로 Storybook의 Default 스토리를 스크린샷한다:
+
+    도구: browser_take_screenshot
+    대상: http://localhost:{config.storybookPort}/iframe.html?id={story-id}&viewMode=story
+    저장: temp/visual-comparison/{ComponentName}/storybook-loop-{N}.png
+
+스크린샷 전에 페이지가 완전히 로드되었는지 확인한다:
+- waitUntil: 'networkidle'
+- #storybook-root 하위 요소가 렌더링될 때까지 대기
+
+#### 9-2. 시각적 비교 및 피드백 생성
+
+두 이미지를 나란히 분석하여 차이점을 식별한다:
+
+    비교 항목:
+    - 색상: 배경색, 텍스트색, 보더색이 원본과 일치하는지
+    - 크기/비율: 패딩, 높이, 너비, gap이 원본과 유사한지
+    - 타이포그래피: 폰트 크기, 굵기, 행간이 원본과 일치하는지
+    - 레이아웃: 정렬, 간격, 요소 배치가 원본과 일치하는지
+    - 보더: border-radius, border-width, border-style이 일치하는지
+    - 아이콘/에셋: 위치와 크기가 원본과 일치하는지
+
+    판정 기준:
+    - PASS: 모든 항목에서 시각적으로 동일 → 루프 종료
+    - FAIL: 하나 이상의 항목에서 차이 발견 → 수정 진행
+
+    피드백 형식:
+    ## 시각적 비교 루프 {N}/{maxLoops}
+
+    ### 판정: PASS / FAIL
+
+    ### 차이점 (FAIL 시)
+    - [색상] 배경색이 Figma #1D1F20 vs Storybook #2A2D2F → toneVariantStyles 수정 필요
+    - [크기] 패딩이 Figma 12px 16px vs Storybook 8px 12px → size 스타일 맵 수정 필요
+    - [레이아웃] 아이콘과 텍스트 간격이 Figma 8px vs Storybook 4px → gap 값 수정 필요
+
+#### 9-3. 컴포넌트 수정 (FAIL 시)
+
+피드백에 기반하여 코드를 수정한다:
+
+    수정 대상 (우선순위):
+    1. 스타일 맵 값 (toneVariantStyles, sizeStyles 등)
+    2. Tailwind 클래스 (패딩, gap, border-radius 등)
+    3. 레이아웃 구조 (flex 방향, 정렬 등)
+    4. 토큰 값 (tokens.json의 HEX 값이 잘못된 경우)
+
+    수정 범위 제한:
+    - 피드백에서 지적된 항목만 수정한다
+    - 인터페이스(props)는 변경하지 않는다
+    - 기존 Storybook 스토리 구조는 유지한다
+
+수정 후 Storybook이 자동 리로드되면 Step 9-1로 돌아가 다시 스크린샷한다.
+
+#### 9-4. 루프 종료 조건
+
+아래 중 하나라도 충족되면 루프를 종료한다:
+
+    1. PASS 판정: 시각적으로 동일 → 성공 종료
+    2. 최대 반복 도달: {config.maxVisualComparisonLoops}회 소진 → 경고와 함께 종료
+    3. 더 이상 개선 불가: 연속 2회 동일한 차이점 반복 → 한계 도달로 종료
+
+### 루프 결과 기록
+
+루프 종료 후 결과를 기록한다 (Step 11 결과 요약에 포함):
+
+    ### 시각적 비교
+    - 결과: PASS / FAIL (최대 반복 도달) / FAIL (개선 한계)
+    - 반복 횟수: {N}/{maxLoops}
+    - 수정 이력:
+      - 루프 1: [색상] 배경색 #2A2D2F → #1D1F20
+      - 루프 2: [크기] 패딩 8px 12px → 12px 16px
+      - ...
+    - 최종 스크린샷: temp/visual-comparison/{ComponentName}/storybook-loop-{N}.png
+
+### 임시 파일 정리
+
+비교에 사용된 임시 파일은 결과 확인 후 정리한다:
+- temp/visual-comparison/ 디렉토리는 사용자 확인 후 삭제
+- 최종 PASS 스크린샷만 보존할지 사용자에게 확인
+
+## Step 10: Code Connect 매핑 등록
 
 ### 목적
 생성된 컴포넌트를 Figma Code Connect에 등록하여,
@@ -240,17 +446,17 @@ Playwright MCP (browser_run_code)를 사용한다. npx playwright test가 아님
 2. figma.connect()로 Figma 노드 URL과 코드 컴포넌트 연결
 3. props 매핑 (figma.enum, figma.boolean, figma.string 등)
 4. example 함수로 사용 예시 작성
-5. npx figma connect publish로 배포
+5. 프로젝트 package.json의 figma 관련 scripts를 확인하여 publish 실행 (명령어가 변경될 수 있음)
 6. 상세 규칙은 code_connect_workflow.md 참조
 
 ### 파일 구조
 
-    shared/components/commons/ai-portal/
-    ├── NdsButton.tsx           # 컴포넌트
-    ├── NdsButton.figma.tsx     # Code Connect 매핑
+    {config.componentPath}/
+    ├── {Prefix}Button.tsx           # 컴포넌트
+    ├── {Prefix}Button.figma.tsx     # Code Connect 매핑
     └── index.ts
 
-## Step 9: 결과 요약
+## Step 11: 결과 요약
 
 모든 단계 완료 후 아래 형식으로 보고:
 
@@ -268,6 +474,11 @@ Playwright MCP (browser_run_code)를 사용한다. npx playwright test가 아님
     ### 테스트
     - {N} passed, {N} failed
 
+    ### 시각적 비교
+    - 결과: PASS / FAIL (최대 반복 도달) / FAIL (개선 한계) / SKIP (원본 이미지 없음)
+    - 반복 횟수: {N}/{maxLoops}
+    - 수정 이력: (있을 경우 루프별 변경 내역)
+
     ### 한계/주의
     - {발견된 이슈 목록}
 
@@ -280,7 +491,7 @@ Playwright MCP (browser_run_code)를 사용한다. npx playwright test가 아님
 1. 화면 MCP 데이터 추출
 2. 컴포넌트 인벤토리 생성 (연결됨/미연결 분류)
 3. 사용자 확인
-4. 미연결 컴포넌트 자동 빌드 (리프부터 Bottom-up, 각각 Step 1~8 실행)
+4. 미연결 컴포넌트 자동 빌드 (리프부터 Bottom-up, 각각 Step 1~10 실행)
 5. 화면 조립
 6. 결과 요약
 
@@ -295,8 +506,8 @@ Playwright MCP (browser_run_code)를 사용한다. npx playwright test가 아님
 - claude mcp add 명령어 안내
 
 ### Storybook 미실행
-- "Storybook이 포트 6007에서 실행 중이어야 합니다" 안내
-- 실행 명령: cd temp/ai-portal-storybook && npx storybook dev -p 6007
+- "Storybook이 포트 {config.storybookPort}에서 실행 중이어야 합니다" 안내
+- 프로젝트 package.json의 storybook 관련 scripts를 확인하여 실행 (명령어가 변경될 수 있음)
 
 ### Playwright MCP 브라우저 충돌
 - 기존 브라우저 세션 닫기 안내
