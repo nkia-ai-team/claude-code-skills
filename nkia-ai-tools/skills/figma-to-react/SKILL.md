@@ -17,11 +17,39 @@ description: Figma MCP에서 컴포넌트 데이터를 추출하여 Headless UI 
 3. [파이프라인 상세 워크플로우](references/pipeline_workflow.md) — Step별 상세 절차
 4. [디자인 토큰 관리 규칙](references/design_tokens.md)
 5. [Code Connect 워크플로우](references/code_connect_workflow.md)
+6. [QA Phase 워크플로우](references/qa_phase.md) — 독립 QA 서브에이전트 검증
+7. [알려진 함정 목록](references/known_pitfalls.md) — 실험에서 발견된 구체적 함정 빠른 참조
 
 ## 사용법
 
-    /figma-to-react <figma-node-url>
-    /figma-to-react https://www.figma.com/design/XXXX?node-id=1234-5678
+### 신규 생성 (기본)
+
+    /figma-to-react <figma-url> [figma-spec-url]
+
+    # 컴포넌트 신규 빌드
+    /figma-to-react https://...?node-id=1234-5678
+
+    # 화면 신규 빌드
+    /figma-to-react https://...?node-id=5678-1234
+
+    # 기획 스펙 보강 (선택 — 두 번째 URL)
+    /figma-to-react https://...?node-id=1234-5678 https://...?node-id=2811-65001
+
+### 증분 추가 (-a)
+
+    /figma-to-react <컴포넌트가-추가된-화면-url> -a [figma-spec-url]
+
+    # 이미 빌드한 화면에 새 컴포넌트가 추가된 경우
+    # 기존 화면 코드를 찾아서, 새 컴포넌트만 빌드 + 기존 코드에 삽입
+    /figma-to-react https://...?node-id=5678-1234 -a
+
+### 화면 업데이트 (-u)
+
+    /figma-to-react <변경된-화면-url> -u [figma-spec-url]
+
+    # 기존 화면의 레이아웃/컴포넌트가 변경된 경우
+    # Figma ↔ 기존 코드를 비교하여 변경 사항만 반영
+    /figma-to-react https://...?node-id=5678-1234 -u
 
 ## MCP 전략
 
@@ -41,28 +69,49 @@ description: Figma MCP에서 컴포넌트 데이터를 추출하여 Headless UI 
 
 ### 컴포넌트 단위
 
-    1. Figma MCP 데이터 추출 → 2. 어노테이션 파싱 → 3. 기존 컴포넌트 탐색
-    → 4. 아이콘/에셋 다운로드 → 5. 디자인 토큰 매칭 → 6. React 컴포넌트 생성
-    → 7. Storybook 스토리 → 8. Playwright 테스트 → 9. 시각적 비교 루프
-    → 10. Code Connect 등록 → 11. 결과 요약
+    1. Figma MCP 데이터 추출 → 1.5. 기획 스펙 보강 → 2. 어노테이션 파싱
+    → 3. 기존 컴포넌트 탐색 → 4. 아이콘/에셋 다운로드 → 5. 디자인 토큰 매칭
+    → 6. React 컴포넌트 생성 → 6.5. 인터랙션 연결 → 7. Storybook 스토리
+    → 8. QA Phase (독립 서브에이전트 3개 병렬 검증 + Dev 수정 루프)
+    → 9. Code Connect 등록 → 10. 결과 요약
 
-### 화면 수준 (Top-down)
+### 화면 수준 — 신규 (Top-down)
 
-    1. 화면 MCP 추출 → 2. 컴포넌트 인벤토리 → 3. 사용자 확인
-    → 4. 에셋 일괄 다운로드 → 5. 미연결 컴포넌트 빌드 (Bottom-up)
-    → 6. 화면 조립 → 7. 결과 요약
+    1. 화면 MCP 추출 → 1.5. 기획 스펙 보강 → 2. 컴포넌트 인벤토리
+    → 3. 사용자 확인 → 4. 에셋 일괄 다운로드
+    → 5. 미연결 컴포넌트 빌드 (Bottom-up, QA Phase 포함) → 6. 화면 조립 → 7. 결과 요약
+
+### 화면 수준 — 증분 추가 (-a)
+
+    1. 화면 MCP 추출 → 1.5. 기획 스펙 보강 → 2. 기존 코드 탐색
+    → 3. 신규/기존 컴포넌트 분류 → 4. 신규 컴포넌트만 빌드
+    → 5. 기존 화면 코드에 삽입 → 6. 결과 요약
+
+### 화면 수준 — 업데이트 (-u)
+
+    1. 화면 MCP 추출 → 1.5. 기획 스펙 보강 → 2. 기존 코드 탐색
+    → 3. Figma ↔ 코드 diff → 4. 변경 사항 분류 (추가/수정/삭제)
+    → 5. 변경 사항 적용 → 6. 결과 요약
 
 ## 핵심 규칙 요약
 
 - 재사용 우선: Code Connect 매핑 → 로컬 탐색 → 신규 생성 순. props 50% 이상 공유하면 재사용
 - 과잉 생성 방지: 어노테이션 없으면 사용자에게 범위 확인. State(interaction)은 CSS pseudo만
 - 아이콘: 근사치 SVG 금지. {config.iconSvgSource} 에서 실제 SVG 사용 또는 download_figma_images로 다운로드
-- 디자인 토큰: {config.tokensPath} 에서 중복 검색 후 재사용 또는 신규 생성. 임의값(bg-[#HEX]) 금지
+- 디자인 토큰: **config.designTeamTokens 기존 토큰 우선 참조 (MUST)**. {config.tokensPath} 에서 중복 검색 후 재사용 또는 신규 생성. 임의값(bg-[#HEX]) 금지. 독자적 토큰 구조 생성 금지
 - 컴포넌트: @headlessui/react + Tailwind v4 + clsx. {config.componentPrefix} 접두사. forwardRef 필수
 - Storybook: globals.css에 @source 디렉티브 필수. 실행 명령은 프로젝트 package.json 참조
-- Code Connect: .figma.tsx 매핑 생성. publish 명령은 프로젝트 package.json 참조
-- Playwright: browser_run_code 사용. #storybook-root 하위 셀렉터만
-- 시각적 비교: Storybook 스크린샷 ↔ Figma 이미지 비교 후 차이가 있으면 컴포넌트 수정 반복. 기본 최대 {config.maxVisualComparisonLoops} 회 (기본값 10)
+- 컴포넌트 완전성: **모든 Figma variant를 빠짐없이 구현** (일부만 구현 금지). 디자이너가 라이브러리 등록하려면 완벽한 컴포넌트 필요
+- Code Connect: .figma.tsx 매핑 생성. **모든 variant를 동적으로 매핑** (빈 props/{} 금지, 하드코딩 예시 금지). **Figma property만 매핑** (텍스트 콘텐츠는 figma.string() 대상 아님). **variant restriction은 단일 값만** (배열 불가). publish 전 parse + 프로퍼티명 검증 필수. publish 명령은 프로젝트 package.json 참조
+- QA Phase: Dev 완료 후 **독립 QA 서브에이전트 3개를 Task 도구로 병렬 실행** (QA-기능/QA-시각적/QA-토큰). 자기 테스트 금지 원칙. Playwright zoom 확대 검증. 미미한 차이도 타협 금지. QA FAIL → Dev 수정 → 재검증 (최대 3루프). 3루프 미해결 시 사용자 에스컬레이션. **매 루프마다 사용자에게 표 형식 보고**
+- 에셋: **근사치 생성 절대 금지** (텍스트/유니코드 대체 금지). 로고/비정사각 SVG는 NdsIcon 대신 raw import 사용
+- SVG: **fill → currentColor 변환 필수** (어두운 배경에서 아이콘이 보이지 않는 문제 방지)
+- 기획 스펙: 기획 URL 제공 시 인터랙션 플로우, 데이터 제약, 비즈니스 룰을 추출하여 컴포넌트 구현에 반영 (Step 1.5). 미제공 시 건너뛰기
+- 인터랙션: Figma variant 기반 인터랙션(isFocused, isCollapsed 등) 분석 및 연결 필수 (Step 6.5). 기획 스펙이 있으면 기획서 인터랙션도 반영
+- 레이아웃: **중첩 패딩 구조 반영** (중첩 프레임의 padding을 하나로 합치지 않는다). scrollbar 기본 숨김 (`[scrollbar-width:none]`). 형제 요소 너비 비율 반영
+- 증분 모드: `-a`는 새 컴포넌트만 빌드+삽입, `-u`는 Figma↔코드 diff 후 변경분만 반영. 기존 코드를 처음부터 다시 쓰지 않는다
+- 구조적 추출: MCP 데이터에서 레이아웃 중첩, 형제 비율, fill 전수조사를 체계적으로 수행 (Step 1-5)
+- 함정 목록: [known_pitfalls.md](references/known_pitfalls.md) — 실험에서 발견된 구체적 함정 빠른 참조
 
 ## 프로젝트 설정 파일 (.figma-to-react.config.md)
 
@@ -76,8 +125,8 @@ description: Figma MCP에서 컴포넌트 데이터를 추출하여 Headless UI 
     - storybookPort: Storybook 포트
     - assetPath: 에셋 출력 경로 (icons/, logos/, images/)
 
-    ## 시각적 비교
-    - maxVisualComparisonLoops: 시각적 비교 루프 최대 반복 횟수 (기본값: 10)
+    ## QA
+    - maxQALoops: QA → Dev 수정 루프 최대 반복 횟수 (기본값: 3)
 
     ## 아이콘
     - iconSvgSource: SVG 원본 경로

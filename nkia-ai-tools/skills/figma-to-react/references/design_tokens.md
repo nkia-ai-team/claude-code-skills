@@ -1,5 +1,54 @@
 # 디자인 토큰 관리 규칙
 
+## 기존 토큰 파일 우선 참조 (CRITICAL — 최우선 규칙)
+
+config.designTeamTokens에 디자인팀 관리 토큰 파일 경로가 설정되어 있으면,
+**이 파일을 반드시 먼저 읽고** 기존 구조와 값을 파악한 후 작업한다.
+
+### 왜 중요한가
+
+실험에서 기존 토큰 파일(HSL 형식, 36KB, 카테고리 구조)을 무시하고
+독자적인 flat HEX 구조로 새 토큰을 생성하여 다음 문제가 발생했다:
+- 기존 토큰과 구조/형식 완전 불일치
+- 사용자가 수동으로 토큰 전체를 재매핑해야 함
+- 컴포넌트가 기존 디자인 시스템 토큰과 단절됨
+
+### 절차
+
+1. config.designTeamTokens 파일 Read (MUST)
+2. 기존 토큰의 형식 파악 (HSL / HEX / RGB / CSS 변수)
+3. 기존 토큰의 네이밍 체계 파악 (카테고리, 계층 구조)
+4. 기존 토큰의 값을 HEX로 변환하여 매칭 테이블 준비
+
+### HSL → HEX 변환 절차
+
+디자인팀 토큰이 HSL 형식인 경우 HEX로 변환하여 MCP 추출값과 비교한다:
+
+    변환: hsl(H, S%, L%) → HEX
+    1. H, S, L을 0~1 범위로 정규화
+    2. chroma = (1 - |2L - 1|) × S
+    3. RGB 각 채널 계산
+    4. HEX 변환
+
+    예시: hsl(195, 4%, 67%) → #A5ABAE
+    비교: MCP 추출 #ABB2B5 → ΔE ≈ 3.2 → 동일 토큰으로 취급
+
+### 유사도 판정 기준
+
+    정확 일치: HEX 값이 동일 (대소문자 무시) → 무조건 재사용
+    근사 일치: ΔE < 5 (색차 공식) → 기존 토큰 재사용 (MCP 추출값이 근사치일 수 있음)
+    불일치: ΔE ≥ 5 → 신규 토큰 생성 가능
+
+### 독자적 구조 생성 금지
+
+    ❌ config.designTeamTokens를 읽지 않고 작업 시작
+    ❌ 기존 토큰과 다른 네이밍 체계 사용 (예: 기존 카테고리가 color.text.primary인데 color.primary.text로 변경)
+    ❌ 기존 토큰 파일의 계층 구조를 flat으로 변환
+
+    기존 구조와 다른 구조가 불가피한 경우:
+    → 사용자에게 확인 후 진행
+    → "기존 토큰이 {구조}인데 다른 구조로 만들어야 합니다. 진행할까요?"
+
 ## tokens.json 경로
 
 프로젝트 설정 파일(.figma-to-react.config.md)의 `tokensPath` 값을 사용한다.
@@ -12,14 +61,15 @@
 
 ### 절차
 
-1. tokens.json 읽기
-2. Figma MCP에서 추출한 RGBA를 HEX로 변환
-3. 기존 토큰에서 동일 HEX 검색
+1. config.designTeamTokens 파일 읽기 (MUST — 있는 경우)
+2. tokens.json 읽기
+3. Figma MCP에서 추출한 RGBA를 HEX로 변환
+4. 기존 토큰(designTeamTokens + tokens.json)에서 동일/유사 HEX 검색
    - 있으면: 기존 토큰 이름 재사용
-   - 없으면: 시맨틱 이름으로 신규 토큰 생성
-4. 사이즈, border-radius, font-weight 등도 동일 절차
-5. tokens.json 업데이트 (신규 토큰만 추가, 기존 값 수정 금지)
-6. 변경 사항을 결과 요약에 포함
+   - 없으면: 시맨틱 이름으로 신규 토큰 생성 (기존 네이밍 체계 준수)
+5. 사이즈, border-radius, font-weight 등도 동일 절차
+6. tokens.json 업데이트 (신규 토큰만 추가, 기존 값 수정 금지)
+7. 변경 사항을 결과 요약에 포함
 
 ## RGBA → HEX 변환
 

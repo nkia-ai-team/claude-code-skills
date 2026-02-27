@@ -263,6 +263,26 @@ figma.instance()가 참조하는 자식 컴포넌트가 아직 등록되지 않�
 
 ## .figma.tsx 매핑 파일 작성 규칙
 
+### 완전 매핑 원칙 (CRITICAL)
+
+.figma.tsx 파일은 컴포넌트의 **모든 Figma property를 빠짐없이** 매핑한다.
+최소한의 스텁(빈 props, 하드코딩 예시)은 허용하지 않는다.
+
+    디자이너가 라이브러리에 등록해주는 전제조건:
+    1. 컴포넌트가 모든 variant를 완벽히 구현했을 것 (Step 6)
+    2. Code Connect가 모든 variant를 동적으로 매핑할 것 (이 규칙)
+    3. 디자이너가 Figma에서 variant를 바꾸면 코드 스니펫이 자동으로 바뀔 것
+
+    잘못된 매핑 (실험에서 발견):
+    ❌ props: {} — 빈 객체, 어떤 variant를 선택해도 같은 코드
+    ❌ example: () => <NdsMenuItem active>Menu</NdsMenuItem> — 하드코딩, 동적 변화 없음
+
+    올바른 매핑:
+    ✅ 모든 variant → figma.enum()
+    ✅ 모든 boolean → figma.boolean()
+    ✅ 모든 Text property → figma.string()
+    ✅ example에서 모든 props 사용
+
 ### 파일 위치
 
 컴포넌트 파일과 동일 디렉토리에 .figma.tsx 확장자로 생성:
@@ -311,9 +331,28 @@ figma.instance()가 참조하는 자식 컴포넌트가 아직 등록되지 않�
 |---------------------|-------------------|------|
 | Variant (enum) | figma.enum() | tone, variant, size 등 선택지 |
 | Boolean | figma.boolean() | disabled, loading 등 토글 |
-| Text | figma.string() | label, placeholder 등 텍스트 |
+| Text | figma.string() | label, placeholder 등 **Figma Text property만** |
 | Instance swap | figma.instance() | 아이콘 등 중첩 컴포넌트 |
 | Instance children | figma.children() | 탭, 리스트 아이템 등 자식 |
+
+### figma.string() 매핑 규칙 (CRITICAL)
+
+figma.string()은 **Figma 컴포넌트의 Text property로 정의된 것만** 매핑한다.
+텍스트 콘텐츠(화면에 보이는 정적 텍스트)와 Figma property는 다르다.
+
+    올바른 사용:
+    ✅ figma.string('Label')    — Figma에 "Label" Text property가 정의되어 있을 때
+    ✅ figma.string('Placeholder') — Figma에 "Placeholder" Text property가 정의되어 있을 때
+
+    잘못된 사용 (실험에서 publish 실패 원인):
+    ❌ figma.string('title')       — "title"은 Figma property가 아닌 텍스트 콘텐츠
+    ❌ figma.string('description')  — "description"은 Figma property가 아닌 텍스트 콘텐츠
+    ❌ figma.string('menuItem')     — "menuItem"은 Figma property가 아닌 데이터
+
+    확인 방법:
+    1. MCP 응답의 componentProperties 섹션에서 type: "TEXT"인 프로퍼티 확인
+    2. componentProperties에 없는 이름은 figma.string()으로 매핑 불가
+    3. 정적 텍스트는 example 함수에서 직접 하드코딩
 
 ### Variant Restriction
 
@@ -334,6 +373,21 @@ variant 조건으로 각각 매핑한다:
         example: ({ label }) => <NdsButton>{label}</NdsButton>,
     })
 
+### Variant Restriction 제한사항 (CRITICAL)
+
+variant restriction 값은 **단일 문자열만** 지원한다. 배열을 사용하면 publish가 실패한다.
+
+    올바른 사용:
+    ✅ variant: { ContentType: 'iconOnly' }    — 단일 값
+    ✅ variant: { Tone: 'primary' }            — 단일 값
+
+    잘못된 사용 (publish 실패 원인):
+    ❌ variant: { ContentType: ['none', 'start', 'end'] }  — 배열 미지원
+    ❌ variant: { Size: ['sm', 'md'] }                      — 배열 미지원
+
+    여러 값을 매칭하려면: 별도의 figma.connect() 호출로 각각 매핑하거나,
+    해당 variant restriction을 생략한다 (전체 variant에 매핑)
+
 ### MCP Instructions 추가
 
 Code Connect에 AI 에이전트용 사용 지침을 추가할 수 있다.
@@ -352,6 +406,38 @@ Figma UI에서는 "Add instructions for MCP" 기능으로도 추가 가능:
 - 특수 사용 패턴 (예: "NdsButton은 form submit에만 type='submit' 사용")
 - 금지 사항 (예: "tone='danger'는 삭제 액션에만 사용할 것")
 
+### Publish 전 검증 절차 (MUST)
+
+publish 실행 전에 아래 검증을 수행한다. 실험에서 publish가 4회 이상 재시도된 원인이 모두 이 검증으로 방지 가능했다.
+
+#### 1단계: figma connect parse 실행
+
+    프로젝트 package.json의 figma:parse 또는 유사 scripts를 실행하여
+    .figma.tsx 파일의 문법 오류를 사전 검증한다.
+
+    오류 없으면 다음 단계로 진행.
+    오류 있으면 수정 후 재검증.
+
+#### 2단계: Figma 프로퍼티명 정확성 검증
+
+MCP 응답의 componentProperties에서 추출한 **정확한 프로퍼티명**과 .figma.tsx의 매핑을 대조한다:
+
+    검증 항목:
+    1. figma.enum('PropertyName')의 PropertyName이 componentProperties에 존재하는가
+    2. figma.boolean('PropertyName')의 PropertyName이 componentProperties에 존재하는가
+    3. figma.string('PropertyName')의 PropertyName이 componentProperties에 type:"TEXT"로 존재하는가
+    4. figma.enum() 내부의 키(Figma 값)가 실제 variant 옵션과 일치하는가
+    5. 프로퍼티명에 오타가 없는가 (예: 'varient' → 'variant')
+
+    오타 방지:
+    - MCP 응답에서 프로퍼티명을 복사하여 사용 (직접 타이핑 지양)
+    - 대소문자 정확히 일치 (Figma는 대소문자 구분)
+
+#### 3단계: variant restriction 검증
+
+    - restriction 값이 단일 문자열인지 확인 (배열 사용 금지)
+    - restriction 값이 해당 variant의 실제 옵션에 포함되는지 확인
+
 ### Publish
 
 프로젝트 package.json의 figma 관련 scripts를 확인하여 실행한다.
@@ -359,6 +445,19 @@ Figma UI에서는 "Add instructions for MCP" 기능으로도 추가 가능:
 
 성공 시 Figma Dev Mode에서 해당 컴포넌트 선택 시 코드 스니펫이 표시된다.
 MCP Server에서도 CodeConnectSnippet으로 제공된다.
+
+### Publish 실패 시 대응
+
+publish가 실패하면 에러 메시지를 분석하여 원인을 파악한다:
+
+    일반적인 실패 원인:
+    1. 프로퍼티명 불일치 → 2단계 검증 재수행
+    2. variant restriction 배열 사용 → 단일 값으로 변경
+    3. 존재하지 않는 Figma property 참조 → figma.string() 매핑 제거
+    4. 문법 오류 → parse로 사전 확인
+    5. 인증 만료 → PAT 토큰 갱신
+
+    재시도 제한: 최대 2회. 2회 실패 시 사용자에게 에러 내용을 보여주고 도움을 요청한다.
 
 ### 관리 명령어
 

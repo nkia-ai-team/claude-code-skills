@@ -61,8 +61,14 @@ Figma 컴포넌트의 Description 또는 별도 텍스트 레이어에 아래 �
 ### 어노테이션 없음 (폴백)
 1. Figma variant property를 분석하여 props 추론
 2. state 관련 property(default, hover, pressed, focused)는 CSS pseudo로 처리
-3. **사용자에게 구현 범위 확인** (과잉 생성 방지)
-4. contentType 등 prop 값이 있더라도 실제 디자인 존재 여부 확인 필요
+3. **인터랙션 variant 식별 및 분류**:
+   - CSS pseudo로 처리할 것: hover, focus, active, pressed (state property의 값)
+   - React state로 처리할 것: isFocused, isCollapsed, isExpanded, isSelected, isOpen
+   - 조건부 렌더링: theme, mode, visibility 등
+   - 판단 기준: variant 이름이 "is"로 시작하거나 boolean 타입이면 React state 후보
+4. **사용자에게 구현 범위 확인** (과잉 생성 방지)
+   - "인터랙션 variant {목록}이 발견되었습니다. 구현할까요?"
+5. contentType 등 prop 값이 있더라도 실제 디자인 존재 여부 확인 필요
 
 ## 예시: Button 컴포넌트
 
