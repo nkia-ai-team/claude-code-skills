@@ -1,6 +1,6 @@
 {
   "name": "nkia-ai-tools",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "NKIA-AI 팀 개발 워크플로우 도구 모음 - 코드 리뷰, Linear 이슈 관리, 커밋 자동화",
   "author": {
     "name": "NKIA-AI Team"
