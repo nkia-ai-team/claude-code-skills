@@ -38,10 +38,7 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 - **Specific and concise** (avoid vague terms)
 - **Clear scope and impact**
 
-`AskUserQuestion`으로 확인:
-- 질문: "제안된 제목: 'WSS 데이터셋 수집 및 검증' — 이 제목으로 진행하시겠습니까?"
-- 선택지: "이 제목으로 진행", "제목 수정"
-- 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
+사용자에게 묻지 않고 개선된 제목을 바로 적용합니다.
 
 ## Step 3: Collect Template-Specific Details with DoD/AC
 
@@ -112,10 +109,7 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 [마크다운 내용]
 --------------
 
-`AskUserQuestion`으로 확인:
-- 질문: "이대로 생성하시겠습니까?"
-- 선택지: "이대로 생성", "수정 후 생성"
-- 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
+미리보기 확인 없이 바로 생성합니다. 수정이 필요하면 Linear에서 직접 수정합니다.
 ```
 
 ## Step 6: Create the Issue

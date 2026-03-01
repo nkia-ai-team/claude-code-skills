@@ -9,6 +9,7 @@ description: Update evidence on Linear issue AC items — check completed items 
 
 **BEFORE updating any evidence, you MUST read:**
 - [guideline-ref.md](../_shared/guideline-ref.md) — 이슈 상태, AC 항목 형식, AI-Verification Loop
+- [evidence_gathering_methods.md](references/evidence_gathering_methods.md) — 증빙 유형 식별 및 수집 방법
 
 **증빙 업데이트 시 반드시 가이드라인의 AC 형식을 따라야 합니다.**
 
@@ -19,6 +20,8 @@ description: Update evidence on Linear issue AC items — check completed items 
 완료된 작업에 대해 AC 항목의 체크박스를 체크하고 증빙 자료를 첨부하는 스킬입니다.
 
 **하는 일:**
+- 완료된 AC 항목 자동 판단
+- AC에 명시된 증빙 유형에 따라 실제 증빙 수집 (PR 조회, 테스트 실행, 스크린샷 캡처 등)
 - AC 항목 체크 (`[ ]` → `[x]`)
 - 증빙 자료 첨부 (`→ 결과물:` 뒤에 실제 링크/경로 삽입)
 
@@ -69,23 +72,33 @@ Description에서 AC 항목을 파싱합니다.
 
     ===========================
 
-### Step 5: Collect Evidence
+### Step 5: Determine Completed Items
 
-`AskUserQuestion` (multiSelect)으로 완료된 항목을 선택받습니다. 미완료 항목만 선택지로 표시합니다.
+사용자에게 묻지 않고, 현재 컨텍스트를 기반으로 완료된 AC 항목을 자동 판단합니다.
 
-- 선택지: 미완료 AC 항목들 (예: "브랜치명 검증 패턴 수정", "테스트 작성 및 통과")
-- 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
+**완료 판단 기준:**
+- 현재 세션에서 수행한 작업 내역 (코드 변경, PR 생성, 테스트 실행 등)
+- 사용자가 스킬 호출 시 언급한 내용
+- git 상태, 최근 커밋 등 환경 정보
 
-항목 선택 후 각 항목에 대해 `AskUserQuestion`으로 증빙 자료를 입력받습니다.
+**증빙 유형 결정:**
+AC 항목의 `→ 결과물:` 뒤에 이슈 생성 시 명시된 증빙 유형(예: "PR 링크", "테스트 결과")을 따릅니다.
 
-- 선택지: 증빙 유형별 예시 (예: "PR 링크", "스크린샷 경로", "테스트 결과")
-- 사용자는 "Other"로 직접 증빙 값을 입력할 수 있음
+### Step 6: Gather Evidence
 
-### Step 6: Preview and Confirm
+판단된 완료 항목에 대해 실제 증빙 자료를 수집합니다.
 
-변경 전/후를 비교하여 미리보기를 표시합니다.
+증빙 유형 식별 및 유형별 수집 방법은 [evidence_gathering_methods.md](references/evidence_gathering_methods.md) 참조 — PR 조회, 테스트 실행, 스크린샷 캡처, CI/CD 로그 조회, 문서 확인, 데이터 경로 검증, 메트릭 수집, API 응답 확인
 
-    === 변경 미리보기 ===
+**수집 실패 시:** 해당 항목은 건너뛰고 콘솔에 경고를 출력합니다. 수집 성공한 항목만 업데이트합니다.
+
+### Step 7: Apply Changes
+
+미리보기 없이 바로 적용합니다. 수정이 필요하면 사용자가 Linear에서 직접 수정합니다.
+
+변경 내용을 콘솔에 요약 출력한 뒤 `mcp__linear__save_issue`로 description 업데이트합니다.
+
+    === 증빙 업데이트 적용 ===
 
     1. [x] 브랜치명 검증 패턴 수정 → 결과물: PR https://github.com/org/repo/pull/43  ← UPDATED
     2. [x] 테스트 작성 및 통과 → 결과물: CI 로그 https://ci.example.com/build/123  ← UPDATED
@@ -93,13 +106,7 @@ Description에서 AC 항목을 파싱합니다.
 
     진행률: 3/3 (100%)
 
-    ====================
-
-`AskUserQuestion`으로 확인:
-- 선택지: "적용", "수정 후 적용"
-- 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
-
-### Step 7: Apply Changes
+    ===========================
 
 `mcp__linear__save_issue`로 description 업데이트
 
@@ -152,3 +159,4 @@ Description에서 AC 항목을 파싱합니다.
 
 - [guideline-ref.md](../_shared/guideline-ref.md) — 가이드라인 핵심 규칙 (AC 항목 형식, AI-Verification Loop)
 - [evidence_parsing_logic.md](references/evidence_parsing_logic.md) — AC 파싱 로직, Section Detection, 체크/증빙 업데이트 로직
+- [evidence_gathering_methods.md](references/evidence_gathering_methods.md) — 증빙 유형 식별, 유형별 수집 방법 (PR, 테스트, 스크린샷, CI/CD, 문서, 데이터, 메트릭, API), 수집 실패 처리
