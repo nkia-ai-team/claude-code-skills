@@ -5,16 +5,22 @@ description: Create comprehensive Linear projects with detailed documentation in
 
 # Linear Project Creator
 
+## CRITICAL: First Step — Read the Guideline Reference
+
+**BEFORE creating any project, you MUST read:**
+- [guideline-ref.md](../_shared/guideline-ref.md) — 프로젝트 템플릿, 이슈 상태, Estimate 등 가이드라인 규칙
+
+**프로젝트 생성 시 반드시 가이드라인의 규칙을 따라야 합니다.**
+
+---
+
 ## Overview
 
-Create comprehensive Linear projects with well-structured documentation that includes:
-- Project overview and goals
-- Phased implementation plans
-- Tech stack details
-- Team composition
-- Timeline and milestones
-- Success metrics
-- Risk management
+가이드라인의 프로젝트 템플릿에 맞춰 Linear 프로젝트를 생성합니다:
+- 목표 (Goal)
+- 성공 기준 (Success Metrics)
+- 주요 마일스톤 (Milestones)
+- 리스크 및 대응 (Risks)
 
 ## Workflow
 
@@ -36,13 +42,14 @@ Create comprehensive Linear projects with well-structured documentation that inc
 
 수집 항목 구조는 [project_template.md "필수 수집 정보" / "선택 정보"](references/project_template.md) 참조
 
-상세 정보 수집 항목: 프로젝트 개요, 목표, Phase별 기능/작업, 기술 스택, 팀 구성, 성공 지표, 위험 요소, 참고 자료
+상세 정보 수집 항목: 목표, 성공 기준, 마일스톤, 리스크
 
 ### Step 3: Generate Project Description
 
-마크다운 템플릿과 섹션별 가이드는 [project_template.md](references/project_template.md) 참조
+프로젝트 description 마크다운 템플릿은 [guideline-ref.md "5.2 프로젝트 템플릿"](../_shared/guideline-ref.md) 참조
+섹션별 가이드는 [project_template.md](references/project_template.md) 참조
 
-수집된 정보로 마크다운 description을 생성합니다.
+수집된 정보로 프로젝트 템플릿에 맞춰 마크다운 description을 생성합니다.
 
 ### Step 4: Show Preview and Confirm
 
@@ -61,7 +68,10 @@ Create comprehensive Linear projects with well-structured documentation that inc
 [생성될 마크다운 내용]
 --------------
 
-이대로 생성하시겠습니까? (y/n)
+`AskUserQuestion`으로 확인:
+- 질문: "이대로 생성하시겠습니까?"
+- 선택지: "이대로 생성", "수정 후 생성"
+- 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 ```
 
 ### Step 5: Create the Project
@@ -85,4 +95,5 @@ Create comprehensive Linear projects with well-structured documentation that inc
 
 ## Resources
 
-- [project_template.md](references/project_template.md) — 프로젝트 설명 마크다운 템플릿, 필수/선택 수집 정보, 우선순위 매핑, 섹션별 가이드
+- [guideline-ref.md](../_shared/guideline-ref.md) — 가이드라인 핵심 규칙 (프로젝트 템플릿, 이슈 상태, Estimate 등)
+- [project_template.md](references/project_template.md) — 필수/선택 수집 정보, 우선순위 매핑, 섹션별 가이드

@@ -5,9 +5,10 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 
 # Linear Issue Validator
 
-## CRITICAL: First Step - Read the Templates
+## CRITICAL: First Step — Read the References
 
 **BEFORE generating any validation report, you MUST read:**
+- [guideline-ref.md](../_shared/guideline-ref.md) — 이슈 상태 규칙, AI-Verification Loop, Estimate 규칙
 - [validation_templates.md](references/validation_templates.md) — 검증 결과 코멘트 템플릿, 실패 유형별 메시지, Evidence Type 분류 규칙
 
 **All validation comments MUST follow the exact templates from the references file.**
@@ -16,13 +17,27 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 
 ## Overview
 
-완료된 Linear 이슈의 DoD/AC 항목을 검증하고 평가하는 스킬입니다. 작업자가 첨부한 결과물(링크, 이미지, 텍스트 등)을 실제로 확인하여 검증합니다.
+완료된 Linear 이슈의 AC 항목을 검증하고 평가하는 스킬입니다. 작업자가 첨부한 결과물(링크, 이미지, 텍스트 등)을 실제로 확인하여 검증합니다.
+
+이 스킬은 AI-Verification Loop의 **Step 3 (AC 검증)**에 해당합니다.
 
 **주요 기능:**
-1. DoD/AC 항목별 결과물 파싱 및 검증
+1. AC 항목별 결과물 파싱 및 검증
 2. 다양한 결과물 유형 지원 (URL, 이미지, PR, API, CI/CD 등)
 3. 검증 결과를 이슈 코멘트로 작성
-4. 전체 통과 시 "In Review" 상태로 이동 (선택)
+4. 전체 통과 시 "Done" 상태로 이동 (선택)
+
+---
+
+## Status Rules
+
+상태 규칙은 [guideline-ref.md "이슈 상태"](../_shared/guideline-ref.md) 참조.
+
+**핵심:**
+- 허용 상태: Backlog, Todo, In Progress, Done, Canceled
+- **In Review / QA / Deploying 등 별도 상태 금지**
+- 검증 통과 시 → **Done**으로 직접 이동 (In Review 아님)
+- Done = AC + AI 검증을 충족한 상태
 
 ---
 
@@ -37,7 +52,7 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 ### Principle 2: 접속 확인 ≠ 검증 완료
 
 **URL/문서 링크 검증 시 단순 "접속 가능 여부"만 확인하면 안 됩니다!**
-- 결과물의 **내용이 DoD/AC 요건과 일치하는지** 확인해야 합니다
+- 결과물의 **내용이 AC 요건과 일치하는지** 확인해야 합니다
 - 페이지 제목/주제가 요건과 관련 있는지, 핵심 키워드가 포함되어 있는지 확인
 
 ### Principle 3: 이미지/동영상은 실제 첨부 및 내용 확인 필수
@@ -60,7 +75,6 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 |-----|------|
 | `--strict` | 모든 항목 통과 필수 (부분 통과 불허) |
 | `--skip-move` | 상태 변경 스킵 (검증만 수행) |
-| `--dod-only` | DoD 항목만 검증 |
 | `--ac-only` | AC 항목만 검증 |
 
 ---
@@ -75,23 +89,51 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 
 `mcp__linear__get_issue`로 이슈 정보를 가져옵니다. (title, description, state, assignee, attachments, comments)
 
-### Step 3: Parse DoD/AC Items
+### Step 3: Parse AC Items
 
-이슈 description에서 DoD/AC 항목을 파싱합니다.
-- DoD 섹션 찾기 (`## Definition of Done`, `## DoD` 등)
-- AC 섹션 찾기 (`## Acceptance Criteria`, `## AC` 등)
+이슈 description에서 AC 항목을 파싱합니다.
+
+**현행 형식 (우선):**
+- AC 섹션 찾기 (`## 3. 완료 조건 (Acceptance Criteria)`, `## 3. 완료 조건`)
 - 각 체크박스 항목 파싱 (`- [ ]` 또는 `- [x]`)
 - 결과물 추출 (`→ 결과물:` 이후 내용)
+
+**레거시 형식 (호환):**
+- DoD 섹션 찾기 (`## Definition of Done`, `## DoD` 등)
+- AC 섹션 찾기 (`## Acceptance Criteria`, `## AC` 등)
 
 ### Step 4: Parse Scope & Validate MR Coverage
 
 **⚠️ CRITICAL: 이슈의 스코프에 명시된 모든 시스템/레포에 대해 MR 링크가 첨부되어야 합니다.**
 
-이슈 description의 "범위 (Scope)" 섹션을 파싱하여 영향받는 시스템을 식별하고, 각 시스템에 대한 MR 링크 존재 여부를 확인합니다.
+이슈 description의 "범위 (Scope)" 또는 "4. 범위 (Scope)" 섹션을 파싱하여 영향받는 시스템을 식별하고, 각 시스템에 대한 MR 링크 존재 여부를 확인합니다.
 
 스코프 파싱, 시스템-MR 매핑, 커버리지 검증은 [mr_scope_validation.md Section 1-3](references/mr_scope_validation.md) 참조
 
-### Step 5: Review MR Diffs Against AC Items
+### Step 5: Check MR Code Review (Gate)
+
+**⚠️ CRITICAL: MR에 코드 리뷰가 없으면 검증을 진행하지 않고 즉시 중단합니다.**
+
+이 단계는 Gate입니다. 통과하지 못하면 이후 검증을 진행하지 않습니다.
+
+1. Step 4에서 식별된 각 MR의 리뷰/코멘트를 확인:
+   - **GitHub**: `gh pr view {url} --json reviews,comments` → reviews + comments 합산
+     - **⚠️ 주의**: `gh api repos/.../pulls/{n}/reviews`는 공식 리뷰만, `gh api repos/.../pulls/{n}/comments`는 인라인 diff 코멘트만 반환합니다. PR 대화 탭의 일반 코멘트(코드 리뷰 결과 등)는 포함되지 않으므로 반드시 `gh pr view --json reviews,comments`를 사용하세요.
+   - **GitLab**: `GITLAB_HOST={host} glab api "/projects/{id}/merge_requests/{number}/notes"` → notes 목록
+2. **리뷰 0건 AND 코멘트 0건인 MR이 있으면:**
+   - **콘솔에 안내 메시지 출력** (Linear 코멘트가 아님):
+
+         ⚠️ 코드 리뷰 미수행 — 검증을 중단합니다.
+
+         다음 MR에 코드 리뷰 기록이 없습니다:
+         - PR #1: https://github.com/org/repo/pull/1 (리뷰 0건, 코멘트 0건)
+
+         `/code-review` 스킬로 코드 리뷰를 먼저 수행한 후 다시 검증을 요청해주세요.
+
+   - **검증을 즉시 종료** (이후 Step으로 진행하지 않음, Linear 코멘트 작성 안 함)
+3. **리뷰 또는 코멘트가 1건 이상이면:** 다음 Step으로 진행
+
+### Step 6: Review MR Diffs Against AC Items
 
 **⚠️ CRITICAL: 각 MR의 코드 diff를 확인하여 AC 항목의 구현이 실제로 반영되었는지 검증합니다.**
 
@@ -99,13 +141,13 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 
 Diff 조회, 분석, AC 커버리지 확인은 [mr_scope_validation.md Section 4-7](references/mr_scope_validation.md) 참조
 
-### Step 6: Classify Evidence Types
+### Step 7: Classify Evidence Types
 
 각 결과물의 유형을 분류합니다. (`pr_mr`, `ci_cd_log`, `monitoring`, `api_endpoint`, `document`, `frontend_url`, `data_path`, `image`, `video`, `metric_value`, `text`)
 
-상세 분류 규칙과 URL 패턴은 [validation_templates.md Section 7](references/validation_templates.md) 참조
+상세 분류 규칙과 URL 패턴은 [validation_templates.md Section 6](references/validation_templates.md) 참조
 
-### Step 7: Validate Each Item
+### Step 8: Validate Each Item
 
 유형별로 검증을 수행합니다.
 
@@ -113,7 +155,7 @@ Diff 조회, 분석, AC 커버리지 확인은 [mr_scope_validation.md Section 4
 
 유형별 검증 방법과 인증 처리는 [evidence_validation_methods.md](references/evidence_validation_methods.md) 참조 — PR/MR, CI/CD, URL, 문서, API, 모니터링, 이미지/동영상, 텍스트, 데이터 경로
 
-### Step 8: Handle Validation Failures
+### Step 9: Handle Validation Failures
 
 **⚠️ CRITICAL: Principle 1 — 실패해도 끝까지 진행!**
 
@@ -121,47 +163,56 @@ Diff 조회, 분석, AC 커버리지 확인은 [mr_scope_validation.md Section 4
 
 실패 유형과 blocked_items 형식은 [evidence_validation_methods.md Section 11](references/evidence_validation_methods.md) 참조
 
-### Step 9: Generate Validation Report
+### Step 10: Generate Validation Report
 
 리포트 템플릿은 [validation_templates.md](references/validation_templates.md) 참조
+
 - 전체 통과 (PASS): Section 1.1 템플릿 사용
 - 부분 통과 (PARTIAL): Section 1.2 템플릿 사용
 - 전체 실패 (FAIL): Section 1.3 템플릿 사용
 - 실패 유형별 메시지: Section 2
 - 검증 상세 메시지: Section 3
-- 히스토리: Section 4
+- 검증 히스토리: Section 4 — 검증 결과 코멘트 하단에 포함
 
-### Step 10: Update Issue Checkboxes
+### Step 11: Update Issue Checkboxes
 
 **IMPORTANT: 검증 통과한 항목은 반드시 체크박스를 업데이트해야 합니다!**
 
 1. `mcp__linear__get_issue`로 현재 description 가져오기
 2. 통과한 항목: `- [ ]` → `- [x]` / 실패한 항목: `- [x]` → `- [ ]`
-3. `mcp__linear__update_issue`로 description 업데이트
+3. `mcp__linear__save_issue`로 description 업데이트
 
-### Step 11: Post or Update Comment
+### Step 12: Post or Update Comment
 
-**⚠️ CRITICAL: 기존 검증 코멘트가 있으면 새로 달지 않고 업데이트합니다!**
+**⚠️ CRITICAL: 재검증 시 새 코멘트를 추가하지 않고 기존 코멘트를 업데이트합니다!**
 
-1. `mcp__linear__list_comments`로 기존 검증 코멘트 검색 (패턴: `# ✅ 검증 완료`, `# ⚠️ 검증 완료`, `# ❌ 검증 실패`)
-2. **기존 코멘트 있음 → Linear GraphQL API로 업데이트:**
+검증 결과와 히스토리를 하나의 코멘트로 관리합니다.
+
+1. `mcp__linear__list_comments`로 기존 검증 코멘트 검색 (패턴: `# ✅ 검증 완료`, `# ⚠️ 검증 실패`, `# ❌ 검증 실패`)
+2. **기존 코멘트 있음:**
+   - 기존 코멘트의 히스토리 섹션을 파싱하여 시도 횟수 확인
+   - 최신 검증 결과로 전체 교체 + 히스토리에 새 행 추가
+   - GraphQL API로 업데이트:
 ```bash
 curl -s -X POST https://api.linear.app/graphql \
   -H "Content-Type: application/json" \
   -H "Authorization: ${LINEAR_API_KEY}" \
-  -d '{"query": "mutation($id: String!, $body: String!) { commentUpdate(id: $id, input: { body: $body }) { success } }", "variables": {"id": "{comment_id}", "body": "{report}"}}'
+  -d '{"query": "mutation($id: String!, $body: String!) { commentUpdate(id: $id, input: { body: $body }) { success } }", "variables": {"id": "{comment_id}", "body": "{updated_body}"}}'
 ```
-3. **기존 코멘트 없음 → `mcp__linear__create_comment`로 새로 생성**
-4. `LINEAR_API_KEY` 미설정 시 새 코멘트를 생성하되, 사용자에게 안내
+3. **기존 코멘트 없음 → `mcp__linear__create_comment`로 새로 생성** (히스토리 시도 #1)
+4. `LINEAR_API_KEY` 미설정 시 새 코멘트를 생성하되, 사용자에게 이전 코멘트를 수동 삭제하도록 안내
 
-### Step 12: Move to "In Review" (Optional)
+### Step 13: Move to "Done" (Optional)
 
-모든 항목 통과 시, 사용자에게 상태 변경 여부를 확인 후 `mcp__linear__update_issue`로 "In Review" 상태로 이동합니다.
+**규칙: In Review 상태 금지. 검증 통과 시 Done으로 직접 이동.**
+
+모든 항목 통과 시, 사용자에게 상태 변경 여부를 확인 후 `mcp__linear__save_issue`로 "Done" 상태로 이동합니다.
 
 ---
 
 ## Resources
 
+- [guideline-ref.md](../_shared/guideline-ref.md) — 가이드라인 핵심 규칙 (이슈 상태, Estimate, AI-Verification Loop)
 - [validation_templates.md](references/validation_templates.md) — 검증 결과 코멘트 템플릿, 실패 유형별 메시지, 검증 상세 메시지, 히스토리 템플릿, Evidence Type 분류 규칙, 에러 메시지
 - [evidence_validation_methods.md](references/evidence_validation_methods.md) — 유형별 상세 검증 방법 (PR/MR, CI/CD, URL, 문서, API, 모니터링, 이미지/동영상, 텍스트, 데이터 경로), 인증 처리, 실패 유형 및 blocked_items 형식
 - [mr_scope_validation.md](references/mr_scope_validation.md) — 스코프 파싱, 시스템-MR 매핑, MR 커버리지 검증, Diff 분석, AC 커버리지 확인

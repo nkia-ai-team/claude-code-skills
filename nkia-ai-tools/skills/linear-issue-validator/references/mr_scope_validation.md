@@ -108,27 +108,34 @@ gh pr diff {pr_number} --repo {owner/repo}
 
 ---
 
-## 6. MR Diff ↔ AC 매핑 테이블
+## 6. MR Diff ↔ AC 매핑
 
-검증 리포트에 포함할 매핑 테이블을 작성합니다.
+검증 리포트에 포함할 MR Diff 분석을 작성합니다.
+
+변경 파일을 **폴더 구조(디렉토리 트리)**로 그룹핑하고, 자식이 하나뿐인 연속 디렉토리는 한 줄로 압축합니다.
+이 규칙은 프로젝트 종류와 무관하게 **모든 MR에 항상 적용**합니다 (상세 규칙은 [validation_templates.md Section 3.5.2](validation_templates.md) 참조).
 
 **예시:**
 ```markdown
 ## 🔀 MR Diff 검증
-
+## case: 압축 불필요
 ### MR 1: lucida-ui!15238 (UI) — ✅ merged
-| 변경 파일 | 관련 AC | 변경 내용 |
-|-----------|---------|----------|
-| chatbotEndPoint.ts | AC 1 | generate-title 엔드포인트 추가 |
-| chatbotServices.ts | AC 1, AC 4 | conversationGenerateTitle 함수, 타입 정의 |
-| AiPortalPage.tsx | AC 2, AC 3, AC 4 | 제목 생성/편집/폴백 핸들러 |
-| PortalSider.tsx | AC 2, AC 3 | 인라인 편집 UI, shimmer 스켈레톤 |
+- `src/`
+   - `api/`
+      - `chatbotEndPoint.ts` — generate-title 엔드포인트 추가 (AC 1)
+      - `chatbotServices.ts` — conversationGenerateTitle 함수, 타입 정의 (AC 1, AC 4)
+   - `pages/`
+      - `AiPortalPage.tsx` — 제목 생성/편집/폴백 핸들러 (AC 2, AC 3, AC 4)
+   - `components/`
+      - `PortalSider.tsx` — 인라인 편집 UI, shimmer 스켈레톤 (AC 2, AC 3)
 
+## case: 압축 필요
 ### MR 2: lucida-chat-ap!456 (Chat AP) — ✅ merged
-| 변경 파일 | 관련 AC | 변경 내용 |
-|-----------|---------|----------|
-| titleController.ts | AC 1 | 제목 생성 API 중계 엔드포인트 |
-| titleService.ts | AC 1 | AI 서비스 호출 로직 |
+- `src/main/java/com/nkia/chat/`
+   - `controller/`
+      - `TitleController.java` — 제목 생성 API 중계 엔드포인트 (AC 1)
+   - `service/`
+      - `TitleService.java` — AI 서비스 호출 로직 (AC 1)
 ```
 
 ---

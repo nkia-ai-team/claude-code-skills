@@ -38,10 +38,10 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 - **Specific and concise** (avoid vague terms)
 - **Clear scope and impact**
 
-```
-제안된 제목: "WSS 데이터셋 수집 및 검증"
-이 제목으로 진행하시겠습니까? (y/n, 또는 다른 제목 입력)
-```
+`AskUserQuestion`으로 확인:
+- 질문: "제안된 제목: 'WSS 데이터셋 수집 및 검증' — 이 제목으로 진행하시겠습니까?"
+- 선택지: "이 제목으로 진행", "제목 수정"
+- 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 
 ## Step 3: Collect Template-Specific Details with DoD/AC
 
@@ -49,32 +49,27 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 
 **See `references/issue_templates.md` for template-specific markdown templates and collection fields.**
 
-**DoD/AC 수집 형식 예시 (데이터 작업):**
+**수집 형식 예시 (데이터 작업):**
 ```
 데이터 작업 상세 정보를 입력해주세요:
 
 1. 배경 (왜 필요?):
 2. 작업 설명 (어떤 데이터? 목표 품질은?):
 
-3. Definition of Done (DoD) - 프로세스 완료 증빙 (2개 권장):
+3. 완료 조건 (AC) - 3~5개 권장:
    예시:
    - [ ] 데이터 파이프라인 실행 완료 → 결과물: 저장 경로 {{storage_path}}
-   - [ ] 코드 리뷰 완료 → 결과물: PR 링크 {{pr_link}}
-
-입력:
-- [ ]
-- [ ]
-
-4. Acceptance Criteria (AC) - 결과물 품질 기준 (2개 권장):
-   예시:
    - [ ] 목표 데이터 {{record_count}}건 이상 수집 → 결과물: 데이터 경로 {{data_path}}
    - [ ] 품질 기준 충족 (Null < {{null_threshold}}%) → 결과물: 품질 리포트 {{quality_report}}
 
 입력:
 - [ ]
 - [ ]
+- [ ]
 
-5. 참고사항 (선택, 데이터 소스/포맷/저장 위치):
+4. 범위 (선택, 포함/제외):
+5. 검증 방법 (선택):
+6. 참고사항 (선택, 데이터 소스/포맷/저장 위치):
 ```
 
 ## Step 4: Apply Issue Type and Labels Automatically
@@ -117,7 +112,10 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 [마크다운 내용]
 --------------
 
-이대로 생성하시겠습니까? (y/n)
+`AskUserQuestion`으로 확인:
+- 질문: "이대로 생성하시겠습니까?"
+- 선택지: "이대로 생성", "수정 후 생성"
+- 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 ```
 
 ## Step 6: Create the Issue

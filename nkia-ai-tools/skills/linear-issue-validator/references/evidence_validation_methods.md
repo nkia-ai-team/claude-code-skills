@@ -14,29 +14,12 @@
 3. **3차 시도**: 사용자에게 인증 정보 입력 요청
 4. **최후 수단**: 모든 방법 실패 시에만 수동 확인 요청
 
-**사용자 인증 정보 요청 템플릿:**
-```
-🔐 인증이 필요한 리소스가 발견되었습니다.
+**사용자 인증 정보 요청:**
 
-리소스: {url}
-유형: {resource_type}
-
-다음 중 하나를 선택해주세요:
-
-1. CLI 인증 진행 (권장)
-   → {cli_auth_command}
-
-2. API 토큰/인증 정보 직접 입력
-   → 토큰을 입력하시면 이 세션에서 사용합니다
-
-3. 쿠키/세션 정보 제공
-   → 브라우저에서 복사한 인증 정보 사용
-
-4. 스크린샷/텍스트로 대체
-   → 자동 검증 건너뛰기
-
-선택:
-```
+`AskUserQuestion`으로 확인:
+- 질문: "🔐 인증이 필요한 리소스가 발견되었습니다. ({url}) 어떻게 하시겠습니까?"
+- 선택지: "CLI 인증 진행 (권장)", "API 토큰/인증 정보 직접 입력", "쿠키/세션 정보 제공", "스크린샷/텍스트로 대체"
+- 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 
 ---
 
@@ -47,8 +30,10 @@
 # 1차: gh CLI로 접근
 gh pr view {url} --json state,merged,reviews,mergeable,statusCheckRollup
 
-# 인증 실패 시:
-# "GitHub CLI 인증이 필요합니다. `gh auth login` 실행하시겠습니까? (y/n)"
+# 인증 실패 시 `AskUserQuestion`으로 확인:
+# - 질문: "GitHub CLI 인증이 필요합니다. 어떻게 하시겠습니까?"
+# - 선택지: "gh auth login 실행", "스크린샷으로 대체"
+# - 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 ```
 
 **GitLab MR (gitlab.com):**
@@ -62,12 +47,10 @@ glab mr view {number} --repo {owner/repo}
 # 1차: glab 인증 상태 확인
 glab auth status --hostname {hostname}
 
-# 인증 안 됨 → 사용자에게 선택지 제공:
-# "GitLab {hostname} 인증이 필요합니다.
-#  1. glab auth login --hostname {hostname} 실행
-#  2. Personal Access Token 직접 입력
-#  3. 스크린샷으로 대체
-#  선택:"
+# 인증 안 됨 → `AskUserQuestion`으로 확인:
+# - 질문: "GitLab {hostname} 인증이 필요합니다. 어떻게 하시겠습니까?"
+# - 선택지: "glab auth login 실행", "Personal Access Token 직접 입력", "스크린샷으로 대체"
+# - 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 
 # 2차: 인증 후 API 호출
 # URL 파싱 예시:
@@ -105,11 +88,10 @@ GITLAB_HOST={hostname} glab api "/projects/{project_id}/repository/files/{file_p
 # 1차: 공개 접근 시도
 curl -s "{jenkins_url}/api/json"
 
-# 인증 필요 시:
-# "Jenkins 인증이 필요합니다.
-#  1. API Token 입력 (username:token)
-#  2. 빌드 결과 스크린샷으로 대체
-#  선택:"
+# 인증 필요 시 `AskUserQuestion`으로 확인:
+# - 질문: "Jenkins 인증이 필요합니다. 어떻게 하시겠습니까?"
+# - 선택지: "API Token 입력 (username:token)", "빌드 결과 스크린샷으로 대체"
+# - 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 
 # 토큰 입력 시:
 curl -s -u "{username}:{api_token}" "{jenkins_url}/api/json" | jq '.result'
@@ -137,12 +119,10 @@ GITLAB_HOST={hostname} glab api "/projects/{project_id}/pipelines/{pipeline_id}/
 ```
 1차: WebFetch로 접근 시도
 
-인증 필요 시 (401/403 응답):
-"이 URL은 로그인이 필요합니다.
- 1. 세션 쿠키 입력 (브라우저 개발자 도구에서 복사)
- 2. 로그인 후 접근 가능한 공개 URL로 교체
- 3. 스크린샷으로 대체
- 선택:"
+인증 필요 시 (401/403 응답) `AskUserQuestion`으로 확인:
+- 질문: "이 URL은 로그인이 필요합니다. 어떻게 하시겠습니까?"
+- 선택지: "세션 쿠키 입력", "접근 가능한 공개 URL로 교체", "스크린샷으로 대체"
+- 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 
 쿠키 입력 시:
 curl -H "Cookie: {session_cookie}" "{url}"
@@ -191,12 +171,10 @@ WebFetch로 접근
 **Confluence (인증 필요 시):**
 ```bash
 # Confluence MCP가 있으면 사용
-# 없으면:
-# "Confluence 인증이 필요합니다.
-#  1. API Token 입력 (email:token)
-#  2. 문서 내용 복사/붙여넣기
-#  3. 스크린샷으로 대체
-#  선택:"
+# 없으면 `AskUserQuestion`으로 확인:
+# - 질문: "Confluence 인증이 필요합니다. 어떻게 하시겠습니까?"
+# - 선택지: "API Token 입력 (email:token)", "문서 내용 복사/붙여넣기", "스크린샷으로 대체"
+# - 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 
 curl -u "{email}:{api_token}" "{confluence_url}/rest/api/content/{page_id}?expand=body.storage"
 ```
@@ -253,12 +231,10 @@ WebFetch로 접근 시도
 # 1차: 공개 API 접근
 curl -s -o /dev/null -w "%{http_code}" "{api_url}"
 
-# 인증 필요 시:
-# "API 인증이 필요합니다.
-#  1. Bearer Token 입력
-#  2. API Key 입력
-#  3. Basic Auth (username:password) 입력
-#  선택:"
+# 인증 필요 시 `AskUserQuestion`으로 확인:
+# - 질문: "API 인증이 필요합니다. 어떻게 하시겠습니까?"
+# - 선택지: "Bearer Token 입력", "API Key 입력", "Basic Auth (username:password) 입력"
+# - 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 
 # 토큰 입력 시:
 curl -H "Authorization: Bearer {token}" -s -o /dev/null -w "%{http_code}" "{api_url}"
@@ -279,11 +255,10 @@ curl -H "Authorization: Bearer {token}" -s -o /dev/null -w "%{time_total}" "{api
 ```
 1차: WebFetch로 공개 대시보드 접근
 
-인증 필요 시:
-"모니터링 대시보드 인증이 필요합니다.
- 1. API Key 입력
- 2. 대시보드 스크린샷으로 대체 (메트릭 값 포함)
- 선택:"
+인증 필요 시 `AskUserQuestion`으로 확인:
+- 질문: "모니터링 대시보드 인증이 필요합니다. 어떻게 하시겠습니까?"
+- 선택지: "API Key 입력", "대시보드 스크린샷으로 대체 (메트릭 값 포함)"
+- 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 
 Grafana API (토큰 입력 시):
 curl -H "Authorization: Bearer {api_key}" "{grafana_url}/api/dashboards/uid/{dashboard_uid}"
