@@ -274,6 +274,74 @@
 
 ---
 
+## DoD/AC 생성 패턴 (Template-Specific)
+
+> 원칙: DoD 2개 + AC 2개 = 총 4개 이내로 유지. 가장 중요한 검증 포인트만 포함.
+
+**빌드/배포:**
+- DoD:
+  - [ ] CI 빌드 성공 및 이미지 배포 완료 → 결과물: 빌드 로그 {{ci_log_link}}
+  - [ ] 코드 리뷰 완료 → 결과물: PR 링크 {{pr_link}}
+- AC:
+  - [ ] {{environment}} 환경 Healthcheck 정상 (200 OK) → 결과물: 응답 로그 {{healthcheck_log}}
+  - [ ] 배포 버전({{release_version}}) 정상 반영 확인 → 결과물: 버전 스크린샷 {{version_screenshot}}
+
+**데이터 작업:**
+- DoD:
+  - [ ] 데이터 파이프라인 실행 완료 → 결과물: 저장 경로 {{storage_path}}
+  - [ ] 코드 리뷰 완료 → 결과물: PR 링크 {{pr_link}}
+- AC:
+  - [ ] 목표 데이터 {{record_count}}건 이상 수집 → 결과물: 데이터 경로 {{data_path}}
+  - [ ] 품질 기준 충족 (Null < {{null_threshold}}%) → 결과물: 품질 리포트 {{quality_report}}
+
+**평가:**
+- DoD:
+  - [ ] 평가 실행 및 결과 파일 첨부 → 결과물: 결과 파일 {{eval_result_file}}
+  - [ ] 결과 분석 리포트 작성 → 결과물: 리포트 {{report_link}}
+- AC:
+  - [ ] 목표 지표 달성 ({{metric_name}} ≥ {{threshold}}) → 결과물: 메트릭 결과 {{metric_result}}
+  - [ ] 테스트셋 정보 명시 (버전: {{dataset_version}}) → 결과물: 메타데이터 {{test_metadata}}
+
+**새로운 기능 개발:**
+- DoD:
+  - [ ] 코드 리뷰 완료 → 결과물: PR 링크 {{pr_link}}
+  - [ ] 테스트 작성 및 통과 → 결과물: 테스트 결과 {{test_result}}
+- AC:
+  - [ ] 요구사항 기능 정상 동작 → 결과물: 테스트 증빙 {{test_evidence}}
+  - [ ] API 응답 시간 {{max_response_time}}ms 이하 → 결과물: 성능 결과 {{perf_result}}
+
+**기능 개선:**
+- DoD:
+  - [ ] 코드 리뷰 완료 → 결과물: PR 링크 {{pr_link}}
+  - [ ] 개선 전/후 비교 측정 → 결과물: 비교 리포트 {{comparison_report}}
+- AC:
+  - [ ] 목표 지표 달성 ({{metric_name}}: {{baseline}} → {{goal}}) → 결과물: 메트릭 {{metrics}}
+
+**리팩토링:**
+- DoD:
+  - [ ] 코드 리뷰 완료 → 결과물: PR 링크 {{pr_link}}
+  - [ ] 기존 테스트 전체 통과 → 결과물: CI 로그 {{ci_log}}
+- AC:
+  - [ ] 기능 동작 동일 (회귀 테스트 통과) → 결과물: 테스트 결과 {{regression_result}}
+
+**리서치:**
+- DoD:
+  - [ ] 조사 결과 문서 작성 → 결과물: 문서 링크 {{summary_doc_link}}
+  - [ ] 팀 리뷰 완료 → 결과물: 리뷰 기록 {{review_record}}
+- AC:
+  - [ ] 핵심 질문에 대한 답변 제시 → 결과물: Q&A 섹션 {{qa_section}}
+  - [ ] 다음 단계 Action Item 명시 → 결과물: 액션 아이템 {{action_items}}
+
+**버그 수정:**
+- DoD:
+  - [ ] 코드 리뷰 완료 → 결과물: PR 링크 {{pr_link}}
+  - [ ] 재발 방지 테스트 추가 → 결과물: 테스트 ID {{test_case_id}}
+- AC:
+  - [ ] 재현 시도 시 버그 미발생 → 결과물: 재현 테스트 결과 {{reproduction_test}}
+  - [ ] 배포 후 관련 에러 0건 → 결과물: 모니터링 링크 {{monitoring_link}}
+
+---
+
 ## 제목 개선 가이드라인
 
 좋은 제목의 특징:
