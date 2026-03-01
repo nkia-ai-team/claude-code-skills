@@ -95,25 +95,11 @@
 [배경, 작업 설명, DoD, AC, 참고사항 표시]
 
 ========================
-
-`AskUserQuestion`으로 확인:
-- 질문: "추출된 정보가 맞나요?"
-- 선택지: "이대로 진행", "수정하기", "처음부터 다시"
-- 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 ```
 
-## Step 4: Edit Mode (옵션 2 선택 시)
+추출된 정보를 물어보지 않고 그대로 사용합니다. 최종 미리보기(Step 6)에서 확인 가능합니다.
 
-세분화된 수정 옵션 제공:
-
-```
-`AskUserQuestion`으로 확인:
-- 질문: "수정할 항목을 선택하세요"
-- 선택지: "메타데이터 (제목, 팀, 담당자, 우선순위, 마감일, 라벨)", "템플릿 타입 변경", "작업 내용 (배경, 설명, DoD, AC 등)", "특정 필드만 수정"
-- 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
-```
-
-## Step 5: Auto-assign Project Based on Content
+## Step 4: Auto-assign Project Based on Content
 
 1. `mcp__linear__list_projects`로 팀의 활성 프로젝트 조회
 2. 이슈 제목/설명에서 키워드 추출하여 프로젝트 이름과 매칭
@@ -126,14 +112,14 @@
 - 시맨틱 유사성 활용 (예: "API", "endpoint" → "API Development" 프로젝트)
 - 여러 프로젝트 매칭 시 최근 업데이트된 프로젝트 우선
 
-## Step 6: Auto-assign Cycle Based on Due Date
+## Step 5: Auto-assign Cycle Based on Due Date
 
 `due_date`가 있는 경우:
 1. `mcp__linear__list_cycles`로 팀 사이클 조회
 2. `startsAt <= due_date < endsAt`인 사이클 선택
 3. 매칭 실패 시 null
 
-## Step 7: Generate Markdown Description and Show Preview
+## Step 6: Generate Markdown Description and Show Preview
 
 템플릿 타입에 맞는 마크다운 description을 생성하고 최종 미리보기를 표시합니다.
 
@@ -160,7 +146,7 @@
 - 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 ```
 
-## Step 8: Create Issue
+## Step 7: Create Issue
 
 `mcp__linear__create_issue`로 이슈 생성 후 결과 URL 표시.
 
