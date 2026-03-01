@@ -12,74 +12,62 @@
 # ✅ 검증 완료 - 모든 항목 통과
 
 ## 📋 요약
-| 항목 | 결과 |
-|------|------|
-| 이슈 | {{issue_identifier}} "{{issue_title}}" |
-| 검증 일시 | {{validation_datetime}} |
-| DoD | ✅ {{dod_pass}}/{{dod_total}} 통과 |
-| AC | ✅ {{ac_pass}}/{{ac_total}} 통과 |
-| **전체 결과** | **✅ PASS** |
-
----
-
-## ✅ DoD 검증 결과 ({{dod_pass}}/{{dod_total}})
-
-| # | 항목 | 결과 | 검증 상세 |
-|---|------|------|----------|
-{{#each dod_items}}
-| {{index}} | {{description}} | ✅ Pass | {{validation_detail}} |
-{{/each}}
+- **이슈:** {{issue_identifier}} "{{issue_title}}"
+- **검증 일시:** {{validation_datetime}}
+- **AC:** ✅ {{ac_pass}}/{{ac_total}} 통과
+- **전체 결과:** ✅ PASS
 
 ---
 
 ## ✅ AC 검증 결과 ({{ac_pass}}/{{ac_total}})
 
-| # | 항목 | 결과 | 검증 상세 |
-|---|------|------|----------|
 {{#each ac_items}}
-| {{index}} | {{description}} | ✅ Pass | {{validation_detail}} |
+{{index}}. ✅ **{{short_description}}**
+{{#each validation_details}}
+   - {{detail}}
+{{/each}}
+
 {{/each}}
 
 ---
 
-> 🎉 모든 DoD/AC 항목이 검증되었습니다!
+> 🎉 모든 AC 항목이 검증되었습니다!
 >
-> **다음 단계:** "In Review" 상태로 이동하여 최종 리뷰를 진행하세요.
+> **다음 단계:** "Done" 상태로 이동할 수 있습니다.
+
+---
+
+## 📜 검증 히스토리
+
+| # | 일시 | 결과 | AC | 변화 |
+|---|------|------|----|----|
+{{#each history}}
+| {{attempt}} | {{datetime}} | {{result_icon}} {{result}} | {{ac_pass}}/{{ac_total}} | {{change}} |
+{{/each}}
 
 ```
 
 ### 1.2 부분 통과 (PARTIAL)
 
 ```markdown
-# ⚠️ 검증 완료 - 일부 항목 미통과
+# ⚠️ 검증 실패 - 일부 항목 미통과
 
 ## 📋 요약
-| 항목 | 결과 |
-|------|------|
-| 이슈 | {{issue_identifier}} "{{issue_title}}" |
-| 검증 일시 | {{validation_datetime}} |
-| DoD | {{#if dod_all_pass}}✅{{else}}⚠️{{/if}} {{dod_pass}}/{{dod_total}} 통과 |
-| AC | {{#if ac_all_pass}}✅{{else}}⚠️{{/if}} {{ac_pass}}/{{ac_total}} 통과 |
-| **전체 결과** | **⚠️ PARTIAL ({{total_pass}}/{{total_items}})** |
-
----
-
-## DoD 검증 결과 ({{dod_pass}}/{{dod_total}})
-
-| # | 항목 | 결과 | 검증 상세 |
-|---|------|------|----------|
-{{#each dod_items}}
-| {{index}} | {{description}} | {{#if passed}}✅ Pass{{else}}❌ Fail{{/if}} | {{validation_detail}} |
-{{/each}}
+- **이슈:** {{issue_identifier}} "{{issue_title}}"
+- **검증 일시:** {{validation_datetime}}
+- **AC:** {{#if ac_all_pass}}✅{{else}}⚠️{{/if}} {{ac_pass}}/{{ac_total}} 통과
+- **전체 결과:** ⚠️ PARTIAL ({{total_pass}}/{{total_items}})
 
 ---
 
 ## AC 검증 결과 ({{ac_pass}}/{{ac_total}})
 
-| # | 항목 | 결과 | 검증 상세 |
-|---|------|------|----------|
 {{#each ac_items}}
-| {{index}} | {{description}} | {{#if passed}}✅ Pass{{else}}❌ Fail{{/if}} | {{validation_detail}} |
+{{index}}. {{#if passed}}✅{{else}}❌{{/if}} **{{short_description}}**
+{{#each validation_details}}
+   - {{detail}}
+{{/each}}
+
 {{/each}}
 
 ---
@@ -122,6 +110,16 @@
 > /linear-issue-validator {{issue_identifier}}
 > ```
 
+---
+
+## 📜 검증 히스토리
+
+| # | 일시 | 결과 | AC | 변화 |
+|---|------|------|----|----|
+{{#each history}}
+| {{attempt}} | {{datetime}} | {{result_icon}} {{result}} | {{ac_pass}}/{{ac_total}} | {{change}} |
+{{/each}}
+
 ```
 
 ### 1.3 전체 실패 (FAIL)
@@ -130,32 +128,21 @@
 # ❌ 검증 실패
 
 ## 📋 요약
-| 항목 | 결과 |
-|------|------|
-| 이슈 | {{issue_identifier}} "{{issue_title}}" |
-| 검증 일시 | {{validation_datetime}} |
-| DoD | ❌ {{dod_pass}}/{{dod_total}} 통과 |
-| AC | ❌ {{ac_pass}}/{{ac_total}} 통과 |
-| **전체 결과** | **❌ FAIL ({{total_pass}}/{{total_items}})** |
-
----
-
-## DoD 검증 결과 ({{dod_pass}}/{{dod_total}})
-
-| # | 항목 | 결과 | 검증 상세 |
-|---|------|------|----------|
-{{#each dod_items}}
-| {{index}} | {{description}} | {{#if passed}}✅ Pass{{else}}❌ Fail{{/if}} | {{validation_detail}} |
-{{/each}}
+- **이슈:** {{issue_identifier}} "{{issue_title}}"
+- **검증 일시:** {{validation_datetime}}
+- **AC:** ❌ {{ac_pass}}/{{ac_total}} 통과
+- **전체 결과:** ❌ FAIL ({{total_pass}}/{{total_items}})
 
 ---
 
 ## AC 검증 결과 ({{ac_pass}}/{{ac_total}})
 
-| # | 항목 | 결과 | 검증 상세 |
-|---|------|------|----------|
 {{#each ac_items}}
-| {{index}} | {{description}} | {{#if passed}}✅ Pass{{else}}❌ Fail{{/if}} | {{validation_detail}} |
+{{index}}. {{#if passed}}✅{{else}}❌{{/if}} **{{short_description}}**
+{{#each validation_details}}
+   - {{detail}}
+{{/each}}
+
 {{/each}}
 
 ---
@@ -180,9 +167,19 @@
 > ❌ 대부분의 항목이 검증에 실패했습니다.
 >
 > **권장 사항:**
-> 1. DoD/AC 항목별 결과물을 확인해주세요
+> 1. AC 항목별 결과물을 확인해주세요
 > 2. 누락된 결과물을 첨부해주세요
 > 3. 접근 불가한 링크는 스크린샷으로 대체해주세요
+
+---
+
+## 📜 검증 히스토리
+
+| # | 일시 | 결과 | AC | 변화 |
+|---|------|------|----|----|
+{{#each history}}
+| {{attempt}} | {{datetime}} | {{result_icon}} {{result}} | {{ac_pass}}/{{ac_total}} | {{change}} |
+{{/each}}
 
 ```
 
@@ -472,133 +469,138 @@ PR #{{pr_number}} ✅ merged
 ```markdown
 ## 🔀 MR 스코프 커버리지
 
-### 이슈 스코프 → MR 매핑
-| 시스템 | 스코프 내용 | MR | 상태 |
-|--------|-----------|-----|------|
 {{#each scope_systems}}
-| {{system_name}} | {{scope_detail}} | {{#if mr_url}}[{{mr_identifier}}]({{mr_url}}){{else}}❌ 미첨부{{/if}} | {{#if mr_url}}{{mr_state}}{{else}}⚠️ MR 누락{{/if}} |
+- {{#if mr_url}}✅{{else}}❌{{/if}} **{{system_name}}** — {{scope_detail}}
+   - MR: {{#if mr_url}}[{{mr_identifier}}]({{mr_url}}) ({{mr_state}}){{else}}미첨부{{/if}}
 {{/each}}
 ```
 
 ### 3.5.2 MR Diff 분석 리포트
 
+변경 파일을 **폴더 구조(디렉토리 트리)**로 그룹핑하여 표시합니다.
+
+**기본 규칙:**
+- 같은 디렉토리의 파일은 서브 불릿으로 묶음
+- 디렉토리 경로는 `dir/` 형태로 표시하고 하위 파일/폴더를 들여쓰기
+- 루트 레벨 파일은 최상위 불릿으로 표시
+
+**경로 압축 규칙 (Compact Middle Directories):**
+
+프로젝트 종류와 무관하게, 변경 파일의 디렉토리 트리에서 **항상** 아래 규칙을 적용합니다.
+- 자식이 하나뿐인 디렉토리가 연속되면 한 줄로 합침 (`a/b/c/` 처럼 슬래시로 이어 표기)
+- 분기점(자식 2개 이상) 또는 파일이 나오는 지점에서 줄바꿈하여 서브 불릿 전개
+- 압축 판단은 **해당 MR의 변경 파일 기준** — 레포 전체 구조가 아닌, diff에 포함된 파일들의 공통 경로를 기준으로 압축
+
 ```markdown
 ## 📝 MR Diff 분석
 
-{{#each mrs}}
 ### {{mr_identifier}} ({{system_name}}) — {{mr_state_icon}} {{mr_state}}
-| 변경 파일 | 관련 AC | 변경 내용 |
-|-----------|---------|----------|
-{{#each changed_files}}
-| {{file_path}} | {{related_ac}} | {{change_summary}} |
-{{/each}}
-{{/each}}
+- `root_file` — 변경 설명
+- `compressed/path/to/branch_point/`
+   - `dir_a/`
+      - `file1` — 변경 설명 (관련 AC)
+   - `dir_b/`
+      - `file2` — 변경 설명 (관련 AC)
 
 ### AC ↔ MR Diff 커버리지
-| AC | 커버 MR | 상태 |
-|----|---------|------|
 {{#each ac_items}}
-| AC {{index}}: {{description}} | {{covering_mrs}} | {{coverage_status}} |
+- {{coverage_status_icon}} **AC {{index}}**: {{description}} — {{covering_mrs}}
 {{/each}}
 ```
 
----
-
-## 4. 검증 히스토리 템플릿
-
+**예시 1 — case: 압축 불필요 (분기점이 가까워 압축할 단일 자식 체인 없음):**
 ```markdown
-## 📜 검증 히스토리
-
-| # | 일시 | 결과 | DoD | AC | 변화 |
-|---|------|------|-----|----|----|
-{{#each history}}
-| {{attempt}} | {{datetime}} | {{result_icon}} {{result}} | {{dod_pass}}/{{dod_total}} | {{ac_pass}}/{{ac_total}} | {{change}} |
-{{/each}}
-
-### 진행 상황 그래프
-
-```
-시도 1: ████████░░░░░░░░░░░░ 40% (4/10)
-시도 2: ████████████░░░░░░░░ 60% (6/10)
-시도 3: ████████████████░░░░ 80% (8/10)
-시도 4: ████████████████████ 100% (10/10) ✅
-```
+### PR #1: nkia-ai-team/claude-code-skills#1 — ✅ merged
+- `.gitignore` — temp/ 디렉토리 제외 추가
+- `nkia-ai-tools/`
+   - `.claude-plugin/plugin.json` — 플러그인 메타데이터 업데이트 (+1/-1)
+   - `skills/figma-to-react/`
+      - `SKILL.md` — 스킬 메인 파일 (DoD #2)
+      - `references/`
+         - `pipeline_workflow.md` — 10단계 파이프라인 워크플로우 (DoD #2)
+         - `qa_phase.md` — QA Phase 서브에이전트 검증 (DoD #2)
+         - `design_tokens.md` — 디자인 토큰 관리 규칙 (DoD #2)
 ```
 
----
-
-## 5. 재검증 요청 템플릿
-
+**예시 2 — case: 압축 필요 (단일 자식 체인이 길어 압축 적용):**
 ```markdown
-## 🔄 재검증 요청
-
-다음 항목들에 대해 재검증을 수행합니다:
-
-{{#each items_to_revalidate}}
-- [ ] {{type}} #{{index}}: {{description}}
-{{/each}}
-
-### 이전 검증 결과
-| 항목 | 이전 결과 | 실패 원인 |
-|------|----------|----------|
-{{#each items_to_revalidate}}
-| {{description}} | {{previous_result}} | {{previous_failure_reason}} |
-{{/each}}
-
----
-
-재검증을 시작하려면 확인해주세요.
+### MR 3: lucida-chat-ai!789 (Chat AI) — ✅ merged
+- `src/main/java/com/nkia/chat/`
+   - `controller/`
+      - `TitleController.java` — 제목 생성 REST 엔드포인트 (AC 1)
+   - `service/`
+      - `TitleService.java` — LLM 호출 비즈니스 로직 (AC 1)
+      - `TitlePromptBuilder.java` — 프롬프트 템플릿 생성 (AC 1)
+   - `dto/`
+      - `TitleRequest.java` — 요청 DTO (AC 1)
+      - `TitleResponse.java` — 응답 DTO (AC 1)
+- `src/main/resources/`
+   - `application-title.yml` — 제목 생성 설정값 (AC 1)
+- `src/test/java/com/nkia/chat/service/`
+   - `TitleServiceTest.java` — 유닛 테스트 (AC 1)
 ```
 
 ---
 
-## 6. 상태 변경 안내 템플릿
+## 4. 검증 히스토리 (검증 결과 코멘트 하단에 포함)
 
-### 6.1 In Review 이동 제안
+히스토리 섹션은 Section 1의 각 템플릿(PASS/PARTIAL/FAIL) 하단에 포함됩니다.
+
+### 재검증 시 히스토리 업데이트 규칙
+
+1. **기존 검증 코멘트가 있는 경우:**
+   - 기존 코멘트 body에서 `## 📜 검증 히스토리` 섹션의 테이블 행을 파싱
+   - 기존 히스토리 행을 보존하고 새 행을 추가 (시도 번호 = 기존 최대 + 1)
+   - 검증 결과 본문은 최신 결과로 전체 교체
+   - GraphQL API로 코멘트 업데이트
+
+2. **첫 검증인 경우 (기존 코멘트 없음):**
+   - 시도 #1로 히스토리 행 1개와 함께 코멘트 생성
+
+---
+
+## 5. 상태 변경 안내 템플릿
+
+### 5.1 Done 이동 제안
 
 ```markdown
 ## 🎉 모든 검증 완료!
 
-**{{issue_identifier}}** "{{issue_title}}"의 모든 DoD/AC 항목이 검증되었습니다.
+**{{issue_identifier}}** "{{issue_title}}"의 모든 AC 항목이 검증되었습니다.
 
 ### 현재 상태
 - 이슈 상태: {{current_state}}
-- DoD: ✅ {{dod_total}}/{{dod_total}} 완료
 - AC: ✅ {{ac_total}}/{{ac_total}} 완료
 
 ### 다음 단계
 
-이슈를 **"In Review"** 상태로 이동하여 최종 리뷰를 진행하시겠습니까?
+이슈를 **"Done"** 상태로 이동하시겠습니까?
 
-> **In Review 상태란?**
-> - 개발 완료 후 QA/리뷰어의 최종 확인을 기다리는 상태
-> - 프로덕션 배포 전 마지막 검증 단계
+> **Done 상태란?**
+> - AC + AI 검증을 충족한 상태
+> - In Review / QA 등 별도 상태는 사용하지 않습니다
 
-**선택:**
-1. ✅ 예, "In Review"로 이동
-2. ⏸️ 아니오, 현재 상태 유지
+`AskUserQuestion`으로 확인:
+- 질문: "이슈를 'Done' 상태로 이동하시겠습니까?"
+- 선택지: "예, Done으로 이동", "아니오, 현재 상태 유지"
+- 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 ```
 
-### 6.2 상태 변경 완료
+### 5.2 상태 변경 완료
 
 ```markdown
 ## ✅ 상태 변경 완료
 
-**{{issue_identifier}}** "{{issue_title}}"가 **"In Review"** 상태로 이동되었습니다.
+**{{issue_identifier}}** "{{issue_title}}"가 **"Done"** 상태로 이동되었습니다.
 
 - 이전 상태: {{previous_state}}
-- 현재 상태: **In Review**
+- 현재 상태: **Done**
 - 변경 일시: {{changed_at}}
-
-### 다음 단계
-1. QA 팀 또는 리뷰어에게 확인 요청
-2. 피드백 반영
-3. 최종 승인 후 Done 상태로 이동
 ```
 
 ---
 
-## 7. Evidence Type 분류 규칙
+## 6. Evidence Type 분류 규칙
 
 ### URL 패턴 매칭
 
@@ -679,7 +681,7 @@ image:
     CRITICAL: URL 존재만으로 통과 불가!
     1. 실제 파일 접근 가능 여부 확인 (HTTP 200 + Content-Type: image/*)
     2. Read tool로 이미지 내용을 시각적으로 확인 (vision)
-    3. 이미지 내용이 DoD/AC 요건과 일치하는지 판단
+    3. 이미지 내용이 AC 요건과 일치하는지 판단
     → 접근 불가 또는 열람 불가 시: media_not_viewable
 
 video:
@@ -711,7 +713,7 @@ text:
 
 ---
 
-## 8. 에러 메시지 템플릿
+## 7. 에러 메시지 템플릿
 
 ### Linear API 오류
 
@@ -740,12 +742,12 @@ text:
    - Linear 서비스 상태 확인: https://status.linear.app
 ```
 
-### DoD/AC 파싱 오류
+### AC 파싱 오류
 
 ```markdown
-## ⚠️ DoD/AC 파싱 오류
+## ⚠️ AC 파싱 오류
 
-이슈 설명에서 DoD/AC 항목을 찾을 수 없습니다.
+이슈 설명에서 AC 항목을 찾을 수 없습니다.
 
 ### 현재 이슈 설명 구조
 
@@ -755,19 +757,12 @@ text:
 
 ### 예상 형식
 
-```markdown
-## Definition of Done (DoD)
-- [ ] 항목 1 → 결과물: [결과물]
-- [ ] 항목 2 → 결과물: [결과물]
-
-## Acceptance Criteria (AC)
-- [ ] 항목 1 → 결과물: [결과물]
-- [ ] 항목 2 → 결과물: [결과물]
-```
+템플릿 구조는 guideline-ref.md "이슈 템플릿" 참조.
+레거시 형식(DoD/AC 분리)도 지원합니다.
 
 ### 해결 방법
 
-1. 이슈 설명에 DoD/AC 섹션이 있는지 확인해주세요
+1. 이슈 설명에 AC 섹션이 있는지 확인해주세요
 2. `/linear-issue-creator`로 생성된 이슈 형식을 사용해주세요
-3. 수동으로 DoD/AC 섹션을 추가해주세요
+3. 수동으로 AC 섹션을 추가해주세요
 ```
