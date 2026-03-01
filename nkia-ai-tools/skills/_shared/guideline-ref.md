@@ -179,3 +179,34 @@ Estimate 3 이상 이슈는 이슈명 끝에 접미사를 붙여 AC 검토 상�
 | **2단계** | 개발 및 PR — 코드 스타일, 보안, 성능, 테스트 | AI Code Reviewer |
 | **3단계** | AC 검증 — PR 구현이 AC를 빠짐없이 충족하는지 대조 | Linear Validator Agent |
 | **4단계** | Self-Merge — 2단계 + 3단계 통과 시 개발자가 즉시 머지 | 개발자 |
+
+---
+
+## 7. Health 판단 기준
+
+Status Update의 Health(On Track / At Risk / Off Track)를 판단하는 기준입니다. 자동 제안은 참고용이며, **사용자가 최종 결정**합니다.
+
+### 7.1 프로젝트 Health (Project Update)
+
+| Health | 정의 | 시그널 |
+|--------|------|--------|
+| **On Track** | 계획대로 진행 중 | Done 이슈 증가, 신규 블로커 없음, 이전 계획 대비 정상 진행 |
+| **At Risk** | 일부 리스크 존재하나 대응 가능 | 블로커 1건, In Progress 3일+ 방치 이슈 존재, 이전 "다음 주 계획" 미달성 항목 존재 |
+| **Off Track** | 심각한 지연 또는 차질 | Done 이슈 0건(활동 없음), 블로커 2건+ 미해결, 핵심 마일스톤 지연 |
+
+**자동 판단 로직:**
+1. Off Track 시그널 1개 이상 → Off Track 제안
+2. At Risk 시그널 1개 이상 → At Risk 제안
+3. 나머지 → On Track 제안
+
+### 7.2 이니셔티브 Health (Initiative Update)
+
+| Health | 정의 | 시그널 |
+|--------|------|--------|
+| **On Track** | 모든 소속 프로젝트가 On Track | 전체 프로젝트 On Track |
+| **At Risk** | At Risk 프로젝트 1건 이상 | 최소 1개 프로젝트가 At Risk (Off Track 없음) |
+| **Off Track** | Off Track 프로젝트 1건 이상 | 최소 1개 프로젝트가 Off Track |
+
+**자동 판단 로직:**
+- Worst-case 집계: 소속 프로젝트 중 가장 나쁜 Health를 이니셔티브 Health로 제안
+- 프로젝트 업데이트가 없는 프로젝트는 "업데이트 없음"으로 표시하고 At Risk 신호로 간주
