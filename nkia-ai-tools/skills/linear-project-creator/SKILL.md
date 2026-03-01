@@ -16,153 +16,35 @@ Create comprehensive Linear projects with well-structured documentation that inc
 - Success metrics
 - Risk management
 
-Efficiently collect project information and generate professional project documentation.
-
-## Workflow Process
-
-Follow this sequential process to create Linear projects:
+## Workflow
 
 ### Step 1: Collect Basic Project Information
 
-First, fetch available teams using `mcp__linear__list_teams`, then collect basic information sequentially:
+`mcp__linear__list_teams`로 팀 목록을 조회한 뒤, 기본 정보를 수집합니다:
 
-Ask for the following in order:
-1. **팀 이름** - Linear team selection (use `mcp__linear__list_teams`)
-2. **프로젝트 이름** - Project name
-3. **프로젝트 요약** - One-line summary (max 255 characters)
-4. **프로젝트 설명** - Detailed project description
-5. **프로젝트 목표** - Main goals to achieve
-6. **우선순위** - No priority(0), Urgent(1), High(2), Medium(3), Low(4) (optional)
-7. **프로젝트 리드** - Project leader name, email, "me", or leave empty (optional)
-8. **시작일** - Project start date (YYYY-MM-DD format, optional)
-9. **목표일** - Project target completion date (YYYY-MM-DD format, optional)
+1. **팀 이름** — Linear team selection
+2. **프로젝트 이름**
+3. **프로젝트 요약** — 한 줄 요약 (max 255 characters)
+4. **프로젝트 설명** — 상세 설명
+5. **프로젝트 목표** — 주요 목표
+6. **우선순위** — No priority(0), Urgent(1), High(2), Medium(3), Low(4) (선택)
+7. **프로젝트 리드** — 이름, 이메일, "me", 또는 비워두기 (선택)
+8. **시작일** — YYYY-MM-DD (선택)
+9. **목표일** — YYYY-MM-DD (선택)
 
 ### Step 2: Collect Detailed Project Information
 
-Request comprehensive project details in an organized format:
+수집 항목 구조는 [project_template.md "필수 수집 정보" / "선택 정보"](references/project_template.md) 참조
 
-```
-프로젝트 상세 정보를 입력해주세요:
-
-1. 프로젝트 개요 (목적, 배경, 가치):
-
-2. 프로젝트 목표 (구체적이고 측정 가능한 목표, 한 줄에 하나씩):
--
--
--
-
-3. Phase 1 기능/작업 (초기 MVP, 한 줄에 하나씩):
--
--
-
-4. Phase 2 기능/작업 (추가 기능, 한 줄에 하나씩):
--
--
-
-5. Phase 3 기능/작업 (고급 기능, 한 줄에 하나씩, 선택):
--
--
-
-6. 기술 스택:
-   Backend:
-   Frontend:
-   Infrastructure:
-   Tools:
-
-7. 팀 구성 (선택):
-   프로젝트 리드:
-   개발자:
-   디자이너:
-   QA:
-
-8. 성공 지표 (KPI/메트릭, 한 줄에 하나씩):
--
--
--
-
-9. 위험 요소 및 대응 방안 (선택):
-   위험 요소 | 영향도 | 대응 방안
-
-10. 참고 자료 링크 (선택):
-```
+상세 정보 수집 항목: 프로젝트 개요, 목표, Phase별 기능/작업, 기술 스택, 팀 구성, 성공 지표, 위험 요소, 참고 자료
 
 ### Step 3: Generate Project Description
 
-Using the template from `references/project_template.md`, generate a comprehensive markdown description following this structure:
+마크다운 템플릿과 섹션별 가이드는 [project_template.md](references/project_template.md) 참조
 
-```markdown
-# {프로젝트 이름}
-
-## 프로젝트 개요
-{프로젝트 설명}
-
-## 프로젝트 목표
-1. 목표 1
-2. 목표 2
-3. 목표 3
-
-## 주요 기능/범위
-
-### Phase 1
-- [ ] 기능/작업 1
-- [ ] 기능/작업 2
-
-### Phase 2
-- [ ] 기능/작업 3
-- [ ] 기능/작업 4
-
-### Phase 3
-- [ ] 기능/작업 5
-- [ ] 기능/작업 6
-
-## 기술 스택
-
-**Backend:**
--
-
-**Frontend:**
--
-
-**Infrastructure:**
--
-
-**Tools:**
--
-
-## 팀 구성
-- **프로젝트 리드**: {리드 이름}
-- **개발자**:
-- **디자이너**:
-- **QA**:
-
-## 일정
-- **시작일**: {시작일}
-- **목표 완료일**: {목표일}
-- **예상 기간**: {기간 계산}
-
-**마일스톤:**
-- [ ] Phase 1 완료: {날짜}
-- [ ] Phase 2 완료: {날짜}
-- [ ] Phase 3 완료: {날짜}
-- [ ] 최종 릴리즈: {날짜}
-
-## 성공 지표
-- 지표 1
-- 지표 2
-- 지표 3
-
-## 위험 요소 및 대응 방안
-| 위험 요소 | 영향도 | 대응 방안 |
-|----------|--------|----------|
-|          |        |          |
-
-## 참고 자료
--
-```
+수집된 정보로 마크다운 description을 생성합니다.
 
 ### Step 4: Show Preview and Confirm
-
-Display the formatted project preview:
 
 ```
 === 생성될 프로젝트 미리보기 ===
@@ -184,73 +66,23 @@ Display the formatted project preview:
 
 ### Step 5: Create the Project
 
-Use `mcp__linear__create_project` to create the project with the following parameters:
-
-- **name**: 프로젝트 이름
-- **team**: 팀 이름
-- **summary**: 프로젝트 요약
-- **priority**: 우선순위 숫자 (0=No priority, 1=Urgent, 2=High, 3=Medium, 4=Low)
-- **lead**: 프로젝트 리드 (optional)
-- **startDate**: 시작일 ISO 형식 (optional)
-- **targetDate**: 목표일 ISO 형식 (optional)
-- **description**: 생성된 마크다운 설명
+`mcp__linear__create_project` 호출:
+- **name**, **team**, **summary**, **priority**, **lead** (선택), **startDate** (선택), **targetDate** (선택), **description**
 
 ### Step 6: Show Results and Suggest Next Steps
 
-After successful project creation:
+프로젝트 URL 표시 후 관련 이슈 생성 여부를 확인합니다.
 
-1. Display the project URL
-2. Summarize project name and key information
-3. Ask if user wants to create related issues
-
-Example:
-```
-🎯 프로젝트가 생성되었습니다!
-- 프로젝트명: 사용자 인증 시스템 개발
-- 팀: Engineering
-- 우선순위: High
-- 목표일: 2025-12-31
-- URL: https://linear.app/team/project/user-auth-system-abc123
-
-다음으로 이 프로젝트에 필요한 이슈들을 생성하시겠어요?
-```
-
-## Project Creation Format
-
-Use `mcp__linear__create_project` with the following parameters:
-
-- **name**: 프로젝트 이름
-- **team**: 팀 이름
-- **summary**: 프로젝트 요약
-- **priority**: 우선순위 숫자 (0=No priority, 1=Urgent, 2=High, 3=Medium, 4=Low)
-- **lead**: 프로젝트 리드 (optional)
-- **startDate**: 시작일 ISO 형식 (optional)
-- **targetDate**: 목표일 ISO 형식 (optional)
-- **description**: 생성된 마크다운 설명
-
-## Priority Mapping
-
-Map user-friendly priority names to Linear priority numbers:
-- No priority → 0
-- Urgent → 1
-- High → 2
-- Medium (or Normal) → 3
-- Low → 4
+---
 
 ## Date Handling
 
-- Accept dates in YYYY-MM-DD format
-- Convert to ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ) for the API
-- Calculate project duration when both start and target dates are provided
-- Suggest milestone dates based on phases and total duration
+- YYYY-MM-DD 형식으로 입력받아 ISO 8601로 변환
+- 시작일/목표일이 모두 있을 때 기간 자동 계산
+- Phase별 마일스톤 날짜 제안
+
+---
 
 ## Resources
 
-### references/project_template.md
-
-Contains the comprehensive project description template including:
-- Full markdown structure for project documentation
-- Required and optional information fields
-- Guidance for each section (overview, goals, phases, tech stack, team, schedule, metrics, risks, references)
-- Priority mapping reference
-- Best practices for each template section
+- [project_template.md](references/project_template.md) — 프로젝트 설명 마크다운 템플릿, 필수/선택 수집 정보, 우선순위 매핑, 섹션별 가이드
