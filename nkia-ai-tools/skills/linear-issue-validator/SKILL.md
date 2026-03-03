@@ -32,11 +32,7 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 ## Status Rules
 
 상태 규칙은 [guideline-ref.md "이슈 상태"](../_shared/guideline-ref.md) 참조.
-
-**핵심:**
-- 허용 상태: Backlog, Todo, In Progress, In Review, Done, Canceled
-- 검증 통과 시 → **In Review**로 이동 (사람의 최종 확인 후 Done)
-- In Review = AC + AI 검증을 충족하여 리뷰 대기 중인 상태
+검증 통과 시 상태 이동은 Step 12에서 처리합니다.
 
 ---
 
