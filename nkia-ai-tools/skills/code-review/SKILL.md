@@ -7,18 +7,8 @@ description: Perform automated code reviews on GitHub Pull Requests or GitLab Me
 
 ## CRITICAL: First Step - Read the Ruleset
 
-**BEFORE doing anything else, you MUST read the ruleset file:**
-
-```
-Read file: references/code_review_ruleset.md
-```
-
-This ruleset file contains:
-- Branch name validation rules and regex patterns
-- Commit message validation rules
-- Code review checklist (quality, security, performance)
-- **Review result templates in Korean** - MUST follow exactly
-- Severity levels with emoji indicators (🔴 🟡 🔵 🟢 ✅ ❌ ⚠️)
+**BEFORE doing anything else, you MUST read:**
+- [code_review_ruleset.md](references/code_review_ruleset.md) — 브랜치명/커밋 메시지 검증 규칙, 코드 리뷰 체크리스트, 리뷰 결과 템플릿, 심각도 레벨
 
 **All review comments MUST be written in Korean (한국어) using the exact templates from the ruleset.**
 
@@ -26,13 +16,11 @@ This ruleset file contains:
 
 Perform comprehensive code reviews on GitHub Pull Requests or GitLab Merge Requests by analyzing code changes and posting detailed review comments.
 
-**Supported Platforms:**
-- GitHub (using `gh` CLI)
-- GitLab (using `glab` CLI)
+**Supported Platforms:** GitHub (`gh` CLI), GitLab (`glab` CLI)
 
 **Key Features:**
 - Branch name validation
-- Commit message validation
+- Commit message validation (ALL commits, not just latest)
 - Code quality analysis (Clean Code, SOLID principles)
 - Security vulnerability detection (OWASP Top 10)
 - Performance issue detection (N+1, pagination, etc.)
@@ -45,12 +33,14 @@ Perform comprehensive code reviews on GitHub Pull Requests or GitLab Merge Reque
 /code-review <PR/MR URL>
 ```
 
-**Examples:**
-```
-/code-review https://github.com/owner/repo/pull/123
-/code-review https://gitlab.com/owner/repo/-/merge_requests/456
-/code-review https://cims2.nkia.net:8443/gitlab/lucida-domain-wpm/-/merge_requests/78
-```
+**Options:**
+
+| 옵션 | 설명 |
+|-----|------|
+| `--focus security` | 보안 취약점만 집중 리뷰 |
+| `--focus performance` | 성능 이슈만 집중 리뷰 |
+| `--focus quality` | 코드 품질만 집중 리뷰 |
+| `--focus all` | 전체 리뷰 (기본값) |
 
 ---
 
@@ -58,151 +48,51 @@ Perform comprehensive code reviews on GitHub Pull Requests or GitLab Merge Reque
 
 ### Step 1: Parse URL and Detect Platform
 
-Parse the input URL to detect the platform:
-
-**GitHub PR URL Patterns:**
-- `https://github.com/{owner}/{repo}/pull/{number}`
-- `https://github.com/{owner}/{repo}/pull/{number}/files`
-
-**GitLab MR URL Patterns:**
-- `https://gitlab.com/{owner}/{repo}/-/merge_requests/{number}`
-- `https://{custom-domain}/{path}/-/merge_requests/{number}`
-
-**Detection Logic:**
-1. Extract host from URL
-2. If contains `github.com` -> GitHub
-3. If contains `gitlab` or path contains `/-/merge_requests/` -> GitLab
-4. If unable to determine -> Ask user for platform confirmation
+URL에서 플랫폼을 감지합니다.
+- `github.com` 포함 → GitHub
+- `gitlab` 포함 또는 `/-/merge_requests/` 경로 → GitLab
+- 판별 불가 시 사용자에게 확인
 
 ### Step 2: Verify CLI Authentication
 
-**For GitHub:**
-```bash
-gh auth status
-```
+`gh auth status` 또는 `glab auth status`로 인증 상태를 확인합니다.
 
-If authentication fails, display:
-```
-GitHub CLI authentication required.
-Please authenticate with:
-$ gh auth login
-```
-
-**For GitLab:**
-```bash
-glab auth status
-```
-
-If authentication fails, display:
-```
-GitLab CLI authentication required.
-Please authenticate with:
-$ glab auth login
-
-For self-hosted GitLab instances:
-$ glab auth login --hostname gitlab.your-company.com
-```
+CLI 설치 및 인증은 [platform_operations.md Section 5](references/platform_operations.md) 참조
 
 ### Step 3: Fetch PR/MR Information
 
-**For GitHub PR:**
-```bash
-# PR metadata
-gh pr view {url} --json title,body,author,state,additions,deletions,files,baseRefName,headRefName,commits
+**CRITICAL: 페이지네이션으로 모든 커밋과 변경 파일을 빠짐없이 조회해야 합니다.**
 
-# PR diff
-gh pr diff {url}
+- GitHub: `gh pr view` + `gh api --paginate`로 전체 커밋 조회 + `gh pr diff`로 전체 diff 조회
+- GitLab: self-hosted URL 파싱 → project ID 조회 → `per_page=100`으로 커밋/변경사항 페이지네이션
 
-# For large files (if diff is truncated), fetch full content:
-gh api /repos/{owner}/{repo}/contents/{file_path}?ref={head_branch} --jq '.content' | base64 -d
-```
-
-**For GitLab MR:**
-```bash
-# For gitlab.com
-glab mr view {number} --repo {owner/repo}
-glab mr diff {number} --repo {owner/repo}
-
-# For self-hosted GitLab (e.g., cims2.nkia.net:8443)
-# Step 3-1: Parse project path from URL
-# URL: https://cims2.nkia.net:8443/gitlab/lucida-ai-develop/-/merge_requests/4
-# Extract: hostname=cims2.nkia.net:8443, project_path=gitlab/lucida-ai-develop, mr_number=4
-
-# Step 3-2: Get project ID using URL-encoded path OR search
-# Method 1: URL-encoded path (replace / with %2F)
-GITLAB_HOST={hostname} glab api "/projects/{group}%2F{project}"
-# Example: GITLAB_HOST=cims2.nkia.net:8443 glab api "/projects/gitlab%2Flucida-ai-develop"
-
-# Method 2: Search by project name (if path encoding fails)
-GITLAB_HOST={hostname} glab api "/projects?search={project_name}"
-# Example: GITLAB_HOST=cims2.nkia.net:8443 glab api "/projects?search=lucida-ai-develop"
-# Extract "id" field from response (e.g., "id": 141)
-
-# Step 3-3: Fetch MR information using project ID
-GITLAB_HOST={hostname} glab api "/projects/{project_id}/merge_requests/{mr_number}"
-GITLAB_HOST={hostname} glab api "/projects/{project_id}/merge_requests/{mr_number}/changes"
-GITLAB_HOST={hostname} glab api "/projects/{project_id}/merge_requests/{mr_number}/commits"
-
-# Step 3-4: Handle Large Files (diff truncated or empty)
-# Check each file in changes response:
-# - If "diff" is empty but "new_file": true or additions > 0, it's a large file
-# - Fetch the full file content separately
-GITLAB_HOST={hostname} glab api "/projects/{project_id}/repository/files/{file_path_url_encoded}/raw?ref={source_branch}"
-# Example: file_path "src/shared/core/trace_callback.py" -> "src%2Fshared%2Fcore%2Ftrace_callback.py"
-```
-
-**Large File Detection Logic:**
-```
-For each file in MR changes:
-  IF (additions > 0 OR deletions > 0) AND (diff is empty OR diff is truncated):
-    → Mark as "large file"
-    → Fetch full content via repository files API
-    → Include in code review with note: "📦 대용량 파일 - 전체 내용 조회됨"
-```
-
-**GitLab URL Parsing Example:**
-```
-URL: https://cims2.nkia.net:8443/gitlab/lucida-ai-develop/-/merge_requests/4
-                 │                    │                        │
-                 hostname             project_path             mr_number
-
-project_path = "gitlab/lucida-ai-develop"
-URL-encoded  = "gitlab%2Flucida-ai-develop"
-```
+상세 CLI 명령어, 페이지네이션, 대용량 파일 감지, URL 파싱은 [platform_operations.md Section 1-2](references/platform_operations.md) 참조
 
 ### Step 4: Validate Branch Name
 
-Validate the source branch name according to the ruleset in `references/code_review_ruleset.md`.
+브랜치명을 ruleset 기준으로 검증합니다.
 
-**Validation Pattern (Linear 자동 생성 브랜치):**
-```regex
-^(feature|bugfix|hotfix|refactor|docs|test|config)/[a-z]+-[0-9]+-[a-z0-9-]+$
-```
+**Pattern:** `^(feature|bugfix|hotfix|refactor|docs|test|config)/[a-z]+-[0-9]+-[a-z0-9-]+$`
 
-**Check Items:**
-1. Type prefix (feature, bugfix, hotfix, refactor, docs, test, config)
-2. Linear issue number format ({team-key}-{issue-number}, e.g., nkiaai-129)
-3. Description in kebab-case
-4. Branch type matches work type
+**Check:** Type prefix, Linear 이슈 번호 형식, kebab-case, 브랜치-작업 타입 일치
 
 ### Step 5: Validate Commit Messages
 
-Validate all commit messages according to the ruleset.
+**CRITICAL: 모든 커밋 메시지를 검증합니다 (최신 커밋만이 아님).**
+- Step 3에서 페이지네이션으로 조회한 전체 커밋 목록 사용
+- 총 커밋 수가 예상과 일치하는지 확인
 
-**Validation Pattern:**
-```regex
-^[a-z]+-[0-9]+ (Feat|Fix|Refactor|Cleanup|Wip|Revert|Style|Merge|Docs|Config|Dependency|Test) : .+$
-```
+**Pattern:** `^[a-z]+-[0-9]+ (Feat|Fix|Refactor|Cleanup|Wip|Revert|Style|Merge|Docs|Config|Dependency|Test) : .+$`
 
-**Check Items:**
-1. Linear issue number present ({team-key}-{issue-number}, e.g., nkiaai-129)
-2. Valid type keyword
-3. Proper separator (` : `)
-4. Linear issue number matches branch issue number
+**Check:** Linear 이슈 번호, Type 키워드, 구분자 (` : `), 브랜치 이슈 번호 일치
 
 ### Step 6: Perform Code Review
 
-Analyze the diff according to **Section 5 (코드 리뷰 체크리스트)** in `references/code_review_ruleset.md`:
+**CRITICAL: 전체 MR diff (base → head)를 리뷰합니다. 개별 커밋 diff가 아닙니다.**
+
+Diff 완전성 검증 후, ruleset의 코드 리뷰 체크리스트에 따라 분석합니다:
+
+체크리스트 상세는 [code_review_ruleset.md Section 5](references/code_review_ruleset.md) 참조:
 - 5.1 코드 품질 (Clean Code, Java/Spring 특화)
 - 5.2 보안 검토 (OWASP Top 10)
 - 5.3 성능 검토
@@ -212,160 +102,30 @@ Analyze the diff according to **Section 5 (코드 리뷰 체크리스트)** in `
 
 ### Step 7: Generate Review Results
 
-**IMPORTANT: Use the EXACT format from Section 6 (리뷰 결과 작성 형식) in `references/code_review_ruleset.md`.**
-
-The ruleset contains:
+템플릿 상세는 [code_review_ruleset.md Section 6](references/code_review_ruleset.md) 참조:
 - 6.1 전체 요약 template
 - 6.2 상세 코멘트 형식 template
 - 6.3 심각도 레벨 (🔴 Critical, 🟡 Warning, 🔵 Info, 🟢 Praise)
 
 ### Step 8: Post Review Comment
 
-**For GitHub PR:**
-```bash
-gh pr comment {url} --body "{review_content}"
-```
+플랫폼별 CLI로 리뷰 코멘트를 포스팅합니다.
 
-**For GitLab MR:**
-```bash
-# For gitlab.com
-glab mr note {mr_number} --repo {owner/repo} --message "{review_content}"
-
-# For self-hosted GitLab (use project_id obtained in Step 3-2)
-GITLAB_HOST={hostname} glab api --method POST "/projects/{project_id}/merge_requests/{mr_number}/notes" -f body="{review_content}"
-
-# Example:
-# GITLAB_HOST=cims2.nkia.net:8443 glab api --method POST "/projects/141/merge_requests/4/notes" -f body="$(cat <<'EOF'
-# Review content here...
-# EOF
-# )"
-```
+포스팅 명령어는 [platform_operations.md Section 3](references/platform_operations.md) 참조 (GitHub gh / GitLab glab)
 
 ### Step 9: Display Completion Message
 
-After posting the comment, display:
 ```
 Code review completed and posted to {platform}!
 
 PR/MR: {url}
 Issues Found: {critical_count} critical, {warning_count} warnings, {info_count} info
 Verdict: {verdict}
-
-Review comment has been posted successfully.
-```
-
----
-
-## Prerequisites
-
-### GitHub CLI (gh)
-```bash
-# Install (macOS)
-brew install gh
-
-# Authenticate
-gh auth login
-```
-
-### GitLab CLI (glab)
-```bash
-# Install (macOS)
-brew install glab
-
-# Authenticate (gitlab.com)
-glab auth login
-
-# Authenticate (self-hosted GitLab)
-glab auth login --hostname gitlab.your-company.com
-```
-
----
-
-## Error Handling
-
-### CLI Not Installed
-```
-{platform} CLI is not installed.
-Please install with:
-$ brew install {gh/glab}
-```
-
-### Authentication Failed
-```
-{platform} CLI authentication required.
-Please authenticate with:
-$ {gh/glab} auth login
-```
-
-### PR/MR Access Denied
-```
-Unable to access PR/MR.
-- Check repository access permissions
-- For private repositories, ensure you have appropriate access rights
-```
-
-### URL Parse Error
-```
-Invalid PR/MR URL format.
-Valid formats:
-- GitHub: https://github.com/owner/repo/pull/123
-- GitLab: https://gitlab.com/owner/repo/-/merge_requests/456
-```
-
----
-
-## Review Options
-
-Users can request focused reviews:
-
-```
-/code-review {url} --focus security
-/code-review {url} --focus performance
-/code-review {url} --focus quality
-/code-review {url} --focus all (default)
-```
-
-**Focus Options:**
-- `security` - Focus on security vulnerabilities only
-- `performance` - Focus on performance issues only
-- `quality` - Focus on code quality only
-- `all` - Review all areas (default)
-
----
-
-## Large PR/MR Handling
-
-For large changes (1000+ lines):
-
-1. **Provide file-by-file summary first:**
-```
-This PR contains {n} files with +{additions} -{deletions} changes.
-
-Major changed files:
-1. src/api/auth.ts (+150, -30) - Authentication logic changes
-2. src/utils/crypto.ts (+80, -0) - New utility added
-...
-
-Proceed with full review? Or select specific files to review?
-```
-
-2. **Allow file selection:**
-```
-Enter file numbers to review (e.g., 1,2,3 or all):
 ```
 
 ---
 
 ## Resources
 
-### references/code_review_ruleset.md
-
-Contains the comprehensive code review ruleset including:
-- Branch name validation rules and patterns
-- Commit message validation rules
-- Code quality checklist (Clean Code, SOLID)
-- Security review checklist (OWASP Top 10)
-- Performance review checklist
-- Test code review criteria
-- Review result format templates
-- Severity level definitions
+- [code_review_ruleset.md](references/code_review_ruleset.md) — 브랜치명/커밋 메시지 검증 규칙, 코드 리뷰 체크리스트 (품질/보안/성능/테스트/에러/API), 리뷰 결과 작성 템플릿, 심각도 레벨
+- [platform_operations.md](references/platform_operations.md) — GitHub/GitLab CLI 명령어, 페이지네이션 처리, 대용량 파일 감지, URL 파싱, 코멘트 포스팅, CLI 설치/인증, 에러 처리
