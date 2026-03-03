@@ -111,11 +111,26 @@ Diff 완전성 검증 후, ruleset의 코드 리뷰 체크리스트에 따라 �
 - 6.2 상세 코멘트 형식 template
 - 6.3 심각도 레벨 (🔴 Critical, 🟡 Warning, 🔵 Info, 🟢 Praise)
 
-### Step 8: Post Review Comment
+### Step 8: Post or Update Review Comment
 
-플랫폼별 CLI로 리뷰 코멘트를 포스팅합니다.
+**⚠️ CRITICAL: 재리뷰 시 새 코멘트를 추가하지 않고 기존 코멘트를 업데이트합니다!**
 
-포스팅 명령어는 [platform_operations.md Section 3](references/platform_operations.md) 참조 (GitHub gh / GitLab glab)
+리뷰 결과와 히스토리를 하나의 코멘트로 관리합니다.
+
+1. **기존 리뷰 코멘트 검색:**
+   - PR/MR의 코멘트 목록을 조회하여 `# MR 코드 리뷰 결과`로 시작하는 코멘트를 검색
+   - 검색/조회 API 명령어는 [platform_operations.md Section 3.1](references/platform_operations.md) 참조
+
+2. **기존 코멘트 있음 → 업데이트:**
+   - 기존 코멘트의 `## 📜 리뷰 히스토리` 섹션을 파싱하여 시도 횟수 확인
+   - 최신 리뷰 결과로 전체 교체 + 히스토리에 새 행 추가
+   - 업데이트 API 명령어는 [platform_operations.md Section 3.2](references/platform_operations.md) 참조
+
+3. **기존 코멘트 없음 → 새로 생성:**
+   - 기존 방식대로 `gh pr comment` 또는 `glab mr note`로 생성 (히스토리 시도 #1)
+   - 생성 명령어는 [platform_operations.md Section 3.3](references/platform_operations.md) 참조
+
+히스토리 테이블 형식은 [code_review_ruleset.md Section 6.4](references/code_review_ruleset.md) 참조
 
 ### Step 9: Display Completion Message
 
