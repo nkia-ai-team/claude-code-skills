@@ -15,32 +15,19 @@
 ### 2.1 이전 계획 대비 (이전 업데이트가 있는 경우)
 
     ### 이번 주 성과
+    - {{matched_plan_item}} — {{matched_done_issue.identifier}} {{matched_done_issue.title}} (Done) ({{assignee}})
+    - {{unmatched_plan_item}} — 미완료 ({{assignee}})
+    - {{unmatched_done_issue.identifier}} {{unmatched_done_issue.title}} (Done) ({{assignee}})
+    - {{in_progress_issue.identifier}} {{in_progress_issue.title}} (In Progress — AC {{checked}}/{{total}}) ({{assignee}})
 
-    **지난주 계획 대비:**
-    - [x] {{matched_plan_item}} — {{matched_done_issue.identifier}} {{matched_done_issue.title}} (Done)
-    - [ ] {{unmatched_plan_item}} — 미완료
-
-    **추가 성과:**
-    - {{unmatched_done_issue.identifier}} {{unmatched_done_issue.title}} (Done)
-    - {{in_progress_issue.identifier}} {{in_progress_issue.title}} (In Progress — AC {{checked}}/{{total}})
-
-    **이번 주 활동 요약:**
-    - 완료: {{done_issues.length}}건
-    - 진행 중: {{in_progress_issues.length}}건
-    - 신규 등록: {{new_issues.length}}건
-    - 기타 업데이트: {{updated_issues.length}}건
+이전 계획 달성/미달성 항목을 먼저 나열하고, 계획에 없었던 추가 성과(Done, In Progress)를 이어서 나열합니다.
 
 ### 2.2 이전 업데이트 없는 경우 (첫 번째 업데이트)
 
     ### 이번 주 성과
-    - {{done_issue.identifier}} {{done_issue.title}} (Done)
-    - {{in_progress_issue.identifier}} {{in_progress_issue.title}} (In Progress — 착수)
+    - {{done_issue.identifier}} {{done_issue.title}} (Done) ({{assignee}})
+    - {{in_progress_issue.identifier}} {{in_progress_issue.title}} (In Progress — 착수) ({{assignee}})
     - 신규 이슈 {{new_issues.length}}건 등록
-
-    **이번 주 활동 요약:**
-    - 완료: {{done_issues.length}}건
-    - 진행 중: {{in_progress_issues.length}}건
-    - 신규 등록: {{new_issues.length}}건
 
 ---
 
@@ -48,14 +35,17 @@
 
 **자동 생성합니다 (사용자 입력 없음).**
 
-현재 In Progress 이슈와 Todo 이슈를 기반으로 다음 주 계획을 자동 구성합니다:
+현재 In Progress, Todo, Triage 이슈를 기반으로 다음 주 계획을 자동 구성합니다:
 
     ### 다음 주 계획
     {{#each in_progress_issues}}
-    - {{identifier}} {{title}} (계속 진행)
+    - {{identifier}} {{title}} (계속 진행) ({{assignee}})
     {{/each}}
     {{#each todo_issues_top3}}
-    - {{identifier}} {{title}} (착수 예정)
+    - {{identifier}} {{title}} (착수 예정) ({{assignee}})
+    {{/each}}
+    {{#each triage_issues}}
+    - {{identifier}} {{title}} (AC 확정 및 착수) ({{assignee}})
     {{/each}}
 
 ---
@@ -64,25 +54,33 @@
 
 **자동 생성합니다 (사용자 입력 없음).**
 
-다음 소스에서 리스크를 자동 수집합니다:
+이 섹션은 **팀장이 확인·검토해야 하는 사항**을 기록합니다. 항목이 있다고 해서 At Risk는 아닙니다 — At Risk 판단은 [data_collection.md Section 4](data_collection.md) 참조.
 
-### 4.1 In Progress 장기 체류 이슈
+다음 소스에서 항목을 자동 수집합니다:
 
-stale_in_progress 이슈가 있으면 자동으로 리스크에 포함:
+### 4.1 팀장 검토 필요 항목
+
+Triage 상태 이슈(AC 확정 대기)가 있으면 팀장 검토 요청으로 포함:
+
+    - **AC 검토 요청:** {{triage_issue.identifier}} {{triage_issue.title}} (Triage — AC 확정 대기)
+
+### 4.2 In Progress 장기 체류 이슈 (블로커)
+
+stale_in_progress 이슈가 있으면 블로커로 포함:
 
     - **In Progress 장기 체류:** {{stale_issue.identifier}} {{stale_issue.title}} ({{days_stale}}일째 In Progress)
 
-### 4.2 이슈 코멘트에서 문제 감지
+### 4.3 이슈 코멘트에서 블로커 감지
 
-각 In Progress 이슈의 최신 코멘트를 확인하여, 문제/블로커/장애 관련 내용이 있으면 리스크에 포함:
+각 In Progress 이슈의 최신 코멘트를 확인하여, 블로커 관련 내용이 있으면 포함:
 
     - **{{issue.identifier}}:** {{코멘트 요약}}
 
 코멘트에서 다음 키워드를 탐지합니다: 블로커, blocker, 장애, 지연, delay, 의존성, dependency, 리스크, risk
 
-### 4.3 리스크 없는 경우
+### 4.4 항목 없는 경우
 
-위 소스에서 리스크가 감지되지 않으면:
+위 소스에서 항목이 감지되지 않으면:
 
     ### 리스크 & 지원 요청
     - 없음
@@ -93,6 +91,7 @@ stale_in_progress 이슈가 있으면 자동으로 리스크에 포함:
 
 Health + "이번 주 성과" + "다음 주 계획" + "리스크 & 지원 요청"을 5.3 템플릿 형식으로 조립합니다.
 
+    # 주간 업데이트 ({{weekStart MM/DD 금}} ~ {{weekEnd MM/DD 목}})
     ## 상태: {{healthDisplay}}
 
     ### 이번 주 성과

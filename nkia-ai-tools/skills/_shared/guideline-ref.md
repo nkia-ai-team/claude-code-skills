@@ -120,6 +120,7 @@ Estimate 3 이상 이슈는 이슈명 끝에 접미사를 붙여 AC 검토 상�
 ### 5.3 주간 Project Update 템플릿
 
 ```markdown
+# 주간 업데이트 (02/20 금 ~ 02/26 목)
 ## 상태: On Track / At Risk / Off Track
 
 ### 이번 주 성과
