@@ -102,7 +102,42 @@ AC 항목 파싱, 체크 상태 변경, 증빙 첨부 로직을 정의합니다.
 
 ---
 
-## 4. Error Handling
+## 4. 공통 AC 항목 처리
+
+### 공통 섹션 인식
+
+AC 섹션 내에 `### 공통` 하위 섹션이 있을 수 있습니다.
+
+    ### 공통
+    - [ ] 코드 리뷰 완료 → 이슈 리소스에 PR/MR 링크 첨부
+
+### PR/MR 증빙 처리 (이슈 리소스 방식)
+
+공통 AC의 "코드 리뷰 완료" 항목은 다른 AC와 증빙 첨부 방식이 다릅니다:
+
+1. **증빙 수집**: `evidence_gathering_methods.md` Section 2의 PR/MR 수집 로직으로 URL 확보
+2. **description 업데이트**: 체크박스만 `[x]`로 변경, `→ 결과물:` 텍스트는 수정하지 않음
+3. **이슈 리소스 첨부**: `save_issue`의 `links` 필드로 PR/MR URL 첨부
+
+    // description: 체크만 변경
+    - [x] 코드 리뷰 완료 → 이슈 리소스에 PR/MR 링크 첨부
+
+    // save_issue 호출 시 links 포함
+    mcp__linear__save_issue({
+      id: "issue-uuid",
+      description: updatedDescription,
+      links: [{ url: prUrl, title: prTitle }]
+    })
+
+### PR/MR 항목 식별
+
+AC 항목에서 다음 키워드가 포함되고 `이슈 리소스`가 언급되면 공통 AC PR/MR 항목으로 판단:
+- `코드 리뷰` + `이슈 리소스`
+- `PR/MR` + `리소스`
+
+---
+
+## 5. Error Handling
 
 ### AC 섹션 없음
 

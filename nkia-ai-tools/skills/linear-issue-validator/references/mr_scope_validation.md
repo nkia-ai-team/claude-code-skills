@@ -33,6 +33,10 @@
 
 ## 2. 시스템 → MR 매핑
 
+**MR URL 탐색 위치 (우선순위):**
+1. **이슈 `attachments`** — evidence 스킬이 `save_issue`의 `links` 필드로 첨부한 PR/MR 링크
+2. description 텍스트의 `→ 결과물:` 뒤에 있는 URL (레거시 호환)
+
 attachments에 있는 MR URL의 프로젝트명과 스코프의 시스템명을 매칭합니다.
 
 **매핑 전략:**
