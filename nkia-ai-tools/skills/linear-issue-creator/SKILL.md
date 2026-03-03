@@ -1,6 +1,6 @@
 ---
 name: linear-issue-creator
-description: Create well-structured Linear issues with work-specific templates (Build/Deploy, Data, Evaluation, Feature Development, Feature Improvement, Refactoring, Research, Bug Fix). Supports both manual step-by-step input and automatic generation from meeting notes or natural language text with concrete DoD (Definition of Done) and AC (Acceptance Criteria). This skill should be used when users want to create a Linear issue for any type of work task.
+description: Create well-structured Linear issues with work-specific templates (Build/Deploy, Data, Evaluation, Feature Development, Feature Improvement, Refactoring, Research, Bug Fix, Documentation). Supports both manual step-by-step input and automatic generation from meeting notes or natural language text with concrete DoD (Definition of Done) and AC (Acceptance Criteria). This skill should be used when users want to create a Linear issue for any type of work task.
 ---
 
 # Linear Issue Creator
@@ -57,6 +57,7 @@ Estimate 규칙과 AC 검토 컨벤션은 [guideline-ref.md "Estimate", "AC 검�
 | 6. 리팩토링 | Feature | "improvement" |
 | 7. 리서치 | Research | "research" |
 | 8. 버그 수정 | Bug | "bug" |
+| 9. 문서 작업 | Feature | "feature" / "improvement" |
 
 **Available Linear labels:** bug, build, feature, improvement, research, task
 
@@ -123,6 +124,6 @@ Manual Mode 전체 워크플로우는 [creator_manual_mode.md](references/creato
 ## Resources
 
 - [guideline-ref.md](../_shared/guideline-ref.md) — 가이드라인 핵심 규칙 (이슈 상태, Estimate, 이슈 작성법, AC 검토 컨벤션, 이슈 템플릿, AI-Verification Loop)
-- [issue_templates.md](references/issue_templates.md) — 8개 작업 템플릿별 섹션 내용 가이드, AC 생성 패턴, 제목 개선 가이드라인, 이슈 타입/라벨 자동 매핑 규칙
+- [issue_templates.md](references/issue_templates.md) — 9개 작업 템플릿별 섹션 내용 가이드, AC 생성 패턴, 제목 개선 가이드라인, 이슈 타입/라벨 자동 매핑 규칙
 - [creator_auto_mode.md](references/creator_auto_mode.md) — Auto Mode 전체 워크플로우 (자연어 추출, JSON 구조, 편집, 프로젝트/사이클 자동 할당, 미리보기, 생성), Pydantic 스키마 참조
 - [creator_manual_mode.md](references/creator_manual_mode.md) — Manual Mode 전체 워크플로우 (기본 정보 수집, 제목 개선, 템플릿별 상세 정보 + AC, 자동 할당, 미리보기, 생성)
