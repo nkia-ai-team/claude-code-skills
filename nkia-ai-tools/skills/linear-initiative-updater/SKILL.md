@@ -65,7 +65,9 @@ description: Generate initiative status updates by aggregating child project hea
 **이니셔티브가 지정된 경우:**
 이니셔티브 이름 또는 ID를 입력받아 `mcp__linear__get_initiative(query: input, includeProjects: true)`로 이니셔티브 정보와 소속 프로젝트 목록을 조회합니다.
 
-### Step 2: Collect Project Health Data
+### Step 2: Collect Project Health Data (병렬)
+
+**소속 프로젝트들의 Status Update 조회는 서로 독립적이므로 병렬로 실행합니다.** 예를 들어 소속 프로젝트가 4개이면 4개의 `get_status_updates` 호출을 동시에 수행합니다.
 
 각 소속 프로젝트에 대해 `mcp__linear__get_status_updates(type: "project", project: projectId)`로 최신 Status Update를 조회합니다.
 

@@ -68,7 +68,11 @@ CLI 설치 및 인증은 [platform_operations.md Section 5](references/platform_
 
 상세 CLI 명령어, 페이지네이션, 대용량 파일 감지, URL 파싱은 [platform_operations.md Section 1-2](references/platform_operations.md) 참조
 
-### Step 4: Validate Branch Name
+### Step 4+5+6: Validate Branch / Validate Commits / Code Review (병렬)
+
+**Step 3 완료 후, 아래 3개 작업은 서로 의존성이 없으므로 병렬로 실행합니다.**
+
+**4) Validate Branch Name**
 
 브랜치명을 ruleset 기준으로 검증합니다.
 
@@ -76,7 +80,7 @@ CLI 설치 및 인증은 [platform_operations.md Section 5](references/platform_
 
 **Check:** Type prefix, Linear 이슈 번호 형식, kebab-case, 브랜치-작업 타입 일치
 
-### Step 5: Validate Commit Messages
+**5) Validate Commit Messages**
 
 **CRITICAL: 모든 커밋 메시지를 검증합니다 (최신 커밋만이 아님).**
 - Step 3에서 페이지네이션으로 조회한 전체 커밋 목록 사용
@@ -86,7 +90,7 @@ CLI 설치 및 인증은 [platform_operations.md Section 5](references/platform_
 
 **Check:** Linear 이슈 번호, Type 키워드, 구분자 (` : `), 브랜치 이슈 번호 일치
 
-### Step 6: Perform Code Review
+**6) Perform Code Review**
 
 **CRITICAL: 전체 MR diff (base → head)를 리뷰합니다. 개별 커밋 diff가 아닙니다.**
 
