@@ -24,6 +24,7 @@ description: Update evidence on Linear issue AC items — check completed items 
 - AC에 명시된 증빙 유형에 따라 실제 증빙 수집 (PR 조회, 테스트 실행, 스크린샷 캡처 등)
 - AC 항목 체크 (`[ ]` → `[x]`)
 - 증빙 자료 첨부 (`→ 결과물:` 뒤에 실제 링크/경로 삽입)
+- **PR/MR 링크는 이슈 리소스(links)로 첨부** (`save_issue`의 `links` 필드 사용)
 
 **하지 않는 일:**
 - AC 항목 추가/삭제/수정 (내용 변경은 Claude가 직접 처리)
@@ -96,19 +97,30 @@ AC 항목의 `→ 결과물:` 뒤에 이슈 생성 시 명시된 증빙 유형(�
 
 미리보기 없이 바로 적용합니다. 수정이 필요하면 사용자가 Linear에서 직접 수정합니다.
 
-변경 내용을 콘솔에 요약 출력한 뒤 `mcp__linear__save_issue`로 description 업데이트합니다.
+**1) Description 업데이트**: AC 항목 체크 + 증빙 텍스트 삽입 → `mcp__linear__save_issue`로 description 업데이트
+
+**2) PR/MR 링크는 이슈 리소스로 첨부**: 공통 AC의 "코드 리뷰 완료" 항목이 있으면, 수집된 PR/MR URL을 `save_issue`의 `links` 필드로 첨부합니다. description 텍스트에 PR URL을 삽입하지 않습니다.
+
+    mcp__linear__save_issue({
+      id: "issue-uuid",
+      description: updatedDescription,
+      links: [{ url: "https://github.com/org/repo/pull/43", title: "PR #43 브랜치명 검증 패턴 수정" }]
+    })
+
+**콘솔 출력 예시:**
 
     === 증빙 업데이트 적용 ===
 
-    1. [x] 브랜치명 검증 패턴 수정 → 결과물: PR https://github.com/org/repo/pull/43  ← UPDATED
-    2. [x] 테스트 작성 및 통과 → 결과물: CI 로그 https://ci.example.com/build/123  ← UPDATED
-    3. [x] 코드 리뷰 완료 → 결과물: PR #42
+    1. [x] 브랜치명 검증 패턴 수정 → 결과물: CI 로그 https://ci.example.com/build/123  ← UPDATED
+    2. [x] 테스트 작성 및 통과 → 결과물: pytest 5/5 passed  ← UPDATED
+
+    공통:
+    3. [x] 코드 리뷰 완료 → 이슈 리소스에 PR/MR 링크 첨부  ← RESOURCE ADDED
+         🔗 PR #43 https://github.com/org/repo/pull/43
 
     진행률: 3/3 (100%)
 
     ===========================
-
-`mcp__linear__save_issue`로 description 업데이트
 
 ### Step 8: Manual Upload Guide
 

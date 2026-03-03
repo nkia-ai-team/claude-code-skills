@@ -97,6 +97,7 @@ Manual Mode 전체 워크플로우는 [creator_manual_mode.md](references/creato
 - **Keep it minimal**: AC 3~5개 이내 권장
 - **Be concrete and measurable**: 구체적 숫자, 메트릭, 링크 사용
 - **Include evidence**: 검증에 필요한 증빙 명시
+- **공통 AC**: 코드 변경 작업에는 `### 공통` 섹션에 코드 리뷰 항목 추가 (PR/MR은 이슈 리소스로 관리). 상세는 [issue_templates.md "공통 AC 항목"](references/issue_templates.md) 참조
 
 ### Project Auto-Assignment
 - Fetch active projects via `mcp__linear__list_projects`

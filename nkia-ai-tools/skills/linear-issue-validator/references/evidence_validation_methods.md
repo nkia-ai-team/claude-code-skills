@@ -25,6 +25,16 @@
 
 ## 2. PR/MR Link Validation
 
+### PR/MR 링크 탐색
+
+공통 AC의 "코드 리뷰 완료 → 이슈 리소스에 PR/MR 링크 첨부" 항목 검증 시:
+1. **이슈 `attachments`에서 PR/MR URL 탐색** (evidence 스킬이 `links`로 첨부)
+2. GitHub URL 패턴: `github.com/*/pull/*`
+3. GitLab URL 패턴: `*/-/merge_requests/*`
+4. attachments에 PR/MR URL이 없으면 → `evidence_missing` 처리
+
+레거시 이슈의 경우 description 텍스트의 `→ 결과물:` 뒤에서도 URL을 탐색합니다.
+
 **GitHub PR:**
 ```bash
 # 1차: gh CLI로 접근

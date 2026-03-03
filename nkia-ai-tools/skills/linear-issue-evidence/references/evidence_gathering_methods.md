@@ -53,6 +53,19 @@ URL과 함께 슈퍼바이저가 클릭 없이 판단할 수 있는 핵심 상�
 - 상태: `OPEN` / `MERGED` / `CLOSED`
 - 리뷰: `approved` / `changes_requested` / `pending review`
 
+### 첨부 방식: 이슈 리소스(links)
+
+PR/MR 링크는 description 텍스트에 삽입하지 않고, **이슈 리소스**로 첨부합니다.
+
+    mcp__linear__save_issue({
+      id: "issue-uuid",
+      links: [{ url: "https://github.com/org/repo/pull/42", title: "PR #42 브랜치명 검증 패턴 수정" }]
+    })
+
+- `links` 필드는 append-only (기존 리소스를 제거하지 않음)
+- 첨부된 링크는 이슈 `attachments`에 표시됨
+- validator는 `attachments`에서 PR/MR URL을 확인하여 검증
+
 ---
 
 ## 3. 테스트 결과 수집

@@ -108,6 +108,10 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 
 이슈 description의 "범위 (Scope)" 또는 "4. 범위 (Scope)" 섹션을 파싱하여 영향받는 시스템을 식별하고, 각 시스템에 대한 MR 링크 존재 여부를 확인합니다.
 
+**PR/MR 링크 탐색 위치:**
+- **이슈 `attachments`** (이슈 리소스로 첨부된 PR/MR 링크 — evidence 스킬이 `links` 필드로 추가)
+- description 텍스트의 `→ 결과물:` 뒤에 있는 URL (레거시 호환)
+
 스코프 파싱, 시스템-MR 매핑, 커버리지 검증은 [mr_scope_validation.md Section 1-3](references/mr_scope_validation.md) 참조
 
 ### Step 5: Check MR Code Review (Gate)

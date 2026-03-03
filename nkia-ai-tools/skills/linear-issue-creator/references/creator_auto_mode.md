@@ -63,8 +63,7 @@
     "background": "WSS 모델 학습을 위한 고품질 데이터셋 구축 필요",
     "description": "WSS 학습용 데이터 수집, 정제 및 검증 작업",
     "dod_items": [
-      "데이터 파이프라인 실행 완료 → 결과물: 저장 경로 {{storage_path}}",
-      "코드 리뷰 완료 → 결과물: PR 링크 {{pr_link}}"
+      "데이터 파이프라인 실행 완료 → 결과물: 저장 경로 {{storage_path}}"
     ],
     "ac_items": [
       "목표 데이터 {{record_count}}건 이상 수집 → 결과물: 데이터 경로 {{data_path}}",
