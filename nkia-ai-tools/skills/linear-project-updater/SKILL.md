@@ -62,17 +62,21 @@ description: Generate weekly project status updates by collecting issue-level ac
 **프로젝트가 지정된 경우:**
 프로젝트 이름, ID, 또는 slug를 입력받아 `mcp__linear__get_project`로 프로젝트 정보를 조회합니다.
 
-### Step 2: Fetch Previous Update
+**⚠️ Linear API 제약:** `list_projects` 호출 시 `includeMembers`, `includeMilestones` 등 중첩 관계 파라미터를 사용하면 "Query too complex" 에러가 발생합니다. 프로젝트 목록 조회 시에는 이러한 파라미터를 사용하지 마세요.
 
-`mcp__linear__get_status_updates(type: "project", project: projectId)`로 가장 최근 업데이트를 조회합니다.
-- 이전 업데이트의 "다음 주 계획" 섹션을 파싱하여 보관
-- 이전 업데이트가 없으면 이 단계를 건너뜁니다
+### Step 2+3: Fetch Previous Update + Collect Issue Activity (병렬)
 
-### Step 3: Collect Issue Activity
+**아래 5개 API 호출을 한 번에 병렬로 실행합니다:**
 
-이번 주 이슈 활동을 수집합니다.
+1. `get_status_updates` — 이전 업데이트 조회
+2. `list_issues(updatedAt)` — 이번 주 활동 이슈
+3. `list_issues(state: "In Progress")` — 블로커 감지
+4. `list_issues(state: "Triage")` — 다음 주 계획 / 리스크
+5. `list_issues(state: "Todo")` — 다음 주 계획
 
-데이터 수집 로직은 [data_collection.md](references/data_collection.md) 참조 — 주간 범위 계산, 이슈 조회 필터, 분류 로직
+이전 업데이트의 "다음 주 계획"에 이슈 식별자가 포함된 경우, 프로젝트 소속 검증을 위한 `get_issue` 호출은 이후 단계에서 수행합니다.
+
+데이터 수집 로직은 [data_collection.md](references/data_collection.md) 참조
 
 ### Step 4: Auto-Suggest Health
 

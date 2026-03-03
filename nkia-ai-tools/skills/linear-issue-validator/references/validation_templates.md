@@ -77,12 +77,10 @@
 {{#each failed_items}}
 ### {{type}} #{{index}}: {{description}}
 
-| 항목 | 내용 |
-|------|------|
-| 상태 | ❌ {{failure_type}} |
-| 제출된 결과물 | {{evidence}} |
-| 실패 원인 | {{failure_reason}} |
-| 필요 조치 | {{required_action}} |
+- **상태:** ❌ {{failure_type}}
+- **제출된 결과물:** {{evidence}}
+- **실패 원인:** {{failure_reason}}
+- **필요 조치:** {{required_action}}
 
 {{/each}}
 
@@ -93,10 +91,10 @@
 
 다음 항목들은 도구 제한으로 검증을 완료하지 못했습니다. **해결 후 재검증이 필요합니다.**
 
-| # | 항목 | 실패 유형 | 원인 | 필요 조치 |
-|---|------|----------|------|----------|
 {{#each blocked_items}}
-| {{index}} | {{item}} {{description}} | {{failure_type}} | {{reason}} | {{required_action}} |
+{{index}}. **{{item}} {{description}}** — {{failure_type}}
+   - 원인: {{reason}}
+   - 필요 조치: {{required_action}}
 {{/each}}
 
 {{/if}}
@@ -152,13 +150,10 @@
 {{#each failed_items}}
 ### {{type}} #{{index}}: {{description}}
 
-**상태:** ❌ {{failure_type}}
-
-| 항목 | 내용 |
-|------|------|
-| 제출된 결과물 | {{#if evidence}}{{evidence}}{{else}}(미첨부){{/if}} |
-| 실패 원인 | {{failure_reason}} |
-| 필요 조치 | {{required_action}} |
+- **상태:** ❌ {{failure_type}}
+- **제출된 결과물:** {{#if evidence}}{{evidence}}{{else}}(미첨부){{/if}}
+- **실패 원인:** {{failure_reason}}
+- **필요 조치:** {{required_action}}
 
 {{/each}}
 
@@ -492,7 +487,7 @@ PR #{{pr_number}} ✅ merged
 - 압축 판단은 **해당 MR의 변경 파일 기준** — 레포 전체 구조가 아닌, diff에 포함된 파일들의 공통 경로를 기준으로 압축
 
 ```markdown
-## 📝 MR Diff 분석
+>>> 📝 MR Diff 분석
 
 ### {{mr_identifier}} ({{system_name}}) — {{mr_state_icon}} {{mr_state}}
 - `root_file` — 변경 설명
@@ -506,6 +501,8 @@ PR #{{pr_number}} ✅ merged
 {{#each ac_items}}
 - {{coverage_status_icon}} **AC {{index}}**: {{description}} — {{covering_mrs}}
 {{/each}}
+
+>>>
 ```
 
 **예시 1 — case: 압축 불필요 (분기점이 가까워 압축할 단일 자식 체인 없음):**
