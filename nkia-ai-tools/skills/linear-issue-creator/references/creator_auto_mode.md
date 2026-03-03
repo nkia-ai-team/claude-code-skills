@@ -39,6 +39,7 @@
 - **리팩토링** → `Refactor [target] to [purpose]`
 - **리서치** → `Research [topic] for [purpose]`
 - **버그 수정** → `Fix [issue] in [target]`
+- **문서 작업** → `Write [document] for [purpose]`
 
 **Title Guidelines:**
 - Use action verbs: Add, Fix, Improve, Optimize, Refactor, Deploy, Evaluate, Process, Research
@@ -158,6 +159,6 @@ Auto Mode에서 LLM이 추출할 구조화 데이터는 `scripts/parse_natural_l
 **Key models:**
 - `ParsedIssue` — 최상위 컨테이너 (metadata + template_data)
 - `IssueMetadata` — template_type, title, team, project, assignee, priority, due_date, labels
-- Template-specific models: `BuildDeployTemplate`, `DataWorkTemplate`, `EvaluationTemplate`, `FeatureNewTemplate`, `FeatureImproveTemplate`, `RefactoringTemplate`, `ResearchTemplate`, `BugTemplate`
+- Template-specific models: `BuildDeployTemplate`, `DataWorkTemplate`, `EvaluationTemplate`, `FeatureNewTemplate`, `FeatureImproveTemplate`, `RefactoringTemplate`, `ResearchTemplate`, `BugTemplate`, `DocumentationTemplate`
 
 All templates include `dod_items: List[str]` and `ac_items: List[str]`.
