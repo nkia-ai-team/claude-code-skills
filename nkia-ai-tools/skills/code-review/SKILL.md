@@ -68,7 +68,11 @@ CLI 설치 및 인증은 [platform_operations.md Section 5](references/platform_
 
 상세 CLI 명령어, 페이지네이션, 대용량 파일 감지, URL 파싱은 [platform_operations.md Section 1-2](references/platform_operations.md) 참조
 
-### Step 4: Validate Branch Name
+### Step 4+5+6: Validate Branch / Validate Commits / Code Review (병렬)
+
+**Step 3 완료 후, 아래 3개 작업은 서로 의존성이 없으므로 병렬로 실행합니다.**
+
+**4) Validate Branch Name**
 
 브랜치명을 ruleset 기준으로 검증합니다.
 
@@ -76,7 +80,7 @@ CLI 설치 및 인증은 [platform_operations.md Section 5](references/platform_
 
 **Check:** Type prefix, Linear 이슈 번호 형식, kebab-case, 브랜치-작업 타입 일치
 
-### Step 5: Validate Commit Messages
+**5) Validate Commit Messages**
 
 **CRITICAL: 모든 커밋 메시지를 검증합니다 (최신 커밋만이 아님).**
 - Step 3에서 페이지네이션으로 조회한 전체 커밋 목록 사용
@@ -86,7 +90,7 @@ CLI 설치 및 인증은 [platform_operations.md Section 5](references/platform_
 
 **Check:** Linear 이슈 번호, Type 키워드, 구분자 (` : `), 브랜치 이슈 번호 일치
 
-### Step 6: Perform Code Review
+**6) Perform Code Review**
 
 **CRITICAL: 전체 MR diff (base → head)를 리뷰합니다. 개별 커밋 diff가 아닙니다.**
 
@@ -107,11 +111,35 @@ Diff 완전성 검증 후, ruleset의 코드 리뷰 체크리스트에 따라 �
 - 6.2 상세 코멘트 형식 template
 - 6.3 심각도 레벨 (🔴 Critical, 🟡 Warning, 🔵 Info, 🟢 Praise)
 
-### Step 8: Post Review Comment
+### Step 8: Post or Update Review Comment
 
-플랫폼별 CLI로 리뷰 코멘트를 포스팅합니다.
+**⚠️ CRITICAL: 재리뷰 시 새 코멘트를 추가하지 않고 기존 코멘트를 업데이트합니다!**
 
-포스팅 명령어는 [platform_operations.md Section 3](references/platform_operations.md) 참조 (GitHub gh / GitLab glab)
+리뷰 결과와 히스토리를 하나의 코멘트로 관리합니다.
+
+1. **기존 리뷰 코멘트 검색:**
+   - PR/MR의 코멘트 목록을 조회하여 `# MR 코드 리뷰 결과`로 시작하는 코멘트를 검색
+   - 검색/조회 API 명령어는 [platform_operations.md Section 3.1](references/platform_operations.md) 참조
+
+2. **기존 코멘트 있음 → 기존 리뷰 보존 + 변경분만 갱신:**
+   - 기존 코멘트의 `## 📜 리뷰 히스토리` 섹션을 파싱하여 시도 횟수 확인
+   - **⚠️ 기존 리뷰 항목을 전체 교체하지 않습니다!** 아래 병합 규칙을 따릅니다:
+
+   **병합 규칙:**
+   - 이전 리뷰 이후 추가된 커밋에서 변경된 파일만 식별 (새 커밋의 diff 확인)
+   - **변경되지 않은 파일의 리뷰 항목** (🟢 Praise 등) → 기존 내용 그대로 유지
+   - **새 커밋에서 변경된 파일** → 해당 파일 섹션만 재리뷰하여 교체
+   - **새로 추가된 파일** → 새 리뷰 항목 추가
+   - **이전 지적 사항 해소 확인** → 이전 🔴/🟡 항목이 새 커밋에서 수정되었으면 "✅ 해소" 표시
+   - 요약 테이블, 브랜치/커밋 검증 섹션은 항상 최신 상태로 갱신
+
+   - 업데이트 API 명령어는 [platform_operations.md Section 3.2](references/platform_operations.md) 참조
+
+3. **기존 코멘트 없음 → 새로 생성:**
+   - 기존 방식대로 `gh pr comment` 또는 `glab mr note`로 생성 (히스토리 시도 #1)
+   - 생성 명령어는 [platform_operations.md Section 3.3](references/platform_operations.md) 참조
+
+히스토리 테이블 형식은 [code_review_ruleset.md Section 6.4](references/code_review_ruleset.md) 참조
 
 ### Step 9: Display Completion Message
 

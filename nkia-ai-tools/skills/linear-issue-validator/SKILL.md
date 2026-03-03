@@ -61,6 +61,12 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 - Read tool의 vision 기능으로 **실제 이미지를 열어서 내용 확인** 필수
 - URL만 텍스트로 적혀있고 실제 첨부가 아닌 경우 → `media_not_viewable`
 
+### Principle 4: 문서 업데이트 AC는 내용 대조 필수
+
+**AC가 문서 "업데이트/갱신"을 요구할 때, 문서 존재 여부나 수정일만 확인하면 안 됩니다!**
+- 이슈의 변경 사항(MR diff, 다른 AC 항목)이 **문서 본문에 실제로 반영되었는지 대조 검증** 필수
+- 상세 프로세스는 [evidence_validation_methods.md Section 5.2](references/evidence_validation_methods.md) 참조
+
 ---
 
 ## Usage
@@ -114,17 +120,25 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 
 스코프 파싱, 시스템-MR 매핑, 커버리지 검증은 [mr_scope_validation.md Section 1-3](references/mr_scope_validation.md) 참조
 
-### Step 5: Check MR Code Review (Gate)
+### Step 5: Check MR Code Review + Fetch Diffs (Gate, Parallel)
 
 **⚠️ CRITICAL: MR에 코드 리뷰가 없으면 검증을 진행하지 않고 즉시 중단합니다.**
 
 이 단계는 Gate입니다. 통과하지 못하면 이후 검증을 진행하지 않습니다.
 
-1. Step 4에서 식별된 각 MR의 리뷰/코멘트를 확인:
-   - **GitHub**: `gh pr view {url} --json reviews,comments` → reviews + comments 합산
+**⚡ 병렬 실행:** Step 4에서 식별된 **모든 MR에 대해 리뷰 정보와 Diff를 동시에 조회**합니다. 각 MR별로 2개 명령을 병렬로 실행하고, MR 간에도 병렬로 실행합니다.
+
+    예: MR이 3개인 경우 → 6개 명령을 한 번에 병렬 실행
+    - MR1: gh pr view --json reviews,comments  |  gh pr diff
+    - MR2: glab api .../notes                  |  glab api .../changes
+    - MR3: glab api .../notes                  |  glab api .../changes
+
+1. **모든 MR에 대해 병렬로 조회:**
+   - **GitHub**: `gh pr view {url} --json reviews,comments` + `gh pr diff {number} --repo {owner/repo}`
      - **⚠️ 주의**: `gh api repos/.../pulls/{n}/reviews`는 공식 리뷰만, `gh api repos/.../pulls/{n}/comments`는 인라인 diff 코멘트만 반환합니다. PR 대화 탭의 일반 코멘트(코드 리뷰 결과 등)는 포함되지 않으므로 반드시 `gh pr view --json reviews,comments`를 사용하세요.
-   - **GitLab**: `GITLAB_HOST={host} glab api "/projects/{id}/merge_requests/{number}/notes"` → notes 목록
-2. **리뷰 0건 AND 코멘트 0건인 MR이 있으면:**
+   - **GitLab**: `GITLAB_HOST={host} glab api "/projects/{id}/merge_requests/{number}/notes"` + `GITLAB_HOST={host} glab api "/projects/{path}/merge_requests/{number}/changes"`
+
+2. **Gate 판정 — 리뷰 0건 AND 코멘트 0건인 MR이 있으면:**
    - **콘솔에 안내 메시지 출력** (Linear 코멘트가 아님):
 
          ⚠️ 코드 리뷰 미수행 — 검증을 중단합니다.
@@ -135,11 +149,13 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
          `/code-review` 스킬로 코드 리뷰를 먼저 수행한 후 다시 검증을 요청해주세요.
 
    - **검증을 즉시 종료** (이후 Step으로 진행하지 않음, Linear 코멘트 작성 안 함)
-3. **리뷰 또는 코멘트가 1건 이상이면:** 다음 Step으로 진행
+3. **리뷰 또는 코멘트가 1건 이상이면:** 이미 조회된 Diff 데이터로 Step 6 진행
 
-### Step 6: Review MR Diffs Against AC Items
+### Step 6: Analyze MR Diffs Against AC Items
 
 **⚠️ CRITICAL: 각 MR의 코드 diff를 확인하여 AC 항목의 구현이 실제로 반영되었는지 검증합니다.**
+
+Step 5에서 이미 병렬 조회한 Diff 데이터를 사용합니다. 추가 API 호출 없이 분석만 수행합니다.
 
 단순히 MR이 merged 상태인지 확인하는 것을 넘어서, diff 내용이 AC 항목을 실제로 구현하고 있는지 검증합니다.
 
@@ -151,9 +167,24 @@ Diff 조회, 분석, AC 커버리지 확인은 [mr_scope_validation.md Section 4
 
 상세 분류 규칙과 URL 패턴은 [validation_templates.md Section 6](references/validation_templates.md) 참조
 
-### Step 8: Validate Each Item
+### Step 8: Validate Each Item (Parallel)
 
 유형별로 검증을 수행합니다.
+
+**⚡ 병렬 실행:** AC 항목 간에는 의존성이 없으므로 **모든 AC 항목을 동시에 병렬 검증**합니다.
+
+    실행 방법:
+    1. 각 AC 항목의 evidence type을 분류한 후, 검증에 필요한 도구 호출을 파악
+    2. 독립적인 도구 호출(WebFetch, curl, gh, glab, Read 등)을 한 번에 병렬로 실행
+    3. 인증이 필요한 항목은 blocked_items에 기록하고 나머지 항목은 병렬 진행 계속
+
+    예: AC 5개인 경우
+    - AC 1 (pr_mr): gh pr view ...
+    - AC 2 (image): Read tool로 이미지 확인
+    - AC 3 (frontend_url): WebFetch ...
+    - AC 4 (document): WebFetch ...
+    - AC 5 (ci_cd_log): gh run view ...
+    → 5개 도구 호출을 한 번에 병렬 실행
 
 **⚠️ CRITICAL: 인증 실패 시 바로 "수동 확인 필요"로 넘어가지 말 것!** 공개 접근 → CLI 인증 확인 → 사용자 인증 요청 → 최후 수단 순서로 시도합니다.
 
@@ -178,7 +209,15 @@ Diff 조회, 분석, AC 커버리지 확인은 [mr_scope_validation.md Section 4
 - 검증 상세 메시지: Section 3
 - 검증 히스토리: Section 4 — 검증 결과 코멘트 하단에 포함
 
-### Step 11: Update Issue Checkboxes
+### Step 11+12: Update Checkboxes + Post Comment (Parallel)
+
+**⚡ 병렬 실행:** 체크박스 업데이트(description)와 코멘트 작성/수정은 서로 다른 리소스에 쓰므로 **동시에 실행**합니다.
+
+    병렬 실행 구조:
+    ┌─ (A) 체크박스 업데이트 → save_issue (description)
+    └─ (B) 코멘트 작성/수정 → create_comment 또는 GraphQL update
+
+**(A) 체크박스 업데이트:**
 
 **IMPORTANT: 검증 통과한 항목은 반드시 체크박스를 업데이트해야 합니다!**
 
@@ -186,7 +225,7 @@ Diff 조회, 분석, AC 커버리지 확인은 [mr_scope_validation.md Section 4
 2. 통과한 항목: `- [ ]` → `- [x]` / 실패한 항목: `- [x]` → `- [ ]`
 3. `mcp__linear__save_issue`로 description 업데이트
 
-### Step 12: Post or Update Comment
+**(B) 코멘트 작성/수정:**
 
 **⚠️ CRITICAL: 재검증 시 새 코멘트를 추가하지 않고 기존 코멘트를 업데이트합니다!**
 
@@ -206,7 +245,9 @@ curl -s -X POST https://api.linear.app/graphql \
 3. **기존 코멘트 없음 → `mcp__linear__create_comment`로 새로 생성** (히스토리 시도 #1)
 4. `LINEAR_API_KEY` 미설정 시 새 코멘트를 생성하되, 사용자에게 이전 코멘트를 수동 삭제하도록 안내
 
-### Step 13: Move to "Done" (Optional)
+**⚠️ 주의:** (A)의 `get_issue`와 (B)의 `list_comments`는 병렬 실행 가능하지만, 각각의 읽기→쓰기는 순차 유지
+
+### Step 12: Move to "Done" (Optional)
 
 **규칙: In Review 상태 금지. 검증 통과 시 Done으로 직접 이동.**
 

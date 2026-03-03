@@ -111,26 +111,61 @@ Pagination Strategy:
 
 ---
 
-## 3. 코멘트 포스팅
+## 3. 코멘트 관리 (검색 → 업데이트 또는 생성)
 
-**For GitHub PR:**
+**⚠️ CRITICAL: 재리뷰 시 새 코멘트를 추가하지 않고 기존 코멘트를 업데이트합니다!**
+
+### 3.1 기존 리뷰 코멘트 검색
+
+`# MR 코드 리뷰 결과`로 시작하는 코멘트를 검색합니다.
+
+**GitHub:**
+```bash
+# PR 코멘트 목록에서 리뷰 코멘트 검색 (comment_id 추출)
+gh api repos/{owner}/{repo}/issues/{number}/comments \
+  --jq '.[] | select(.body | startswith("# MR 코드 리뷰 결과")) | {id, body}'
+```
+
+**GitLab:**
+```bash
+# MR notes에서 리뷰 코멘트 검색 (note_id 추출)
+GITLAB_HOST={hostname} glab api "/projects/{project_id}/merge_requests/{mr_number}/notes?per_page=100" \
+  --jq '.[] | select(.body | startswith("# MR 코드 리뷰 결과")) | {id, body}'
+```
+
+### 3.2 기존 코멘트 업데이트
+
+검색 결과에서 `id`를 추출한 후 코멘트 본문을 교체합니다.
+
+**GitHub:**
+```bash
+gh api repos/{owner}/{repo}/issues/comments/{comment_id} \
+  --method PATCH -f body="{updated_review_content}"
+```
+
+**GitLab:**
+```bash
+GITLAB_HOST={hostname} glab api --method PUT \
+  "/projects/{project_id}/merge_requests/{mr_number}/notes/{note_id}" \
+  -f body="{updated_review_content}"
+```
+
+### 3.3 새 코멘트 생성 (기존 코멘트 없을 때)
+
+**GitHub:**
 ```bash
 gh pr comment {url} --body "{review_content}"
 ```
 
-**For GitLab MR:**
+**GitLab:**
 ```bash
 # For gitlab.com
 glab mr note {mr_number} --repo {owner/repo} --message "{review_content}"
 
-# For self-hosted GitLab (use project_id obtained in Step 3-2)
-GITLAB_HOST={hostname} glab api --method POST "/projects/{project_id}/merge_requests/{mr_number}/notes" -f body="{review_content}"
-
-# Example:
-# GITLAB_HOST=cims2.nkia.net:8443 glab api --method POST "/projects/141/merge_requests/4/notes" -f body="$(cat <<'EOF'
-# Review content here...
-# EOF
-# )"
+# For self-hosted GitLab
+GITLAB_HOST={hostname} glab api --method POST \
+  "/projects/{project_id}/merge_requests/{mr_number}/notes" \
+  -f body="{review_content}"
 ```
 
 ---
