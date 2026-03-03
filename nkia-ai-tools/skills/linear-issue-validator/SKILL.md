@@ -25,19 +25,14 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 1. AC 항목별 결과물 파싱 및 검증
 2. 다양한 결과물 유형 지원 (URL, 이미지, PR, API, CI/CD 등)
 3. 검증 결과를 이슈 코멘트로 작성
-4. 전체 통과 시 "Done" 상태로 이동 (선택)
+4. 전체 통과 시 "In Review" 상태로 이동 (선택)
 
 ---
 
 ## Status Rules
 
 상태 규칙은 [guideline-ref.md "이슈 상태"](../_shared/guideline-ref.md) 참조.
-
-**핵심:**
-- 허용 상태: Backlog, Todo, In Progress, Done, Canceled
-- **In Review / QA / Deploying 등 별도 상태 금지**
-- 검증 통과 시 → **Done**으로 직접 이동 (In Review 아님)
-- Done = AC + AI 검증을 충족한 상태
+검증 통과 시 상태 이동은 Step 12에서 처리합니다.
 
 ---
 
@@ -247,11 +242,11 @@ curl -s -X POST https://api.linear.app/graphql \
 
 **⚠️ 주의:** (A)의 `get_issue`와 (B)의 `list_comments`는 병렬 실행 가능하지만, 각각의 읽기→쓰기는 순차 유지
 
-### Step 12: Move to "Done" (Optional)
+### Step 12: Move to "In Review" (Optional)
 
-**규칙: In Review 상태 금지. 검증 통과 시 Done으로 직접 이동.**
+**규칙: 검증 통과 시 In Review로 이동. 사람의 최종 확인 후 Done으로 전환.**
 
-모든 항목 통과 시, 사용자에게 상태 변경 여부를 확인 후 `mcp__linear__save_issue`로 "Done" 상태로 이동합니다.
+모든 항목 통과 시, 사용자에게 상태 변경 여부를 확인 후 `mcp__linear__save_issue`로 "In Review" 상태로 이동합니다.
 
 ---
 
