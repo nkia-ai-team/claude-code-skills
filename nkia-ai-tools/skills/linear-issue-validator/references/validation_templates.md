@@ -33,7 +33,7 @@
 
 > 🎉 모든 AC 항목이 검증되었습니다!
 >
-> **다음 단계:** "Done" 상태로 이동할 수 있습니다.
+> **다음 단계:** "In Review" 상태로 이동할 수 있습니다.
 
 ---
 
@@ -558,7 +558,7 @@ PR #{{pr_number}} ✅ merged
 
 ## 5. 상태 변경 안내 템플릿
 
-### 5.1 Done 이동 제안
+### 5.1 In Review 이동 제안
 
 ```markdown
 ## 🎉 모든 검증 완료!
@@ -571,15 +571,15 @@ PR #{{pr_number}} ✅ merged
 
 ### 다음 단계
 
-이슈를 **"Done"** 상태로 이동하시겠습니까?
+이슈를 **"In Review"** 상태로 이동하시겠습니까?
 
-> **Done 상태란?**
-> - AC + AI 검증을 충족한 상태
-> - In Review / QA 등 별도 상태는 사용하지 않습니다
+> **In Review 상태란?**
+> - AC + AI 검증을 충족하여 리뷰 대기 중인 상태
+> - 사람의 최종 확인 후 Done으로 전환
 
 `AskUserQuestion`으로 확인:
-- 질문: "이슈를 'Done' 상태로 이동하시겠습니까?"
-- 선택지: "예, Done으로 이동", "아니오, 현재 상태 유지"
+- 질문: "이슈를 'In Review' 상태로 이동하시겠습니까?"
+- 선택지: "예, In Review로 이동", "아니오, 현재 상태 유지"
 - 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 ```
 
@@ -588,10 +588,10 @@ PR #{{pr_number}} ✅ merged
 ```markdown
 ## ✅ 상태 변경 완료
 
-**{{issue_identifier}}** "{{issue_title}}"가 **"Done"** 상태로 이동되었습니다.
+**{{issue_identifier}}** "{{issue_title}}"가 **"In Review"** 상태로 이동되었습니다.
 
 - 이전 상태: {{previous_state}}
-- 현재 상태: **Done**
+- 현재 상태: **In Review**
 - 변경 일시: {{changed_at}}
 ```
 

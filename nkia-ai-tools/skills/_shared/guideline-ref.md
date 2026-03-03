@@ -12,11 +12,12 @@
 | **Backlog** | 해야 하지만, 이번 사이클은 아닌 일 | 쓰레기통이 아님. 순서만 뒤인 필수 업무 |
 | **Todo** | 이번 사이클에 착수할 준비 완료 | - |
 | **In Progress** | 실제로 손을 대고 있는 상태 | 회의만 하고 코드를 안 짰으면 Todo |
-| **Done** | AC + AI 검증을 충족한 상태 | - |
+| **In Review** | AC + AI 검증을 충족하여 리뷰 대기 중 | validator 검증 통과 후 자동 이동 |
+| **Done** | 사람의 최종 확인까지 완료된 상태 | In Review → 사람 확인 → Done |
 | **Canceled** | 안 하기로 결정된 일 | "왜 안 하는지" 댓글로 자산화 |
 
 **금지 사항:**
-- **In Review / QA / Deploying 등 별도 상태 금지** — 리뷰가 필요한 작업은 AC 조건으로 관리
+- **QA / Deploying 등 별도 상태 금지** — 리뷰가 필요한 작업은 In Review 상태 사용
 - **In Progress 3일 이상 방치 금지** — 이슈를 쪼개거나 도움을 요청
 
 ---
@@ -165,7 +166,38 @@ Estimate 3 이상 이슈는 이슈명 끝에 접미사를 붙여 AC 검토 상�
 
 ---
 
-## 6. AI-Verification Loop
+## 6. 공통 AC 항목
+
+작업 유형에 따라 AC에 **공통 섹션**을 추가합니다.
+
+### 6.1 코드 변경 작업
+
+코드 변경이 포함된 작업(새로운 기능 개발, 기능 개선, 리팩토링, 버그 수정 등):
+
+    ### 공통
+    - [ ] 코드 리뷰 완료 → 이슈 리소스에 PR/MR 링크 첨부
+
+**적용 규칙:**
+- PR/MR이 필요한 작업에만 추가 (리서치, 평가 등 코드 변경 없는 작업은 제외)
+- AC 항목 본문에 `→ 결과물: PR 링크 {{pr_link}}`를 넣지 않음
+- PR/MR 링크는 이슈 리소스(links)로 첨부됨 → evidence 스킬이 `save_issue`의 `links` 필드로 추가
+- validator는 이슈 `attachments`에서 PR/MR URL을 확인하여 검증
+
+### 6.2 문서 작업 (단일 문서)
+
+한 페이지에 여러 섹션을 작성하는 문서 작업:
+
+    ### 공통
+    - [ ] 최종 게시 완료 → 결과물: 게시된 문서 URL {{published_url}}
+
+**적용 규칙:**
+- 모든 AC가 같은 문서를 대상으로 할 때만 적용
+- 개별 AC 항목에 `→ 결과물: 문서 링크`를 넣지 않음
+- 다중 문서인 경우 공통 항목 대신 각 AC에 개별 문서 링크 첨부
+
+---
+
+## 7. AI-Verification Loop
 
 ### Estimate별 분기
 
@@ -183,11 +215,11 @@ Estimate 3 이상 이슈는 이슈명 끝에 접미사를 붙여 AC 검토 상�
 
 ---
 
-## 7. Health 판단 기준
+## 8. Health 판단 기준
 
 Status Update의 Health(On Track / At Risk / Off Track)를 판단하는 기준입니다. 자동 제안은 참고용이며, **사용자가 최종 결정**합니다.
 
-### 7.1 프로젝트 Health (Project Update)
+### 8.1 프로젝트 Health (Project Update)
 
 | Health | 정의 | 시그널 |
 |--------|------|--------|
@@ -200,7 +232,7 @@ Status Update의 Health(On Track / At Risk / Off Track)를 판단하는 기준�
 2. At Risk 시그널 1개 이상 → At Risk 제안
 3. 나머지 → On Track 제안
 
-### 7.2 이니셔티브 Health (Initiative Update)
+### 8.2 이니셔티브 Health (Initiative Update)
 
 | Health | 정의 | 시그널 |
 |--------|------|--------|
