@@ -37,6 +37,8 @@ Git 커밋 시 NKIA 팀 컨벤션에 맞는 커밋 메시지를 자동 생성합
 
 ## Commit Message Format
 
+### 제목
+
 ```regex
 ^[a-z]+-[0-9]+ (Feat|Fix|Refactor|Cleanup|Wip|Revert|Style|Merge|Docs|Config|Dependency|Test) : .+$
 ```
@@ -44,6 +46,28 @@ Git 커밋 시 NKIA 팀 컨벤션에 맞는 커밋 메시지를 자동 생성합
 **구조:** `{Linear이슈번호} {Type} : {설명}`
 
 **예시:** `nkiaai-129 Feat : API 변경 감지 시스템 구축`
+
+### 본문
+
+제목 아래에 빈 줄 하나를 두고 본문을 작성한다.
+
+**규칙:**
+- 각 줄은 `- `로 시작하는 불릿
+- **파일 단위가 아닌 변경 단위**로 작성 (파일 10개를 바꿔도 논리적 변경이 3개면 3줄)
+- 간결하게 작성 — **"무엇을"** 했는지만 기술 ("왜"는 이슈 번호로 추적)
+
+**본문 생략 조건:**
+- 단일 파일 수정이고 제목만으로 충분한 경우 (예: typo 수정, config 값 변경)
+- Type이 `Style`, `Config`, `Cleanup`이고 변경이 단순한 경우
+
+**예시:**
+```
+nkiaai-129 Feat : 사용자 인증 API 엔드포인트 추가
+
+- JWT 기반 인증 미들웨어 추가
+- 로그인/로그아웃 API 엔드포인트 구현
+- User 모델에 refreshToken 필드 추가
+```
 
 ### Type Keywords
 
@@ -69,7 +93,7 @@ Git 커밋 시 NKIA 팀 컨벤션에 맞는 커밋 메시지를 자동 생성합
 2. **Extract Linear Issue Number** — 브랜치명에서 자동 추출 (패턴: `{prefix}/{team-key}-{number}-*`)
 3. **Analyze Changes** — `git diff --cached`로 변경사항 상세 분석
 4. **Determine Type** — 변경 패턴 기반 Type 자동 결정
-5. **Generate Message** — 한글, 50자 이내, 동사로 시작
+5. **Generate Message** — 제목(한글, 50자 이내, 동사로 시작) + 본문(변경 단위 불릿 리스트, 단순 변경 시 생략)
 6. **Preview and Confirm** — 미리보기 후 사용자 확인
 7. **Execute Commit** — `git commit -m "..."` 실행
 

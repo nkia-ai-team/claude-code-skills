@@ -261,11 +261,39 @@ $ brew install {gh/glab}
 ```
 
 ### Authentication Failed
+
+**GitHub:**
 ```
-{platform} CLI authentication required.
+GitHub CLI authentication required.
 Please authenticate with:
-$ {gh/glab} auth login
+$ gh auth login
 ```
+
+**GitLab — 토큰 사전 확보 전략:**
+
+self-hosted GitLab에서 `glab auth status`가 hostname 불일치(포트 유무 차이 등)로 간헐적으로 실패합니다.
+이를 방지하기 위해 **glab API 호출 전에 config에서 토큰을 미리 추출하여 `GITLAB_TOKEN`으로 전달합니다.**
+
+```
+Step 1: glab config에서 토큰 추출 (최우선)
+  $ cat ~/.config/glab-cli/config.yml
+  # hosts 섹션에서 해당 호스트의 token 값 추출
+  #
+  # ⚠️ URL에서 파싱한 hostname은 포트 포함 (예: cims2.nkia.net:8443)
+  #    config의 호스트 키는 포트 미포함일 수 있음 (예: cims2.nkia.net)
+  #    → 정확히 매칭 안 되면, 포트를 제외한 호스트명으로 매칭할 것
+
+Step 2: 토큰을 찾으면 — 모든 glab 호출에 GITLAB_TOKEN 전달
+  $ GITLAB_TOKEN={extracted_token} GITLAB_HOST={hostname} glab api "/projects/..."
+
+Step 3: config에 토큰이 없으면 — 환경변수 확인
+  $ env | grep -iE '(GITLAB_TOKEN|GITLAB_PRIVATE_TOKEN|GL_TOKEN)'
+
+Step 4: 모든 방법 실패 시 — 사용자에게 확인
+  AskUserQuestion으로 토큰 입력 또는 glab auth login 안내
+```
+
+**적용 범위:** self-hosted GitLab(`gitlab.com` 제외)의 **모든 glab API 호출**에 적용됩니다. 세션 시작 시 한 번 토큰을 확보하면, 이후 같은 세션의 모든 glab 호출에 `GITLAB_TOKEN`을 함께 전달합니다.
 
 ### PR/MR Access Denied
 ```
