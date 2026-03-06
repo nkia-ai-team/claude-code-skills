@@ -53,7 +53,8 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 ### Principle 3: 이미지/동영상은 실제 첨부 및 내용 확인 필수
 
 **이미지나 동영상 증빙은 단순 URL 텍스트만으로 통과시키면 안 됩니다!**
-- Read tool의 vision 기능으로 **실제 이미지를 열어서 내용 확인** 필수
+- Linear 업로드 이미지(`uploads.linear.app/*`)는 **`mcp__plugin_linear_linear__extract_images` MCP 도구로 확인** (URL 서명 만료 방지)
+- 외부 이미지는 Read tool의 vision 기능으로 **실제 이미지를 열어서 내용 확인** 필수
 - URL만 텍스트로 적혀있고 실제 첨부가 아닌 경우 → `media_not_viewable`
 
 ### Principle 4: 문서 업데이트 AC는 내용 대조 필수
@@ -246,7 +247,16 @@ curl -s -X POST https://api.linear.app/graphql \
 
 **규칙: 검증 통과 시 In Review로 이동. 사람의 최종 확인 후 Done으로 전환.**
 
-모든 항목 통과 시, 사용자에게 상태 변경 여부를 확인 후 `mcp__linear__save_issue`로 "In Review" 상태로 이동합니다.
+**⚠️ CRITICAL: Done이 아닌 반드시 "In Review"로 전환해야 합니다!**
+
+모든 항목 통과 시, `AskUserQuestion`으로 사용자에게 확인합니다:
+- 질문: "이슈를 'In Review' 상태로 이동하시겠습니까?"
+- 선택지: "예, In Review로 이동", "아니오, 현재 상태 유지"
+- 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
+
+사용자가 승인하면 `mcp__linear__save_issue`로 "In Review" 상태로 이동합니다.
+
+상태 변경 안내 메시지는 [validation_templates.md Section 5](references/validation_templates.md) 참조.
 
 ---
 

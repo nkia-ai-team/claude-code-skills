@@ -27,23 +27,24 @@
 1. `template_type` — 작업 유형 자동 결정
 2. `title` — 영문 제목 (English Title Patterns 참고)
 3. `team`, `project`, `assignee`, `priority`, `due_date` — 메타데이터
-4. `labels` — 템플릿 타입 기반 자동 선택
+4. `labels` — 템플릿 타입 기반 work type 라벨 자동 선택 + 내용 분석으로 domain 라벨 추가
 5. `dod_items`, `ac_items` — 구체적이고 측정 가능한 항목 생성
 
-**English Title Patterns by Template Type:**
-- **빌드/배포** → `Deploy [target] to [environment]`
-- **데이터 작업** → `Process [data] for [purpose]`
-- **평가** → `Evaluate [target] for [metric]`
-- **새로운 기능 개발** → `Add [feature] to [purpose]`
-- **기능 개선** → `Improve [target] to [purpose]`
-- **리팩토링** → `Refactor [target] to [purpose]`
-- **리서치** → `Research [topic] for [purpose]`
-- **버그 수정** → `Fix [issue] in [target]`
-- **문서 작업** → `Write [document] for [purpose]`
+**Title:** 무엇을 왜 하는지 한 줄로 파악 가능하게 작성. 작업 유형(fix, feat 등)은 Linear의 이슈 타입 + 라벨로 이미 표현되므로 제목에 넣지 않습니다.
+
+**예시:**
+
+| 작업 유형 | 예시 |
+|----------|------|
+| 빌드/배포 | `RCA 에이전트 v2.0 개발 서버 배포` |
+| 데이터 작업 | `WSS Bank 데이터 전처리 및 라벨링` |
+| 새로운 기능 개발 | `리포트 CSV 내보내기 기능 추가` |
+| 기능 개선 | `사용자 검색 쿼리 성능 최적화` |
+| 버그 수정 | `OAuth 사용자 로그인 실패 수정` |
+| 문서 작업 | `온보딩 매뉴얼 Confluence 문서 전면 리뉴얼` |
 
 **Title Guidelines:**
-- Use action verbs: Add, Fix, Improve, Optimize, Refactor, Deploy, Evaluate, Process, Research
-- Length: 5-8 words (30-50 characters recommended)
+- 범위가 여러 대상에 걸치면 특정 모듈에 한정하지 말고 포괄적 제목 사용
 - Be specific and concise
 - Consider Linear's auto-generated branch names
 
@@ -58,7 +59,7 @@
     "assignee": "이성원",
     "priority": "Normal",
     "due_date": "2025-11-25",
-    "labels": ["task"]
+    "labels": ["data"]
   },
   "template_data": {
     "background": "WSS 모델 학습을 위한 고품질 데이터셋 구축 필요",
@@ -102,15 +103,22 @@
 ## Step 4: Auto-assign Project Based on Content
 
 1. `mcp__linear__list_projects`로 팀의 활성 프로젝트 조회
-2. 이슈 제목/설명에서 키워드 추출하여 프로젝트 이름과 매칭
+2. 이슈 제목/설명 키워드를 프로젝트 **name + description** 모두와 매칭
 3. 높은 신뢰도로 매칭된 경우만 프로젝트 할당
-4. 매칭 실패 시 null로 두기 (강제 할당 금지)
 
 **Project matching criteria:**
-- 이슈 제목/설명의 키워드와 프로젝트 이름 매칭
+- 이슈 제목/설명의 키워드와 프로젝트 **이름 및 설명** 매칭
 - 활성 프로젝트 우선 (완료된 프로젝트보다)
-- 시맨틱 유사성 활용 (예: "API", "endpoint" → "API Development" 프로젝트)
+- 시맨틱 유사성 활용 (예: "채팅 SSE 스트리밍" → "Lucida Chat AI" 프로젝트)
 - 여러 프로젝트 매칭 시 최근 업데이트된 프로젝트 우선
+
+**폴백 규칙:**
+- 특정 제품/서비스 프로젝트에 매칭되지 않는 팀 내부 작업(스킬 개선, 개발 환경, 온보딩, 공통 도구 등)은 **"AI팀 공통 이슈"** 프로젝트를 폴백으로 제안
+- 폴백 제안 시에도 사용자 확인 필요 (자동 할당하지 않음)
+
+**매칭 실패 시:**
+- 활성 프로젝트 목록을 번호와 함께 표시하고 사용자에게 선택 요청
+- "(없음)" 선택지도 제공 — 프로젝트 미할당 허용
 
 ## Step 5: Auto-assign Cycle Based on Due Date
 

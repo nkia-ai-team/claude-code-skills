@@ -10,7 +10,7 @@
 
 **인증 실패 시 처리 순서:**
 1. **1차 시도**: 공개 접근 또는 기존 인증 정보로 접근
-2. **2차 시도**: CLI 도구 인증 상태 확인 (gh, glab 등)
+2. **2차 시도**: CLI 도구 인증 확보 (gh: `gh auth status` / GitLab self-hosted: config에서 토큰 사전 확보)
 3. **3차 시도**: 사용자에게 인증 정보 입력 요청
 4. **최후 수단**: 모든 방법 실패 시에만 수동 확인 요청
 
@@ -54,15 +54,17 @@ glab mr view {number} --repo {owner/repo}
 
 **GitLab MR/파일 (self-hosted):**
 ```bash
-# 1차: glab 인증 상태 확인
-glab auth status --hostname {hostname}
+# 1차: ~/.config/glab-cli/config.yml에서 해당 호스트 토큰 사전 추출
+# ⚠️ URL 파싱 hostname은 포트 포함 (예: cims2.nkia.net:8443)
+#    config 키는 포트 미포함일 수 있음 (예: cims2.nkia.net)
+#    → 정확 매칭 안 되면 포트 제외 호스트명으로 매칭
+# 2차: config에 없으면 환경변수 확인 (GITLAB_TOKEN, GITLAB_PRIVATE_TOKEN)
+# 3차: 모든 방법 실패 → AskUserQuestion으로 확인:
+#    - 질문: "GitLab {hostname} 인증이 필요합니다. 어떻게 하시겠습니까?"
+#    - 선택지: "glab auth login 실행", "Personal Access Token 직접 입력", "스크린샷으로 대체"
+#    - 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
 
-# 인증 안 됨 → `AskUserQuestion`으로 확인:
-# - 질문: "GitLab {hostname} 인증이 필요합니다. 어떻게 하시겠습니까?"
-# - 선택지: "glab auth login 실행", "Personal Access Token 직접 입력", "스크린샷으로 대체"
-# - 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
-
-# 2차: 인증 후 API 호출
+# 토큰 확보 후 API 호출 (GITLAB_TOKEN={token} 전달)
 # URL 파싱 예시:
 # https://cims2.nkia.net:8443/gitlab/lucida-ai-develop/-/merge_requests/4
 # → hostname: cims2.nkia.net:8443
@@ -339,8 +341,10 @@ curl -H "Authorization: Bearer {api_key}" "{grafana_url}/api/dashboards/uid/{das
 ### Step A: 미디어 접근 가능 여부 확인
 
 1. **Linear 업로드 파일** (`uploads.linear.app/*`):
-   - Read tool로 이미지 파일을 직접 열어서 확인
-   - Read tool은 이미지 파일을 시각적으로 표시할 수 있음 (multimodal)
+   - **⚠️ CRITICAL: `mcp__plugin_linear_linear__extract_images` MCP 도구를 우선 사용할 것!**
+   - Linear 업로드 URL은 서명이 만료되면 직접 접근이 불가능합니다
+   - `extract_images`에 이슈 ID를 전달하면 description/comment 내 이미지를 추출하여 확인 가능
+   - `extract_images` 사용 불가 시에만 Read tool로 직접 열기를 시도
 
 2. **외부 이미지 URL** (`*.png`, `*.jpg`, `*.gif`, `*.webp` 등):
    - WebFetch 또는 curl로 실제 파일 접근 가능 여부 확인
