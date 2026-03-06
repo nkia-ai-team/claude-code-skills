@@ -37,10 +37,14 @@ AC 항목에서 증빙 유형을 자동 판별합니다.
 
 ### GitLab MR
 
-    # glab CLI로 현재 브랜치의 MR 조회
-    glab mr list --source-branch $(git branch --show-current)
+    # GitLab self-hosted: ~/.config/glab-cli/config.yml에서 토큰 사전 추출
+    # ⚠️ config 키에 포트가 없을 수 있음 (예: cims2.nkia.net vs cims2.nkia.net:8443)
+    #    → 포트 제외 호스트명으로도 매칭
+    # config에 없으면 환경변수 확인 (GITLAB_TOKEN, GITLAB_PRIVATE_TOKEN)
+    # 토큰 확보 후:
+    GITLAB_TOKEN={token} GITLAB_HOST={hostname} glab mr list --source-branch $(git branch --show-current)
 
-    # glab 미설치 시 → 수집 실패, 사용자에게 URL 직접 입력 안내
+    # 토큰 확보 실패 또는 glab 미설치 시 → 수집 실패, 사용자에게 URL 직접 입력 안내
 
 ### 수집 결과 형식
 
@@ -195,8 +199,8 @@ AC 항목의 텍스트에서 캡처 대상을 추론합니다:
 
 ### GitLab CI
 
-    # glab CLI로 파이프라인 조회
-    glab ci list --branch $(git branch --show-current)
+    # GitLab self-hosted: 위 "GitLab MR" 섹션과 동일하게 config에서 토큰 사전 확보
+    GITLAB_TOKEN={token} GITLAB_HOST={hostname} glab ci list --branch $(git branch --show-current)
 
 ### Jenkins
 
@@ -318,7 +322,8 @@ AC에 평가 방법이 명시된 경우 해당 스크립트를 실행합니다.
 | PR/MR 미생성 | `WARNING: 현재 브랜치에 PR/MR이 없습니다` |
 | 파일 미존재 | `WARNING: {{path}} 경로에 파일이 없습니다` |
 | 테스트 실행 실패 | `WARNING: 테스트 실행에 실패했습니다 — {{error}}` |
-| 인증 필요 | `WARNING: 인증이 필요합니다 — 수동으로 증빙을 첨부해주세요` |
+| glab 인증 실패 (fallback 성공) | fallback으로 토큰 확보 후 정상 진행 (WARNING 없음) |
+| 인증 필요 (fallback 포함 전부 실패) | `WARNING: 인증이 필요합니다 — 수동으로 증빙을 첨부해주세요` |
 
 ### 실패 시 동작
 

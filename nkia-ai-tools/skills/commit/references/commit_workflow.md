@@ -83,11 +83,18 @@ git diff --cached --name-only
 
 ## Step 5: Generate Commit Message
 
-**메시지 생성 규칙:**
+### 제목 생성 규칙
 1. 한글 사용 (또는 영문 - 프로젝트 컨벤션에 따름)
 2. 50자 이내 권장
 3. 무엇을 했는지 명확하게 설명
 4. 동사로 시작 (추가, 수정, 개선, 삭제 등)
+
+### 본문 생성 규칙
+1. 제목과 본문 사이에 빈 줄 하나
+2. 각 줄은 `- `로 시작하는 불릿
+3. **파일 단위가 아닌 변경 단위**로 작성
+4. 간결하게 — **"무엇을"** 했는지만 기술
+5. 단순 변경(typo, config 값 변경 등)이고 제목만으로 충분하면 본문 생략
 
 ## Step 6: Show Preview and Confirm
 
@@ -96,10 +103,9 @@ git diff --cached --name-only
 
 nkiaai-129 Feat : 사용자 인증 API 엔드포인트 추가
 
-변경 파일:
-- src/api/auth.ts (+150)
-- src/utils/jwt.ts (+45)
-- tests/auth.test.ts (+80)
+- JWT 기반 인증 미들웨어 추가
+- 로그인/로그아웃 API 엔드포인트 구현
+- User 모델에 refreshToken 필드 추가
 
 ============================
 
@@ -111,8 +117,18 @@ nkiaai-129 Feat : 사용자 인증 API 엔드포인트 추가
 
 ## Step 7: Execute Commit
 
+본문이 있는 경우 `git commit -m "제목" -m "본문"` 형식으로 실행:
+
 ```bash
-git commit -m "nkiaai-129 Feat : 사용자 인증 API 엔드포인트 추가"
+git commit -m "nkiaai-129 Feat : 사용자 인증 API 엔드포인트 추가" -m "- JWT 기반 인증 미들웨어 추가
+- 로그인/로그아웃 API 엔드포인트 구현
+- User 모델에 refreshToken 필드 추가"
+```
+
+본문이 없는 경우(단순 변경):
+
+```bash
+git commit -m "nkiaai-129 Config : ESLint 규칙 업데이트"
 ```
 
 **커밋 성공 시:**
@@ -152,30 +168,45 @@ Linear 이슈 번호 형식이 올바르지 않습니다.
 
 ## Examples
 
-### Example 1: New Feature
+### Example 1: New Feature (본문 있음)
 ```
 브랜치: feature/nkiaai-129-user-auth
 변경: src/api/auth.ts (신규), src/models/user.ts (수정)
-생성 메시지: nkiaai-129 Feat : 사용자 인증 API 구현
+
+제목: nkiaai-129 Feat : 사용자 인증 API 구현
+본문:
+- JWT 기반 로그인/로그아웃 엔드포인트 추가
+- User 모델에 refreshToken 필드 추가
 ```
 
-### Example 2: Bug Fix
+### Example 2: Bug Fix (본문 있음)
 ```
 브랜치: fix/nkiaai-130-login-error
-변경: src/services/login.ts (수정)
-생성 메시지: nkiaai-130 Fix : 로그인 시 세션 만료 오류 수정
+변경: src/services/login.ts (수정), src/middleware/session.ts (수정)
+
+제목: nkiaai-130 Fix : 로그인 시 세션 만료 오류 수정
+본문:
+- 세션 갱신 로직에서 만료 시간 비교 조건 수정
+- 세션 미들웨어에 갱신 실패 시 재로그인 처리 추가
 ```
 
-### Example 3: Documentation
+### Example 3: 단순 변경 (본문 생략)
 ```
 브랜치: docs/nkiaai-131-api-docs
-변경: docs/API.md (신규), README.md (수정)
-생성 메시지: nkiaai-131 Docs : API 문서 및 README 업데이트
+변경: README.md (수정)
+
+제목: nkiaai-131 Docs : README API 섹션 업데이트
+본문: (생략 — 단순 문서 수정)
 ```
 
-### Example 4: Multiple Changes
+### Example 4: Multiple Changes (본문 있음)
 ```
 브랜치: feature/nkiaai-129-api-improvement
 변경: src/api/trace.ts (수정), src/utils/parser.ts (수정), tests/trace.test.ts (신규)
-생성 메시지: nkiaai-129 Feat : Trace API 엔드포인트 추가 및 파서 개선
+
+제목: nkiaai-129 Feat : Trace API 엔드포인트 추가 및 파서 개선
+본문:
+- Trace 조회/삭제 API 엔드포인트 추가
+- 로그 파서에 JSON 포맷 지원 추가
+- Trace API 통합 테스트 작성
 ```
