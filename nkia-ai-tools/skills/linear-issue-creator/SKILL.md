@@ -45,21 +45,31 @@ Estimate 규칙과 AC 검토 컨벤션은 [guideline-ref.md "Estimate", "AC 검�
 
 ## Work Templates and Issue Type Mapping
 
-8 work templates are available, each automatically mapped to a Linear issue type:
+9 work templates are available, each automatically mapped to a Linear issue type and labels.
+Labels are divided into **work type** (what) and **domain** (where), and multiple labels can be applied per issue.
 
 | Work Template | Issue Type | Auto Labels |
 |--------------|-----------|-------------|
 | 1. 빌드/배포 | Task | "build" |
-| 2. 데이터 작업 | Task | "task" |
-| 3. 평가 | Task | "task" |
+| 2. 데이터 작업 | Task | "data" |
+| 3. 평가 | Task | "research" |
 | 4. 새로운 기능 개발 | Feature | "feature" |
-| 5. 기능 개선 | Feature | "improvement" |
-| 6. 리팩토링 | Feature | "improvement" |
+| 5. 기능 개선 | Feature | "improve" |
+| 6. 리팩토링 | Feature | "refactor" |
 | 7. 리서치 | Research | "research" |
 | 8. 버그 수정 | Bug | "bug" |
-| 9. 문서 작업 | Feature | "feature" / "improvement" |
+| 9. 문서 작업 | Task | "document" |
 
-**Available Linear labels:** bug, build, feature, improvement, research, task
+**Available Linear labels:**
+
+| Category | Labels |
+|----------|--------|
+| Work type | bug, feature, improve, refactor, research, document, task |
+| Domain | build, infra, data |
+
+- **Work type**: 작업의 성격 (what) — 템플릿 선택 시 자동 부여
+- **Domain**: 작업의 대상/영역 (where) — 내용 분석을 통해 추가 부여
+- 복수 라벨 조합 가능 (예: "refactor" + "data", "document" + "build")
 
 템플릿별 섹션 내용 가이드, AC 생성 패턴, 제목 개선 가이드라인은 [issue_templates.md](references/issue_templates.md) 참조
 
@@ -89,9 +99,10 @@ Manual Mode 전체 워크플로우는 [creator_manual_mode.md](references/creato
 ## Key Guidelines
 
 ### Title Improvement
-제목 공식: `[대상] + [행동] + [이유/효과]`
+무엇을 왜 하는지 한 줄로 파악 가능하게 작성
 - **Bad**: 로그인 수정
-- **Good**: 로그인: 비밀번호 재설정 메일 발송 실패 수정 (500 오류 해결)
+- **Good**: 비밀번호 재설정 메일 발송 실패 수정 (500 오류 해결)
+- **범위가 2개 이상 대상에 걸치면** 특정 모듈에 한정하지 말고 포괄적 제목 사용 (상세: [issue_templates.md "포괄적 제목 작성 원칙"](references/issue_templates.md))
 
 ### Acceptance Criteria
 - DoD/AC를 분리하지 않고 **"완료 조건 (Acceptance Criteria)"** 단일 섹션으로 통합
@@ -101,9 +112,19 @@ Manual Mode 전체 워크플로우는 [creator_manual_mode.md](references/creato
 - **공통 AC**: 작업 유형별 공통 항목은 [guideline-ref.md "공통 AC 항목"](../_shared/guideline-ref.md) 참조
 
 ### Project Auto-Assignment
-- Fetch active projects via `mcp__linear__list_projects`
-- Match issue title/description keywords with project names
-- Only assign on high confidence match — do not force assignment
+
+**매칭 순서:**
+1. `mcp__linear__list_projects`로 팀의 활성 프로젝트 조회
+2. 이슈 제목/설명 키워드를 프로젝트 **name + description** 모두와 매칭
+3. 높은 신뢰도로 매칭된 경우만 프로젝트 할당
+
+**폴백 규칙:**
+- 특정 제품/서비스 프로젝트에 매칭되지 않는 팀 내부 작업(스킬 개선, 개발 환경, 온보딩, 공통 도구 등)은 **"AI팀 공통 이슈"** 프로젝트를 폴백으로 제안
+- 폴백 제안 시에도 사용자 확인 필요 (자동 할당하지 않음)
+
+**매칭 실패 시:**
+- 활성 프로젝트 목록을 번호와 함께 표시하고 사용자에게 선택 요청
+- "(없음)" 선택지도 제공 — 프로젝트 미할당 허용
 
 ### Cycle Auto-Assignment & Mid-Cycle Guard
 - If `due_date` provided, match with `mcp__linear__list_cycles`

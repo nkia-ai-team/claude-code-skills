@@ -12,6 +12,13 @@ description: Perform automated code reviews on GitHub Pull Requests or GitLab Me
 
 **All review comments MUST be written in Korean (한국어) using the exact templates from the ruleset.**
 
+## CRITICAL: Merge 금지
+
+**이 스킬은 절대로 PR/MR을 merge하지 않습니다.**
+- `gh pr merge`, `glab mr merge` 등 merge 명령어 실행 금지
+- `gh pr review --approve` 등 approve 명령어 실행 금지
+- 리뷰 결과 코멘트 작성까지만 수행하고, merge/approve는 반드시 사람이 직접 수행
+
 ## Overview
 
 Perform comprehensive code reviews on GitHub Pull Requests or GitLab Merge Requests by analyzing code changes and posting detailed review comments.
@@ -56,6 +63,8 @@ URL에서 플랫폼을 감지합니다.
 ### Step 2: Verify CLI Authentication
 
 `gh auth status` 또는 `glab auth status`로 인증 상태를 확인합니다.
+
+**GitLab self-hosted**: `glab auth status` 대신 `~/.config/glab-cli/config.yml`에서 토큰을 직접 추출하여 `GITLAB_TOKEN`으로 전달합니다. 상세는 [platform_operations.md Section 6 — Authentication Failed](references/platform_operations.md) 참조.
 
 CLI 설치 및 인증은 [platform_operations.md Section 5](references/platform_operations.md) 참조
 
