@@ -153,10 +153,11 @@ AC 항목의 `→ 결과물:` 뒤에 이슈 생성 시 명시된 증빙 유형(�
 | CI/CD 로그 | URL | `https://ci.example.com/build/123` | - |
 | 스크린샷 | 파일 경로 | `temp/playwright-mcp/nkiaai-137/result.png` | **필요** |
 | 동영상 | 파일 경로 | `temp/playwright-mcp/nkiaai-137/demo.mp4` | **필요** |
-| 테스트 결과 | 텍스트 또는 URL | `pytest 32/32 passed` | - |
+| 테스트 결과 | 요약 + 실제 출력 | `pytest 5/5 passed` + 터미널 출력 | - |
 | 문서 링크 | URL | `https://confluence.example.com/page/123` | - |
-| 데이터 경로 | 파일 경로 | `/data/output/result.csv (1,024건)` | - |
-| 메트릭 결과 | 텍스트 | `Accuracy: 95.2% (목표: 90%)` | - |
+| 데이터 경로 | 요약 + 실제 출력 | `result.csv — 1,024건` + ls/wc/head 출력 | - |
+| 코드 변경 | 요약 + 실제 출력 | `1 file changed` + diff --stat + 주요 변경 | - |
+| 메트릭 결과 | 요약 + 실제 출력 | `Accuracy: 95.2% (목표: 90%) — 달성` + 스크립트 출력 | - |
 
 ---
 
