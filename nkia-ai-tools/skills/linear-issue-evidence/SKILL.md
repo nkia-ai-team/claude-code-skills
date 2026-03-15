@@ -95,9 +95,41 @@ AC 항목의 `→ 결과물:` 뒤에 이슈 생성 시 명시된 증빙 유형(�
 
 **수집 실패 시:** 해당 항목은 건너뛰고 콘솔에 경고를 출력합니다. 수집 성공한 항목만 업데이트합니다. 개별 항목의 실패가 다른 항목의 수집을 중단시키지 않습니다.
 
-### Step 7: Apply Changes
+### Step 7: Preview & Confirm
 
-미리보기 없이 바로 적용합니다. 수정이 필요하면 사용자가 Linear에서 직접 수정합니다.
+**⚠️ CRITICAL: 반드시 `AskUserQuestion`으로 사용자 확인 후 적용합니다.**
+
+여러 세션에서 동시에 증빙을 업데이트하면 description이 꼬일 수 있으므로, 적용 전에 반드시 사용자가 확인합니다.
+
+수집된 증빙을 미리보기로 보여주고 확인합니다:
+
+    === 증빙 업데이트 미리보기 ===
+
+    1. [x] AC #1: writer 전파 → 결과물: 코드 변경 (AI MR !64)
+    2. [x] AC #4: AP toolCalls DB 저장 → 결과물: 코드 변경 (AP MR !20)
+
+    공통:
+    3. [x] 코드 리뷰 완료 → 이슈 리소스에 MR 첨부
+         🔗 AP MR !20
+
+    이대로 적용하시겠습니까?
+
+    ===========================
+
+`AskUserQuestion`으로 확인:
+- 질문: "이대로 증빙을 적용하시겠습니까?"
+- 선택지: "적용", "수정 필요", "취소"
+
+### Step 8: Re-fetch & Apply Changes
+
+**⚠️ CRITICAL: 적용 직전에 이슈를 다시 읽어서 최신 description 기반으로 업데이트합니다.**
+
+다른 세션에서 먼저 description을 수정했을 수 있으므로, Step 2에서 읽은 내용이 아닌 **지금 시점의 description**에 증빙을 반영해야 합니다.
+
+1. `mcp__plugin_linear_linear__get_issue`로 이슈 재조회
+2. 최신 description에서 AC 항목 재파싱
+3. Step 6에서 수집한 증빙을 최신 description에 병합
+4. `save_issue`로 업데이트
 
 **1) Description 업데이트**: AC 항목 체크 + 증빙 텍스트 삽입 → `mcp__linear__save_issue`로 description 업데이트
 
@@ -158,6 +190,8 @@ AC 항목의 `→ 결과물:` 뒤에 이슈 생성 시 명시된 증빙 유형(�
 | 데이터 경로 | 요약 + 실제 출력 | `result.csv — 1,024건` + ls/wc/head 출력 | - |
 | 코드 변경 | 요약 + 실제 출력 | `1 file changed` + diff --stat + 주요 변경 | - |
 | 메트릭 결과 | 요약 + 실제 출력 | `Accuracy: 95.2% (목표: 90%) — 달성` + 스크립트 출력 | - |
+| 애플리케이션/Docker 로그 | 요약 + 실제 출력 | `astream → itsm_agent 흐름 확인` + grep 출력 | - |
+| DB 쿼리 증빙 | 요약 + 실제 출력 | `toolCalls calling/complete 저장됨` + mongosh 출력 | - |
 
 ---
 

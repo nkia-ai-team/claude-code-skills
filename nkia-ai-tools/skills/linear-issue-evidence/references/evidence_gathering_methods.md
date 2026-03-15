@@ -21,6 +21,9 @@ AC 항목에서 증빙 유형을 자동 판별합니다.
 | `메트릭`, `metric`, `정확도`, `accuracy`, `성능` | 메트릭 결과 | `→ 결과물: 정확도 {{accuracy}}` |
 | `API`, `엔드포인트`, `endpoint`, `응답` | API 응답 | `→ 결과물: API 응답 {{api_response}}` |
 | `코드`, `변경`, `diff`, `리팩토링`, `구현`, `전환` | 코드 변경 | `→ 결과물: {{diff_summary}}` |
+| `로그`, `서버 로그`, `스트리밍 로그`, `docker`, `컨테이너` | 애플리케이션/Docker 로그 | `→ 결과물: 스트리밍 로그 {{log_summary}}` |
+| `DB`, `데이터베이스`, `저장`, `MongoDB`, `PostgreSQL`, `MySQL`, `쿼리` | DB 쿼리 증빙 | `→ 결과물: DB 데이터 {{query_result}}` |
+| `SSE`, `이벤트`, `event`, `발행`, `전달` | 이벤트 로그 | `→ 결과물: 이벤트 로그 {{event_log}}` |
 
 식별 불가 시 텍스트 기반 증빙으로 처리합니다.
 
@@ -173,16 +176,103 @@ AC 항목에서 테스트 대상을 파악하여 적절한 범위로 실행합�
 ### Playwright MCP 사용
 
 CLAUDE.md 증빙 스크린샷 규칙을 따릅니다:
+- **뷰포트 크기**: 캡처 전 반드시 `browser_resize`로 FHD(1920×1080)로 설정
 - 저장 경로: `temp/playwright-mcp/{이슈번호 소문자}/`
 - 컴포넌트/UI: 해당 요소 + 주변 컨텍스트가 보이도록 상위 컨테이너 캡처
 - 전체 화면: viewport 전체 캡처
 
-### 캡처 대상 판단
+### 뷰포트 설정 절차
 
-AC 항목의 텍스트에서 캡처 대상을 추론합니다:
-- "로그인 화면" → 로그인 페이지로 이동 후 캡처
-- "대시보드 레이아웃" → 대시보드 페이지 전체 캡처
-- "에러 메시지 표시" → 에러 발생 시키고 캡처
+**⚠️ CRITICAL: 첫 캡처 전에 반드시 FHD로 설정합니다.**
+
+1. `browser_resize`로 뷰포트를 1920×1080으로 설정
+2. 대상 페이지 로드 완료 대기
+
+뷰포트 리사이즈는 **세션당 1회만** 수행하면 되며, 이미 FHD로 설정된 상태면 생략합니다.
+
+### AC별 캡처 전략 수립 (캡처 전 필수)
+
+**⚠️ CRITICAL: 캡처를 시작하기 전에 모든 스크린샷 AC를 분석하여 캡처 전략을 수립합니다.**
+
+각 AC 항목에 대해 다음 3가지를 먼저 결정합니다:
+
+**1) 캡처 범위 — 크롭 vs 전체**
+
+| AC 키워드 | 캡처 범위 |
+|-----------|----------|
+| "컴포넌트", "UI 요소", "표시", "블록" | 해당 요소 + 주변 컨텍스트 크롭 |
+| "전체 흐름", "레이아웃", "화면", "동작" | viewport 전체 |
+| "상태 변화", "전환" | 변경 전/후 각각 (2장) |
+
+**2) 필요한 UI 상태 — 캡처 전에 어떤 조작이 필요한지**
+
+| AC 키워드 | 필요 조작 |
+|-----------|----------|
+| "흐름", "과정", "reasoning", "thinking" | 접기/펼치기 요소 펼쳐야 함 |
+| "접힌 상태", "축소" | 접기/펼치기 요소 접어야 함 |
+| "입력", "폼" | 데이터 입력 후 캡처 |
+| "에러", "오류" | 에러 유발 후 캡처 |
+| "로딩", "스트리밍" | 진행 중 상태에서 캡처 |
+| "tool_call", "호출" | tool_call 결과(IN/OUT)가 보이는 상태 |
+| "스크롤" | 적절한 스크롤 위치로 이동 |
+
+**3) AC당 독립 캡처**
+
+- AC 하나에 "스크린샷 N장"이면 N장 각각 별도 파일로 캡처
+- **다른 AC의 스크린샷을 공유하지 않음** — AC마다 독립적으로 캡처
+- 파일명: `ac{N}-{설명}.png` (예: `ac5-tool-call-ui.png`, `ac6-full-flow.png`)
+
+**전략 수립 예시:**
+
+    AC 5: "UI에서 tool_call이 실시간 표시 (calling → complete)" → 스크린샷 2장
+    ├─ 캡처 범위: tool_call 컴포넌트 + 주변 컨텍스트 크롭
+    ├─ UI 상태: tool_call IN/OUT이 펼쳐진 상태
+    └─ 파일: ac5-tool-call-calling.png, ac5-tool-call-complete.png
+
+    AC 6: "reasoning → tool_call → reasoning → answer 전체 흐름" → 스크린샷 2장
+    ├─ 캡처 범위: viewport 전체
+    ├─ UI 상태: "생각하는 과정" 펼쳐서 reasoning 텍스트 노출 필수
+    └─ 파일: ac6-full-flow-top.png, ac6-full-flow-bottom.png
+
+### 캡처 실행
+
+전략 수립 후 AC별로 순서대로 캡처합니다:
+
+1. UI 상태 준비 (클릭, 스크롤, 펼치기 등)
+2. `browser_take_screenshot`으로 캡처
+3. 캡처 결과 검증 (아래 품질 검증 참조)
+
+### 캡처 품질 검증 루프 (최대 3회)
+
+스크린샷 촬영 후 **"이 스크린샷이 AC를 증명하는가?"** 기준으로 자동 검증합니다.
+
+**루프 절차:**
+
+1. `browser_take_screenshot`으로 캡처
+2. 캡처된 이미지를 Read 도구로 열람
+3. **AC 텍스트와 대조** — AC가 요구하는 내용이 스크린샷에 실제로 보이는지 확인
+4. 부적합 시 → 파일 삭제 → 원인에 맞게 조정 → 1번으로
+5. 적합하면 루프 종료
+
+**부적합 판단 기준:**
+
+| 항목 | 부적합 조건 | 조정 방법 |
+|------|-----------|----------|
+| 빈 화면 / 로딩 중 | 콘텐츠 없이 스피너만 보임 | 페이지 로드 대기 후 재촬영 |
+| 대상 미포함 | AC가 요구하는 UI 요소가 화면에 없음 | 스크롤/네비게이션으로 대상 노출 후 재촬영 |
+| 모달/오버레이 가림 | 팝업이 대상 영역을 가림 | 모달 닫기 후 재촬영 |
+| 잘림 | 대상 요소가 뷰포트 밖으로 잘려서 핵심 내용 미확인 | 스크롤 조정 또는 상위 컨테이너 캡처 |
+| 에러 상태 | 의도하지 않은 에러 페이지 표시 | 페이지 새로고침 후 재촬영 |
+| UI 상태 불일치 | AC가 "펼친 상태"를 요구하는데 접혀있음 | 해당 요소 클릭하여 펼친 후 재촬영 |
+| AC 증명 불충분 | 스크린샷 내용이 AC의 요구사항을 증명하지 못함 | 다른 영역/상태로 변경 후 재촬영 |
+
+**3회 실패 시:**
+
+재촬영을 중단하고, 해당 AC 항목의 스크린샷 수집을 실패로 처리합니다.
+
+    WARNING: 스크린샷 품질 검증 3회 실패 — AC #N "{ac_title}"
+    실패 사유: {마지막 실패 원인}
+    → 사용자가 직접 캡처하여 Linear에 업로드해주세요.
 
 ### Playwright MCP 미연결 시
 
@@ -462,7 +552,147 @@ AC 항목이 특정 코드 변경(리팩토링, 구현, 전환 등)을 요구하
 
 ---
 
-## 11. 수집 실패 처리
+## 11. 애플리케이션/Docker 로그 수집
+
+AC 항목이 "스트리밍 로그", "서버 로그", "이벤트 전달" 등을 요구하는 경우, 로컬 로그 파일 또는 Docker 컨테이너에서 수집합니다.
+
+### 로그 소스 탐색 (순서대로)
+
+1. **로컬 로그 파일**
+
+       # 프로젝트 로그 디렉토리 탐색
+       ls -la logs/ 2>/dev/null
+       ls -la *.log 2>/dev/null
+       ls -la nohup.out 2>/dev/null
+
+2. **Docker 컨테이너** (로컬 로그가 없거나 배포 환경일 때)
+
+       # 관련 컨테이너 탐색
+       docker ps --format '{{.Names}} {{.Image}}' | grep -iE '{관련 키워드}'
+
+       # 컨테이너 로그 조회
+       docker logs {container-name} --since=3h 2>&1 | grep -iE '{검색 패턴}' | tail -30
+
+### 로그 검색 패턴 결정
+
+AC 텍스트에서 검색 키워드를 추출합니다:
+
+| AC 키워드 | grep 패턴 예시 |
+|-----------|--------------|
+| "reasoning 발행" | `reasoning\|tool_call\|astream` |
+| "SSE 이벤트 전달" | `"event".*"(reasoning\|tool_call)"` |
+| "ITSM agent" | `itsm_agent\|itsm_workflow` |
+| "스트리밍" | `stream\|SSE\|writer` |
+
+### 수집 결과 형식: 요약 + 실제 출력
+
+**구조: 요약 한 줄(무엇이 확인되었는지) → 빈 줄 → 실행 명령어(`$` 접두사) + 실제 로그 출력**
+
+**로컬 로그 파일:**
+
+    astream → itsm_agent → tool_call 흐름이 로그에 기록됨
+
+    $ grep -E '\[itsm_agent\]|astream' logs/app.log | tail -10
+    2026-03-14 15:04:20 | DEBUG | src.core.graph.main_workflow:astream:573 - [Workflow] astream 시작
+    2026-03-14 15:04:24 | INFO  | src.plugins.itsm.graph.itsm_workflow:_itsm_agent_node:135 - [itsm_agent] Processing: ERP 회계 모듈...
+    2026-03-14 15:04:28 | DEBUG | src.plugins.itsm.graph.itsm_workflow:_itsm_agent_node:230 - [itsm_agent] LLM response
+    2026-03-14 15:04:30 | INFO  | src.plugins.itsm.graph.itsm_workflow:_itsm_agent_node:264 - [itsm_agent] Completed: 2 forms matched
+
+**Docker 컨테이너:**
+
+    ITSM agent 처리 로그 확인 (컨테이너: polestar-app-chatai-1)
+
+    $ docker logs polestar-app-chatai-1 --since=3h 2>&1 | grep -E 'itsm_agent' | tail -5
+    2026-03-14 15:04:24 | INFO | [itsm_agent] Processing: ERP 회계 모듈...
+    2026-03-14 15:04:30 | INFO | [itsm_agent] Completed: 2 forms matched
+
+**이벤트 로그 (SSE 등):**
+
+    tool_call calling+complete 이벤트가 SSE로 전달됨
+
+    $ grep -o '{"event": "tool_call"[^}]*}' logs/debug.log | head -2
+    {"event": "tool_call", "name": "search_service_catalog", "status": "calling", "input": {"query": "ERP 회계 모듈 전표 승인 프로세스 변경"}}
+    {"event": "tool_call", "name": "search_service_catalog", "status": "complete", "output": "검색 결과 (14개 서비스):..."}
+
+로그가 없으면 수집 실패.
+
+---
+
+## 12. DB 쿼리 증빙 수집
+
+AC 항목이 "DB 저장", "데이터 저장 확인" 등을 요구하는 경우, 실제 DB를 조회하여 데이터가 저장되었는지 증빙합니다.
+
+### DB 접근 탐색 (순서대로)
+
+1. **Docker 컨테이너에서 DB 찾기**
+
+       # DB 컨테이너 탐색
+       docker ps --format '{{.Names}} {{.Image}}' | grep -iE 'mongo|postgres|mysql|redis|mariadb'
+
+2. **로컬 DB 접속 정보 확인**
+
+       # 환경 변수에서 DB 접속 정보 확인
+       env | grep -iE 'MONGO|DATABASE|DB_HOST|DB_PORT'
+
+       # 프로젝트 설정 파일에서 DB 정보 확인
+       grep -r 'mongodb://\|postgresql://\|mysql://' .env* config/ 2>/dev/null
+
+### DB별 탐색 절차
+
+DB 이름, 컬렉션/테이블 이름, 필드 구조를 모르는 경우 단계별로 탐색합니다:
+
+**MongoDB:**
+
+    # Step 1: DB 목록 확인
+    docker exec {container} mongosh --quiet --eval 'db.adminCommand({listDatabases:1}).databases.forEach(d => print(d.name))'
+
+    # Step 2: 컬렉션 목록 확인
+    docker exec {container} mongosh --quiet --eval 'db = db.getSiblingDB("{db_name}"); db.getCollectionNames().forEach(n => print(n))'
+
+    # Step 3: 샘플 문서로 필드 구조 확인
+    docker exec {container} mongosh --quiet --eval 'db = db.getSiblingDB("{db_name}"); printjson(db.{collection}.findOne())'
+
+    # Step 4: 실제 조회
+    docker exec {container} mongosh --quiet --eval 'db = db.getSiblingDB("{db_name}"); db.{collection}.find({조건}, {projection}).sort({createdAt:-1}).limit(3).forEach(doc => printjson(doc))'
+
+**PostgreSQL:**
+
+    # Step 1: 테이블 목록 확인
+    docker exec {container} psql -U {user} -d {db} -c '\dt'
+
+    # Step 2: 테이블 구조 확인
+    docker exec {container} psql -U {user} -d {db} -c '\d {table}'
+
+    # Step 3: 실제 조회
+    docker exec {container} psql -U {user} -d {db} -c 'SELECT * FROM {table} ORDER BY created_at DESC LIMIT 3'
+
+### 수집 결과 형식: 요약 + 실제 출력
+
+**구조: 요약 한 줄(무엇이 저장되었는지) → 빈 줄 → 실행 명령어(`$` 접두사) + 쿼리 결과**
+
+    toolCalls 배열에 calling/complete 이벤트가 순서대로 저장됨
+
+    $ docker exec polestar-mongodb-1-1 mongosh --quiet --eval 'db=db.getSiblingDB("69731678b56620b247fb279a"); db.chat_conversation.find({"toolCalls":{$exists:true,$not:{$size:0}}},{conversationId:1,question:1,toolCalls:1,_id:0}).sort({createdAt:-1}).limit(2).forEach(doc=>printjson(doc))'
+    {
+      conversationId: '8e9e5e6d-460f-4fca-90ca-10d6ae32d026',
+      question: 'ERP 회계 모듈에서 전표 승인 프로세스를 3단계에서 2단계로 변경해야 합니다',
+      toolCalls: [
+        { name: 'search_service_catalog', status: 'calling' },
+        { name: 'search_service_catalog', status: 'complete' }
+      ]
+    }
+
+**쿼리 작성 규칙:**
+- AC 항목에서 확인해야 할 필드를 추출하여 projection에 포함
+- 최신 데이터를 우선 조회 (`sort({createdAt:-1})`, `ORDER BY created_at DESC`)
+- 결과가 너무 길면 `limit(3)` 또는 `LIMIT 3`으로 제한
+- `_id` 등 불필요한 필드는 projection에서 제외
+
+DB 접속 불가 시 수집 실패.
+
+---
+
+## 13. 수집 실패 처리
 
 ### 실패 원인별 메시지
 
