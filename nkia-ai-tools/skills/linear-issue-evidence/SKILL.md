@@ -9,9 +9,15 @@ description: Update evidence on Linear issue AC items — check completed items 
 
 **BEFORE updating any evidence, you MUST read:**
 - [guideline-ref.md](../_shared/guideline-ref.md) — 이슈 상태, AC 항목 형식, AI-Verification Loop
-- [evidence_gathering_methods.md](references/evidence_gathering_methods.md) — 증빙 유형 식별 및 수집 방법
+- [evidence_gathering_methods.md](references/evidence_gathering_methods.md) — **Section 0 (삽입 형식) 필수**, 증빙 유형 식별 및 수집 방법
 
 **증빙 업데이트 시 반드시 가이드라인의 AC 형식을 따라야 합니다.**
+
+## CRITICAL: 실제 출력은 반드시 코드 블록으로 감쌀 것
+
+**테스트 결과, 로그, diff, 쿼리 결과 등 터미널 출력을 포함하는 증빙은 반드시 마크다운 코드 블록(```)으로 감싸서 Linear description에 삽입합니다.** 코드 블록 없이 인라인 텍스트로 삽입하면 가독성이 크게 떨어집니다.
+
+상세 형식과 적용 대상은 [evidence_gathering_methods.md Section 0](references/evidence_gathering_methods.md) 참조
 
 ---
 
@@ -122,14 +128,23 @@ AC 항목의 `→ 결과물:` 뒤에 이슈 생성 시 명시된 증빙 유형(�
 
 ### Step 8: Re-fetch & Apply Changes
 
-**⚠️ CRITICAL: 적용 직전에 이슈를 다시 읽어서 최신 description 기반으로 업데이트합니다.**
+**⚠️ CRITICAL: `save_issue` 호출 직전에 반드시 이슈를 다시 읽어야 합니다.**
 
-다른 세션에서 먼저 description을 수정했을 수 있으므로, Step 2에서 읽은 내용이 아닌 **지금 시점의 description**에 증빙을 반영해야 합니다.
+Linear API의 `save_issue`는 description을 **전체 교체**합니다. 이전에 읽은 description을 기반으로 수정하면, 중간에 다른 세션이나 사용자가 수정한 내용이 모두 날아갑니다.
+
+**이 규칙은 `save_issue`를 호출할 때마다 적용됩니다.** 같은 세션에서 2번 연속 호출하더라도 2번째 호출 직전에 반드시 re-fetch해야 합니다.
 
 1. `mcp__plugin_linear_linear__get_issue`로 이슈 재조회
 2. 최신 description에서 AC 항목 재파싱
-3. Step 6에서 수집한 증빙을 최신 description에 병합
+3. **수정 대상 AC만 변경, 나머지 AC는 절대 건드리지 않음**
 4. `save_issue`로 업데이트
+
+**⚠️ CRITICAL: 부분 업데이트 원칙**
+
+- 이번에 증빙을 수집한 AC 항목만 체크 + 증빙 삽입
+- 다른 AC 항목의 체크 상태, 증빙 텍스트, 코드 블록을 수정/삭제하지 않음
+- description의 다른 섹션(배경, 목표, 범위 등)을 수정하지 않음
+- AC 하나를 수정하려다 다른 AC의 증빙을 삭제하는 실수 방지
 
 **1) Description 업데이트**: AC 항목 체크 + 증빙 텍스트 삽입 → `mcp__linear__save_issue`로 description 업데이트
 
@@ -156,7 +171,7 @@ AC 항목의 `→ 결과물:` 뒤에 이슈 생성 시 명시된 증빙 유형(�
 
     ===========================
 
-### Step 8: Manual Upload Guide
+### Step 9: Manual Upload Guide
 
 증빙 중 로컬 파일(스크린샷, 동영상 등)이 포함된 경우, 적용 완료 후 사용자에게 안내합니다.
 

@@ -32,6 +32,7 @@ Git 커밋 시 NKIA 팀 컨벤션에 맞는 커밋 메시지를 자동 생성합
 |-----|------|
 | `--type <Type>` | Type 키워드 직접 지정 (예: `--type Fix`) |
 | `--linear <id>` | Linear 이슈 번호 직접 지정 (예: `--linear nkiaai-129`) |
+| `--format ui` | UI 레포 (lucida-ui) 커밋 메시지 형식 사용 |
 
 ---
 
@@ -46,6 +47,18 @@ Git 커밋 시 NKIA 팀 컨벤션에 맞는 커밋 메시지를 자동 생성합
 **구조:** `{Linear이슈번호} {Type} : {설명}`
 
 **예시:** `nkiaai-129 Feat : API 변경 감지 시스템 구축`
+
+### UI 레포 형식 (`--format ui`)
+
+```regex
+^#[0-9]+ (Feat|Fix|Refactor|Cleanup|Wip|Revert|Style|Merge|Docs|Config|Dependency|Test) : .+ [a-z]+-[0-9]+$
+```
+
+**구조:** `#{PIMS} {Type} : {설명} {Linear이슈번호}`
+
+**예시:** `#117864 Feat : reasoning/answer 스트리밍 구현 nkiaai-306`
+
+UI 레포 브랜치(`develop-ui-chat-*`)에는 Linear 이슈 번호가 없으므로, 최초 커밋 시 사용자에게 PIMS 번호와 Linear 이슈 번호를 한 번 확인하고 이후 같은 세션에서는 재사용합니다.
 
 ### 본문
 

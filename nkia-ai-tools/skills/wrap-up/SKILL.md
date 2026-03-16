@@ -11,6 +11,12 @@ description: Post-merge cleanup — switch to target branch, pull latest, prune 
 - [guideline-ref.md](../_shared/guideline-ref.md) — 이슈 상태, AC 항목 형식, AI-Verification Loop
 - [wrapup_workflow.md](references/wrapup_workflow.md) — 브랜치 정리, 증빙 자가 점검, 검증 루프
 
+## CRITICAL: 하위 스킬 반드시 사용
+
+**오케스트레이터 스킬은 하위 스킬의 워크플로우를 직접 대체하지 않습니다.**
+- 증빙 수집 시 반드시 `/linear-issue-evidence` 스킬 워크플로우를 실행할 것 (직접 증빙 수집·등록 금지)
+- AC 검증 시 반드시 `/linear-issue-validator` 스킬 워크플로우를 실행할 것 (직접 검증 금지)
+
 ---
 
 ## Overview
@@ -44,7 +50,16 @@ PR/MR 머지 후 브랜치 정리부터 증빙 등록, AC 검증, 이슈 상태 
 
 #### Step 1: Switch & Update
 
-타겟 브랜치 판별은 [wrapup_workflow.md Section 1](references/wrapup_workflow.md) 참조
+**타겟 브랜치 판별** (레포 이름으로 자동 판별):
+
+| 레포 | 전환 브랜치 |
+|------|-----------|
+| lucida-ui | `develop-ui-chat` |
+| lucida-chat-ap | `develop` |
+| lucida-chat-ai | `develop-sandbox` |
+| 기타 | `develop` |
+
+상세는 [wrapup_workflow.md Section 1](references/wrapup_workflow.md) 참조
 
     git checkout {target-branch}
     git pull origin {target-branch}
