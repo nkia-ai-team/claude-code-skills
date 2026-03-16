@@ -43,6 +43,17 @@ Linear 이슈 번호: nkiaai-129
 Linear 이슈 번호를 입력해주세요 (예: nkiaai-129):
 ```
 
+**UI 레포 형식 (`--format ui`):**
+
+UI 레포 브랜치(`develop-ui-chat-*`)에는 Linear 이슈 번호가 없으므로, 사용자에게 PIMS 번호와 Linear 이슈 번호를 확인합니다:
+
+```
+PIMS 번호를 입력해주세요 (예: 117864):
+Linear 이슈 번호를 입력해주세요 (예: nkiaai-306):
+```
+
+같은 세션에서 이미 확인한 경우 재사용합니다.
+
 ## Step 3: Analyze Changes
 
 변경사항 상세 분석:

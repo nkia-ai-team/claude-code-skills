@@ -16,11 +16,8 @@ Linear 이슈 번호는 브랜치명에서 추출합니다.
 
 예: `#117864 Feat : reasoning/answer 스트리밍 구현 nkiaai-306`
 
-**PIMS 번호와 Linear 이슈 번호는 Phase 1 Step 2 (커밋 단계)에서 사용자에게 한 번 확인합니다.**
+PIMS 번호와 Linear 이슈 번호는 Phase 1 Step 2에서 `/commit --format ui` 워크플로우가 사용자에게 확인합니다.
 커밋 메시지와 MR 제목에 동일한 값을 사용하므로 한 번만 물어봅니다.
-
-    PIMS 번호를 입력해주세요 (예: 117864):
-    Linear 이슈 번호를 입력해주세요 (예: nkiaai-306):
 
 ---
 
@@ -73,7 +70,8 @@ remote URL에서 플랫폼을 감지합니다.
     EOF
     )" \
       --base {target-branch} \
-      --head {current-branch}
+      --head {current-branch} \
+      --assignee @me
 
 ### GitLab (self-hosted)
 
