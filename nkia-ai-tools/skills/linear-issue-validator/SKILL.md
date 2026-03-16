@@ -243,7 +243,7 @@ curl -s -X POST https://api.linear.app/graphql \
 
 **⚠️ 주의:** (A)의 `get_issue`와 (B)의 `list_comments`는 병렬 실행 가능하지만, 각각의 읽기→쓰기는 순차 유지
 
-### Step 12: Move to "In Review" (Optional)
+### Step 13: Move to "In Review" (Optional)
 
 **규칙: 검증 통과 시 In Review로 이동. 사람의 최종 확인 후 Done으로 전환.**
 

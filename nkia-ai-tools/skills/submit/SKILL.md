@@ -11,6 +11,13 @@ description: Submit completed work — commit, push, create PR/MR, run code revi
 - `gh pr merge`, `glab mr merge` 등 merge 명령어 실행 금지
 - merge는 반드시 사용자가 직접 수행
 
+## CRITICAL: 하위 스킬 반드시 사용
+
+**오케스트레이터 스킬은 하위 스킬의 워크플로우를 직접 대체하지 않습니다.**
+- 커밋 시 반드시 `/commit` 스킬 워크플로우를 실행할 것 (직접 커밋 메시지 생성 금지)
+- 코드 리뷰 시 반드시 `/code-review` 스킬 워크플로우를 실행할 것 (직접 리뷰 금지)
+- 자동 수정 후 재커밋도 `/commit` 스킬 워크플로우를 실행할 것
+
 ---
 
 ## Overview
@@ -20,7 +27,7 @@ description: Submit completed work — commit, push, create PR/MR, run code revi
 **하는 일:**
 - `/commit` 스킬 워크플로우로 커밋
 - 원격에 푸시
-- PR/MR 생성 (레포 유형에 맞는 제목, 타겟 브랜치)
+- PR/MR 생성 (레포 유형에 맞는 제목, 타겟 브랜치, 본인을 assignee로 설정)
 - `/code-review` 스킬 워크플로우로 코드 리뷰
 - 지적사항 자동 수정 → 재커밋 → 재리뷰 (최대 3회)
 
@@ -65,18 +72,12 @@ description: Submit completed work — commit, push, create PR/MR, run code revi
 
 커밋 메시지 형식, Type 결정 규칙은 [commit SKILL.md](../commit/SKILL.md) 참조
 
-**B) UI 레포 (lucida-ui)** — 커밋 메시지 형식이 다르므로 직접 생성합니다:
+**B) UI 레포 (lucida-ui)** — `/commit --format ui` 스킬 워크플로우를 실행합니다:
 
-1. 사용자에게 PIMS 번호와 Linear 이슈 번호 확인
-2. `git diff --cached`로 변경사항 분석
-3. Type 키워드 결정
-4. UI 레포 형식으로 메시지 생성 → 미리보기 → 사용자 확인 → 커밋
+1. `/commit --format ui` 워크플로우 실행
+2. PIMS 번호와 Linear 이슈 번호 확인 → 변경사항 분석 → Type 결정 → 커밋
 
-커밋 메시지 형식: `#{PIMS} {Type} : {설명} {linear-issue}`
-
-예: `#117864 Feat : reasoning/answer 스트리밍 구현 nkiaai-306`
-
-UI 레포 브랜치(`develop-ui-chat-*`)에는 Linear 이슈 번호가 없으므로, 최초 커밋 시 사용자에게 한 번 확인하고 이후 같은 세션에서는 재사용합니다.
+커밋 메시지 형식, Type 결정 규칙, UI 레포 형식은 [commit SKILL.md](../commit/SKILL.md) 참조
 
 #### Step 3: Push
 
@@ -107,7 +108,18 @@ UI 레포 브랜치(`develop-ui-chat-*`)에는 Linear 이슈 번호가 없으므
 
 #### Step 5: Create PR/MR
 
-PR/MR 제목, 타겟 브랜치 규칙은 [submit_workflow.md](references/submit_workflow.md) 참조
+**타겟 브랜치 판별** (인자 미지정 시 레포 이름으로 자동 판별):
+
+| 레포 | 기본 타겟 |
+|------|----------|
+| lucida-ui | `develop-ui-chat` |
+| lucida-chat-ap | `develop` |
+| lucida-chat-ai | `develop-sandbox` |
+| 기타 | `develop` |
+
+`/submit {브랜치명}` 으로 타겟을 직접 지정할 수도 있습니다.
+
+PR/MR 제목 규칙, 플랫폼별 생성 명령어는 [submit_workflow.md](references/submit_workflow.md) 참조
 
 **PR Body 형식:**
 
