@@ -272,7 +272,31 @@
 2. 예시: `→ 결과물: https://example.com/result`
 ```
 
-### 2.7 pr_not_merged (PR 미머지)
+### 2.7 evidence_inadequate (증빙 유형 부적절)
+
+```markdown
+**실패 유형:** 🚫 증빙 유형이 AC 요구사항에 부적절
+
+**상세:**
+- AC: {{ac_description}}
+- AC 요구사항: {{ac_requires}} (실행 결과 필요)
+- 제출된 증빙: {{submitted_evidence_type}} ({{submitted_evidence_summary}})
+
+**문제점:**
+- AC가 "{{ac_requires}}"를 요구하는데, 제출된 증빙은 코드 변경(diff) 수준입니다
+- 코드를 변경했다는 것은 PR/MR에서 이미 확인되며, AC의 목적은 변경이 **의도대로 동작하는지** 검증하는 것입니다
+
+**적절한 증빙 유형:**
+{{#each recommended_evidence_types}}
+- {{type}}: {{description}} (예: {{example}})
+{{/each}}
+
+**필요 조치:**
+1. 위 증빙 유형 중 하나로 실제 실행 결과를 수집하여 첨부해주세요
+2. `/linear-issue-evidence` 스킬로 증빙을 재수집할 수 있습니다
+```
+
+### 2.8 pr_not_merged (PR 미머지)
 
 ```markdown
 **실패 유형:** 🔀 PR/MR 미완료
@@ -288,7 +312,7 @@
 3. 머지 후 재검증을 요청해주세요
 ```
 
-### 2.8 build_failed (빌드 실패)
+### 2.9 build_failed (빌드 실패)
 
 ```markdown
 **실패 유형:** ⚙️ 빌드/CI 실패
@@ -303,7 +327,7 @@
 2. 빌드 성공 후 재검증을 요청해주세요
 ```
 
-### 2.9 manual_verification_required (수동 확인 필요)
+### 2.10 manual_verification_required (수동 확인 필요)
 
 ```markdown
 **실패 유형:** 👀 수동 확인 필요
@@ -319,7 +343,7 @@
 3. 또는 검증 가능한 형태로 결과물을 재첨부해주세요
 ```
 
-### 2.10 tool_unavailable (도구/인증 불가)
+### 2.11 tool_unavailable (도구/인증 불가)
 
 ```markdown
 **실패 유형:** 🔧 검증 도구 사용 불가
@@ -334,7 +358,7 @@
 2. 해결 후 `/linear-issue-validator {{issue_identifier}}` 로 재검증
 ```
 
-### 2.11 mr_missing (스코프 시스템 MR 미첨부)
+### 2.12 mr_missing (스코프 시스템 MR 미첨부)
 
 ```markdown
 **실패 유형:** 🔀 스코프 시스템 MR 미첨부
@@ -350,7 +374,23 @@
 3. 다른 이슈에서 처리되었다면 관련 이슈 링크를 첨부해주세요
 ```
 
-### 2.13 media_not_viewable (이미지/동영상 미첨부 또는 열람 불가)
+### 2.13 mr_no_diff_match (MR diff에서 AC 구현 미확인)
+
+```markdown
+**실패 유형:** 🔍 MR diff에서 AC 구현 미확인
+
+**상세:**
+- AC 항목: {{ac_description}}
+- 확인한 MR: {{mr_list}}
+- 예상 변경: {{expected_changes}}
+
+**필요 조치:**
+1. 해당 AC 구현이 포함된 MR 링크를 확인해주세요
+2. 또는 구현이 포함된 파일 경로를 알려주세요
+3. 별도 MR에서 구현되었다면 해당 MR 링크를 첨부해주세요
+```
+
+### 2.14 media_not_viewable (이미지/동영상 미첨부 또는 열람 불가)
 
 ```markdown
 **실패 유형:** 🖼️ 이미지/동영상 열람 불가
@@ -365,22 +405,6 @@
 2. 또는 접근 가능한 URL로 교체해주세요
 3. URL만 텍스트로 적는 것은 불충분합니다 — 실제 파일이 열람 가능해야 합니다
 4. 스크린샷은 이슈 description에 마크다운 이미지로 삽입하거나, Linear 첨부 기능을 사용하세요
-```
-
-### 2.12 mr_no_diff_match (MR diff에서 AC 구현 미확인)
-
-```markdown
-**실패 유형:** 🔍 MR diff에서 AC 구현 미확인
-
-**상세:**
-- AC 항목: {{ac_description}}
-- 확인한 MR: {{mr_list}}
-- 예상 변경: {{expected_changes}}
-
-**필요 조치:**
-1. 해당 AC 구현이 포함된 MR 링크를 확인해주세요
-2. 또는 구현이 포함된 파일 경로를 알려주세요
-3. 별도 MR에서 구현되었다면 해당 MR 링크를 첨부해주세요
 ```
 
 ---
