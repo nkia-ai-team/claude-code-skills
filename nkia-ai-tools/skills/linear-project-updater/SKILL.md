@@ -39,7 +39,7 @@ description: Generate weekly project status updates by collecting issue-level ac
     /linear-project-updater <project-name-or-id>
     /linear-project-updater "My Project"
 
-- **인자 없이 실행**: 내가 리드/멤버로 참여 중인 프로젝트 전체를 순차 업데이트
+- **인자 없이 실행**: 내가 리드인 프로젝트만 순차 업데이트
 - **프로젝트 지정**: 해당 프로젝트만 업데이트
 
 **Options:**
@@ -56,8 +56,9 @@ description: Generate weekly project status updates by collecting issue-level ac
 ### Step 1: Resolve Project
 
 **인자 없이 실행된 경우:**
-1. `mcp__linear__list_projects(member: "me")`로 내가 참여 중인 프로젝트 목록 조회
-2. 프로젝트 목록을 표시하고 각 프로젝트에 대해 Step 2~8을 순차 반복
+1. `mcp__linear__list_projects(member: "me")`로 프로젝트 목록 조회
+2. 각 프로젝트의 `lead` 필드를 확인하여 **내가 리드인 프로젝트만 필터링** (lead가 아닌 프로젝트는 스킵)
+3. 필터링된 프로젝트 목록을 표시하고 각 프로젝트에 대해 Step 2~8을 순차 반복
 
 **프로젝트가 지정된 경우:**
 프로젝트 이름, ID, 또는 slug를 입력받아 `mcp__linear__get_project`로 프로젝트 정보를 조회합니다.
