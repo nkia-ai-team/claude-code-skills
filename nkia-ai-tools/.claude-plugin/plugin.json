@@ -1,6 +1,6 @@
 {
   "name": "nkia-ai-tools",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "NKIA-AI 팀 개발 워크플로우 도구 모음 - 코드 리뷰, 커밋 자동화, Linear 이슈/프로젝트/이니셔티브 관리, 증빙 수집, Confluence 문서 관리, Figma-to-React 컴포넌트 변환",
   "author": {
     "name": "NKIA-AI Team"
