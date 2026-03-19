@@ -1,45 +1,77 @@
 # 디자인 토큰 관리 규칙
 
-## 토큰 소스 (CRITICAL)
+## 기존 토큰 파일 우선 참조 (CRITICAL — 최우선 규칙)
 
-토큰 시스템은 두 개의 CSS 파일로 구성된다:
+config.designTeamTokens에 디자인팀 관리 토큰 파일 경로가 설정되어 있으면,
+**이 파일을 반드시 먼저 읽고** 기존 구조와 값을 파악한 후 작업한다.
 
-| 파일 | 경로 (config) | 관리 방식 | 설명 |
-|------|--------------|-----------|------|
-| tokens.css | `config.tokensCssPath` | **자동 생성** (`npm run build:tokens`) | DTCG 멀티파일 토큰 소스에서 빌드. light/dark/contrast 3테마 |
-| portal.css | `config.portalCssPath` | **수동 관리** | Figma에 없는 AI Portal 전용 토큰 |
+### 왜 중요한가
 
-참조용 소스:
+실험에서 기존 토큰 파일(HSL 형식, 36KB, 카테고리 구조)을 무시하고
+독자적인 flat HEX 구조로 새 토큰을 생성하여 다음 문제가 발생했다:
+- 기존 토큰과 구조/형식 완전 불일치
+- 사용자가 수동으로 토큰 전체를 재매핑해야 함
+- 컴포넌트가 기존 디자인 시스템 토큰과 단절됨
 
-| 경로 (config) | 설명 |
-|--------------|------|
-| `config.tokenSourceDir` | DTCG 멀티파일 토큰 원본 (tokens/ 디렉토리, 7개 파일) |
+### 절차
 
-### tokens.css 수정 금지 원칙
+1. config.designTeamTokens 파일 Read (MUST)
+2. 기존 토큰의 형식 파악 (HSL / HEX / RGB / CSS 변수)
+3. 기존 토큰의 네이밍 체계 파악 (카테고리, 계층 구조)
+4. 기존 토큰의 값을 HEX로 변환하여 매칭 테이블 준비
 
-tokens.css는 `npm run build:tokens`로 자동 생성되므로:
+### HSL → HEX 변환 절차
 
-    ❌ 스킬이 tokens.css를 직접 수정하는 것은 절대 금지
-    ❌ tokens.css에 새 변수를 수동 추가
-    ✅ 새 토큰이 필요하면 portal.css에 추가
-    ✅ portal.css 추가 시 기존 portal.css의 네이밍 패턴 준수
-    ✅ portal.css에 추가할 때도 @theme { } 블록 내에 정의 (Tailwind 유틸리티 자동 생성)
+디자인팀 토큰이 HSL 형식인 경우 HEX로 변환하여 MCP 추출값과 비교한다:
 
-## 토큰 매칭 절차 (5단계)
+    변환: hsl(H, S%, L%) → HEX
+    1. H, S, L을 0~1 범위로 정규화
+    2. chroma = (1 - |2L - 1|) × S
+    3. RGB 각 채널 계산
+    4. HEX 변환
 
-### 1단계: CSS 파싱 → CSS 변수 맵 구성
+    예시: hsl(195, 4%, 67%) → #A5ABAE
+    비교: MCP 추출 #ABB2B5 → ΔE ≈ 3.2 → 동일 토큰으로 취급
 
-tokens.css와 portal.css를 파싱하여 CSS 변수명 → HEX 값 테이블을 구성한다.
+### 유사도 판정 기준
 
-    파싱 절차:
-    1. tokens.css 전체 읽기
-    2. @theme { } 블록에서 --변수명: 값; 패턴 추출
-    3. [data-theme="dark"] { } 블록에서 다크 모드 오버라이드 추출
-    4. [data-theme="contrast"] { } 블록에서 고대비 모드 오버라이드 추출
-    5. portal.css @theme { } 블록 파싱 → 맵에 병합
-    6. 결과: { 변수명: { light: 값, dark: 값, contrast: 값 } } 형태의 맵
+    정확 일치: HEX 값이 동일 (대소문자 무시) → 무조건 재사용
+    근사 일치: ΔE < 5 (색차 공식) → 기존 토큰 재사용 (MCP 추출값이 근사치일 수 있음)
+    불일치: ΔE ≥ 5 → 신규 토큰 생성 가능
 
-### 2단계: Figma RGBA → HEX 변환
+### 독자적 구조 생성 금지
+
+    ❌ config.designTeamTokens를 읽지 않고 작업 시작
+    ❌ 기존 토큰과 다른 네이밍 체계 사용 (예: 기존 카테고리가 color.text.primary인데 color.primary.text로 변경)
+    ❌ 기존 토큰 파일의 계층 구조를 flat으로 변환
+
+    기존 구조와 다른 구조가 불가피한 경우:
+    → 사용자에게 확인 후 진행
+    → "기존 토큰이 {구조}인데 다른 구조로 만들어야 합니다. 진행할까요?"
+
+## tokens.json 경로
+
+프로젝트 설정 파일(.figma-to-react.config.md)의 `tokensPath` 값을 사용한다.
+
+파일이 없으면 빈 객체 `{}` 로 생성한다.
+
+## 토큰 관리 방식: 증분(incremental)
+
+전체 토큰을 미리 생성하지 않는다. 컴포넌트 변환 시마다 필요한 토큰만 추가한다.
+
+### 절차
+
+1. config.designTeamTokens 파일 읽기 (MUST — 있는 경우)
+2. tokens.json 읽기
+3. Figma MCP에서 추출한 RGBA를 HEX로 변환
+4. 기존 토큰(designTeamTokens + tokens.json)에서 동일/유사 HEX 검색
+   - 있으면: 기존 토큰 이름 재사용
+   - 없으면: 시맨틱 이름으로 신규 토큰 생성 (기존 네이밍 체계 준수)
+5. 사이즈, border-radius, font-weight 등도 동일 절차
+6. tokens.json 업데이트 (신규 토큰만 추가, 기존 값 수정 금지)
+7. 변경 사항을 결과 요약에 포함
+
+## RGBA → HEX 변환
 
 Figma MCP는 색상을 RGBA(0~1 범위)로 반환한다.
 
@@ -49,269 +81,174 @@ Figma MCP는 색상을 RGBA(0~1 범위)로 반환한다.
 - alpha가 1이 아닌 경우 8자리 HEX 사용 (#RRGGBBAA)
 - alpha가 1이면 6자리 HEX 사용 (#RRGGBB)
 
-### 3단계: 시맨틱 토큰 우선 매칭
+## 토큰 네이밍 규칙
 
-HEX 값으로 tokens.css에서 검색한다. 정확 일치 우선.
+### 색상 토큰
 
-    검색 범위 (시맨틱 카테고리 우선):
-    background, layer, field, border, text, icon, link,
-    feedback, interactive, focus, overlay
+    color.{tone}.{variant}: "#XXXXXX"
+    color.{tone}.{variant}.hover: "#XXXXXX"
+    color.{tone}.{variant}.active: "#XXXXXX"
+    color.{tone}.{variant}.text: "#XXXXXX"
+    color.{tone}.{variant}.border: "#XXXXXX"
 
-### 4단계: 컴포넌트 전용 토큰 매칭
+예시:
 
-시맨틱 매칭 실패 시 컴포넌트 전용 토큰에서 검색한다.
+    color.primary.filled: "#1D1F20"
+    color.primary.filled.hover: "#3E4142"
+    color.primary.filled.active: "#5C6061"
+    color.primary.filled.text: "#FFFFFF"
+    color.danger.filled: "#ED121D"
+    color.danger.filled.hover: "#C70F18"
 
-    검색 범위:
-    chip, tag, badge, toggle, tooltip, notification,
-    codeblock, prompt-input, chatting-bubble
+### 비활성 상태 토큰
 
-### 5단계: 미매칭 토큰 처리
+    color.disabled.bg: "#F4F5F5"
+    color.disabled.text: "#ABB2B5"
+    color.disabled.border: "#EBEDED"
 
-매칭 실패 시 portal.css에 신규 CSS 변수를 추가한다.
+### 사이즈 토큰
 
-    portal.css 추가 규칙:
-    - @theme { } 블록 내에 정의
-    - 기존 portal.css의 네이밍 패턴 준수
-    - 주석으로 용도를 명시
+    size.{component}.{size}.height: "{value}"
+    size.{component}.{size}.paddingX: "{value}"
+    size.{component}.{size}.paddingY: "{value}"
+    size.{component}.{size}.fontSize: "{value}"
+    size.{component}.{size}.lineHeight: "{value}"
+    size.{component}.{size}.gap: "{value}"
 
-## 토큰 우선순위 (5단계)
+예시:
 
-동일 HEX 값이 여러 CSS 변수에 매핑될 때의 선택 우선순위:
+    size.button.xl.height: "48px"
+    size.button.xl.paddingX: "20px"
+    size.button.xl.paddingY: "12px"
 
-| 우선순위 | 카테고리 | 예시 | 이유 |
-|---------|---------|------|------|
-| 1 | Theme 시맨틱 색상 | `--color-text-primary`, `--color-layer-01` | 테마 전환 시 자동 변경 |
-| 2 | Component 전용 색상 | `--color-codeblock-bg`, `--color-chatting-bubble-bg` | 컴포넌트 의도 명확 |
-| 3 | portal.css 수동 토큰 | `--color-prompt-bg` | Figma에 없는 AI Portal 전용 |
-| 4 | Brand 색상 | `--color-brand-500` | 브랜드 의미 보존 |
-| 5 (지양) | Core 팔레트 | `--color-gray-cool-900` | 테마 전환 시 변하지 않음 |
+### 기타 토큰
 
-## CSS 변수 → Tailwind 유틸리티 직접 출력 규칙
+    radius.{component}: "{value}"
+    font.weight.{name}: "{value}"
+    font.family.{name}: "{value}"
 
-매칭된 CSS 변수를 Tailwind 유틸리티 클래스로 직접 출력한다.
-HEX 임의값 + 주석 방식은 폐기한다.
+예시:
 
-### 색상 유틸리티 변환
+    radius.button: "4px"
+    font.weight.normal: "400"
+    font.family.default: "Spoqa Han Sans Neo, sans-serif"
 
-| CSS 변수 패턴 | Tailwind 접두사 | 예시 |
-|--------------|----------------|------|
-| `--color-background-*` | `bg-background-*` | `bg-background-default` |
-| `--color-layer-*` | `bg-layer-*` | `bg-layer-01` |
-| `--color-field-*` | `bg-field-*` | `bg-field-01` |
-| `--color-border-*` | `border-border-*` | `border-border-default` |
-| `--color-text-*` | `text-text-*` | `text-text-primary` |
-| `--color-link-*` | `text-link-*` | `text-link-primary` |
-| `--color-icon-*` | `text-icon-*` | `text-icon-primary` |
-| `--color-feedback-*` | `bg-feedback-*` 또는 `text-feedback-*` | `bg-feedback-error` |
-| `--color-interactive-*` | `bg-interactive-*` | `bg-interactive-primary` |
-| `--color-focus-*` | `outline-focus-*` | `outline-focus-default` |
-| `--color-overlay-*` | `bg-overlay-*` | `bg-overlay-modal` |
-| `--color-chip-*` | `bg-chip-*` / `text-chip-*` / `border-chip-*` | 속성에 따라 결정 |
-| `--color-toggle-*` | `bg-toggle-*` | `bg-toggle-track-on` |
-| `--color-tooltip-*` | `bg-tooltip-*` / `text-tooltip-*` | 속성에 따라 결정 |
-| `--color-codeblock-*` | `bg-codeblock-*` / `text-codeblock-*` | 속성에 따라 결정 |
-| `--color-prompt-input-*` | `bg-prompt-input-*` | `bg-prompt-input-bg` |
-| `--color-chatting-bubble-*` | `bg-chatting-bubble-*` | `bg-chatting-bubble-bg` |
+## tokens.json 스키마
 
-> **참고**: `--color-text-*`와 `--text-*`는 다른 네임스페이스. `text-text-primary`는 color 유틸리티, `text-body`는 font-size 유틸리티.
+    {
+      "color": {
+        "primary": {
+          "filled": "#1D1F20",
+          "filled.hover": "#3E4142",
+          "filled.active": "#5C6061",
+          "filled.text": "#FFFFFF",
+          "ghost": "transparent",
+          "ghost.text": "#1D1F20",
+          "ghost.border": "#3E4142",
+          ...
+        },
+        "danger": { ... },
+        "secondary": { ... },
+        "disabled": {
+          "bg": "#F4F5F5",
+          "text": "#ABB2B5",
+          "border": "#EBEDED"
+        }
+      },
+      "size": {
+        "button": {
+          "xl": { "height": "48px", "paddingX": "20px", ... },
+          "lg": { ... },
+          "md": { ... },
+          "sm": { ... }
+        }
+      },
+      "radius": {
+        "button": "4px"
+      },
+      "font": {
+        "weight": { "normal": "400" },
+        "family": { "default": "Spoqa Han Sans Neo, sans-serif" }
+      }
+    }
 
-### 타이포그래피 유틸리티 변환
+## 공식 MCP 토큰 이름 매핑
 
-| CSS 변수 패턴 | Tailwind 접두사 | 예시 |
-|--------------|----------------|------|
-| `--text-*` | `text-*` (font-size) | `text-body` |
+Figma 공식 MCP(get_design_context)는 디자인 토큰을 이름+값 형태로 직접 제공한다:
 
-### 사이즈/레이아웃 유틸리티 변환
+    text-secondary-default(#5C6061)
+    text-standard-default(#1D1F20)
+    text-tertiary-default(#797F81)
+    line-standard-default(#EBEDED)
+    line-inverse-default(#C9CBCF)
 
-| CSS 변수 패턴 | Tailwind 접두사 | 예시 |
-|--------------|----------------|------|
-| `--spacing-*` | `p-*`, `m-*`, `gap-*` | `p-4` (= 16px) |
-| `--radius-*` | `rounded-*` | `rounded-md` |
-| `--shadow-*` | `shadow-*` | `shadow-md` |
+### 매핑 규칙
 
-### 컴포넌트 사이즈 토큰 (var() 참조)
+공식 MCP 토큰 이름을 tokens.json 네이밍으로 변환한다:
 
-| CSS 변수 패턴 | Tailwind 사용법 | 예시 |
-|--------------|----------------|------|
-| `--comp-height-*` | `h-[var(--comp-height-*)]` | `h-[var(--comp-height-md)]` |
-| `--comp-padding-x-*` | `px-[var(--comp-padding-x-*)]` | `px-[var(--comp-padding-x-md)]` |
-| `--comp-padding-y-*` | `py-[var(--comp-padding-y-*)]` | `py-[var(--comp-padding-y-md)]` |
-| `--comp-gap-*` | `gap-[var(--comp-gap-*)]` | `gap-[var(--comp-gap-md)]` |
-| `--comp-icon-size-*` | `w-[var(--comp-icon-size-*)]` | `w-[var(--comp-icon-size-md)]` |
-| `--comp-radius-*` | `rounded-[var(--comp-radius-*)]` | `rounded-[var(--comp-radius-wrapper)]` |
+    공식 MCP 이름                → tokens.json 키
+    text-secondary-default       → color.text.secondary
+    text-standard-default        → color.text.standard
+    text-tertiary-default        → color.text.tertiary
+    line-standard-default        → color.line.standard
+    line-inverse-default         → color.line.inverse
 
-### 출력 비교 (기존 → 변경 후)
+### 변환 패턴
 
-| 용도 | 기존 스킬 출력 | 변경 후 스킬 출력 |
-|------|--------------|--------------------|
-| 배경색 | `bg-[#FFFFFF] /* color.layer.01 */` | `bg-layer-01` |
-| 텍스트색 | `text-[#101213] /* color.text.primary */` | `text-text-primary` |
-| 보더색 | `border-[#E8ECEF] /* color.border.default */` | `border-border-default` |
-| 호버 배경 | `hover:bg-[#F3F5F7]` | `hover:bg-layer-01-hover` |
-| 타이포그래피 | `text-[14px] leading-[20px]` | `text-body` |
-| 타이포+웨이트 | `text-[14px] leading-[20px] font-medium` | `text-body font-medium` |
-| 간격 | `gap-[8px] p-[16px]` | `gap-2 p-4` |
-| 라운딩 | `rounded-[8px]` | `rounded-md` |
-| 컴포넌트 높이 | `h-[28px]` | `h-[var(--comp-height-md)]` |
-| 컴포넌트 패딩 | `px-[8px] py-[4px]` | `px-[var(--comp-padding-x-md)] py-[var(--comp-padding-y-md)]` |
+    {category}-{semantic}-{state} → color.{category}.{semantic}
+    state가 default면 생략, hover/active 등이면 suffix로 추가
 
-## 정적 매핑 테이블 (구 → 신 토큰)
+### 활용
 
-토큰 마이그레이션 모드(`-m`)에서 사용하는 구 → 신 토큰 매핑 테이블.
-접두사 규칙: 구/신 모두 Tailwind 접두사(`bg-`/`text-`/`border-`/`hover:bg-` 등)는 유지하고, 토큰 이름 부분만 교체한다.
+- 공식 MCP 사용 시: 응답의 토큰 이름으로 tokens.json 검색 → 없으면 위 규칙으로 신규 생성
+- Framelink MCP 사용 시: 기존 RGBA → HEX 변환 방식 유지
+- CSS 변수 전환 시: tokens.json 키를 CSS 변수명으로 변환 (향후)
 
-### 배경/레이어 토큰
+    // tokens.json 키 → CSS 변수
+    color.text.secondary → var(--color-text-secondary)
 
-| 구 토큰 이름 부분 | 신 토큰 이름 부분 | 접두사 예시 |
-|----------------|-----------------|-----------:|
-| `fill-standard-default` | `layer-01` | `bg-` |
-| `fill-standard-hover` | `layer-01-hover` | `bg-` / `hover:bg-` |
-| `fill-standard-active` | `layer-01-active` | `bg-` / `active:bg-` |
-| `fill-inverse-default` | `interactive-primary` | `bg-` |
-| `fill-inverse-hover` | `interactive-primary-hover` | `bg-` / `hover:bg-` |
-| `fill-inverse-active` | `interactive-primary-active` | `bg-` / `active:bg-` |
-| `fill-tertiary-default` | `layer-02` | `bg-` |
-| `fill-disable-default` | `interactive-disabled` | `bg-` |
-| `fill-transparent-hover` | `interactive-tertiary-hover` | `hover:bg-` |
+## 중복 검출 로직
 
-### 텍스트 토큰
+토큰 생성 전 반드시 기존 토큰에서 동일 값을 검색한다.
 
-| 구 토큰 이름 부분 | 신 토큰 이름 부분 | 접두사 예시 |
-|----------------|-----------------|-----------:|
-| `text-standard-default` | `text-primary` | `text-` |
-| `text-secondary-default` | `text-secondary` | `text-` |
-| `text-tertiary-default` | `text-tertiary` | `text-` |
-| `text-inverse-default` | `text-on-color` | `text-` |
-| `text-disable-default` | `text-disabled` | `text-` |
-| `text-accent-default` | `text-brand` | `text-` |
-| `text-accent-active` | `text-brand-active` | `text-` |
-| `text-success-default` | `text-success` | `text-` |
+### 검색 우선순위
+1. 정확한 값 일치 (HEX 대소문자 무시)
+2. 같은 카테고리 내에서 검색 (color → color, size → size)
 
-### 보더 토큰
+### 재사용 예시
+- Figma에서 추출한 배경색이 #F4F5F5인데, color.disabled.bg에 이미 #F4F5F5가 있으면 → 기존 토큰 재사용
+- 새 컴포넌트의 border-radius가 4px인데, radius.button에 이미 4px가 있으면 → radius를 컴포넌트 공통으로 승격 검토
 
-| 구 토큰 이름 부분 | 신 토큰 이름 부분 | 접두사 예시 |
-|----------------|-----------------|-----------:|
-| `line-standard-default` | `border-default` | `border-` |
-| `line-disable-default` | `border-disabled` | `border-` |
+## 컴포넌트 코드에서 토큰 사용
 
-### 포커스/아웃라인 토큰
+### 금지: Tailwind 임의값 직접 사용
 
-| 구 토큰 이름 부분 | 신 토큰 이름 부분 | 접두사 예시 |
-|----------------|-----------------|-----------:|
-| `brand-default` (outline) | `focus-default` | `outline-` / `focus-visible:outline-` |
+    // Bad — 토큰 추적 불가
+    'bg-[#1D1F20] hover:bg-[#3E4142]'
 
-### portal.css → tokens.css 매핑 (제거 대상)
+### 권장: 토큰 참조 방식
 
-portal.css에서 제거하고 tokens.css 신 토큰으로 교체해야 하는 항목:
+현재는 tokens.json의 값을 참조하여 Tailwind 임의값으로 적용하되,
+주석으로 토큰 이름을 명시한다.
 
-| portal.css 토큰 | tokens.css 대응 토큰 | 컴포넌트 코드 변경 |
-|-----------------|---------------------|--------------------|
-| `--color-button-danger-default` | `--color-interactive-danger-strong-default` | `bg-button-danger-default` → `bg-interactive-danger-strong-default` |
-| `--color-button-danger-hover` | `--color-interactive-danger-strong-hover` | `bg-button-danger-hover` → `bg-interactive-danger-strong-hover` |
-| `--color-button-danger-ghost-hover` | `--color-interactive-danger-weak-hover` | `bg-button-danger-ghost-hover` → `bg-interactive-danger-weak-hover` |
-| `--color-button-danger-ghost-active` | `--color-interactive-danger-weak-active` | `bg-button-danger-ghost-active` → `bg-interactive-danger-weak-active` |
-| `--color-text-accent-default` | `--color-text-brand` | `text-text-accent-default` → `text-text-brand` |
-| `--color-text-accent-active` | `--color-text-brand-active` | `text-text-accent-active` → `text-text-brand-active` |
-| `--color-button-link-default` | `--color-link-primary` | `text-button-link-default` → `text-link-primary` |
-| `--color-button-link-hover` | `--color-link-primary-hover` | `text-button-link-hover` → `text-link-primary-hover` |
-| `--color-button-link-active` | `--color-link-primary-active` | `text-button-link-active` → `text-link-primary-active` |
+    // 토큰: color.primary.filled, color.primary.filled.hover
+    'bg-[#1D1F20] hover:bg-[#3E4142]'
 
-### CSS 변수 참조 매핑 (index.css 등)
+향후 Tailwind CSS v4의 CSS 변수 테마와 통합하면
+토큰을 CSS 변수로 전환할 수 있다.
 
-| 구 CSS 변수 참조 | 신 CSS 변수 | 용도 |
-|------------------|------------|------|
-| `var(--color-text-standard-default)` | `var(--color-text-primary)` | .nds-markdown 본문 |
-| `var(--color-fill-standard-active)` | `var(--color-layer-01-active)` | .nds-markdown code 배경 |
-| `var(--color-fill-standard-default)` | `var(--color-layer-01)` | .nds-markdown pre, table 배경 |
-| `var(--color-fill-standard-hover)` | `var(--color-layer-01-hover)` | .nds-markdown th 배경 |
-| `var(--color-line-standard-default)` | `var(--color-border-default)` | .nds-markdown blockquote, table 보더 |
-| `var(--color-text-secondary-default)` | `var(--color-text-secondary)` | .nds-markdown blockquote 텍스트 |
-| `var(--color-brand-default)` | `var(--color-link-primary)` | .nds-markdown a 링크 |
-| `var(--color-brand-hover)` | `var(--color-link-primary-hover)` | .nds-markdown a:hover |
-
-### 치환 예시
-
-    bg-fill-standard-default              → bg-layer-01
-    hover:bg-fill-standard-hover          → hover:bg-layer-01-hover
-    text-text-standard-default            → text-text-primary
-    text-text-inverse-default             → text-text-on-color
-    border-line-standard-default          → border-border-default
-    focus-visible:outline-brand-default   → focus-visible:outline-focus-default
-    text-h-2                              → text-heading (Figma 확인 후 결정)
-
-### brand-default 분기 처리
-
-`brand-default`는 컨텍스트에 따라 다르게 매핑된다.
-스킬은 Tailwind 접두사를 보고 컨텍스트를 판별한다.
-
-| 사용 컨텍스트 | 구 클래스 | 신 클래스 |
-|--------------|----------|----------|
-| 텍스트 (링크) | `text-brand-default` | `text-link-primary` |
-| 텍스트 (강조) | `text-brand-default` | `text-text-brand` |
-| 배경 (버튼) | `bg-brand-default` | `bg-interactive-primary` |
-| 포커스 링 | `outline-brand-default` | `outline-focus-default` |
-
-## 타이포그래피 매칭 규칙
-
-Figma에서 추출한 fontSize/lineHeight/letterSpacing 조합을 tokens.css의 `--text-*` 숏핸드로 매핑한다.
-
-### 일반 타이포그래피
-
-| fontSize | lineHeight | letterSpacing | Tailwind 클래스 |
-|----------|-----------|--------------|-----------------|
-| 11px | 16px | 0.01em | `text-caption` |
-| 12px | 18px | 0.01em | `text-helper` |
-| 14px | 20px | 0em | `text-body` |
-| 16px | 24px | 0em | `text-body-reading` 또는 `text-subtitle` |
-| 20px | 28px | -0.01em | `text-title` |
-| 28px | 36px | -0.02em | `text-heading` |
-| 36px | 44px | -0.025em | `text-display` |
-| 48px | 56px | -0.03em | `text-hero` |
-
-### 컴포넌트 사이즈별 폰트
-
-| fontSize | lineHeight | Tailwind 클래스 |
-|----------|-----------|-----------------|
-| 11px | 16px | `text-comp-xs` |
-| 12px | 18px | `text-comp-sm` |
-| 14px | 20px | `text-comp-md` |
-| 16px | 24px | `text-comp-lg` |
-| 20px | 28px | `text-comp-xl` |
-
-### fontWeight 유틸리티 조합
-
-fontWeight은 별도 유틸리티로 조합한다:
-
-| Figma fontWeight | Tailwind 클래스 |
-|-----------------|-----------------|
-| Regular (400) | (기본값, 생략) |
-| Medium (500) | `font-medium` |
-| SemiBold (600) | `font-semibold` |
-| Bold (700) | `font-bold` |
-
-## 금지 패턴
-
-    ❌ bg-[#HEX] — 하드코딩 색상 임의값
-    ❌ 구 토큰명 사용 — fill-standard-*, text-standard-*, line-standard-*, text-accent-*, fill-inverse-* 등
-    ❌ Core 팔레트 직접 참조 — bg-gray-cool-500 등 (다크 모드에서 색상이 안 바뀜)
-
-    ✅ Tailwind 유틸리티 클래스 — bg-layer-01, text-text-primary 등
-    ✅ CSS 변수 임의값 — bg-[var(--color-*)] (유틸리티가 없는 경우 허용)
-    ✅ 컴포넌트 사이즈 토큰 var() 참조 — h-[var(--comp-height-md)]
+    // 미래 목표
+    'bg-[var(--color-primary-filled)] hover:bg-[var(--color-primary-filled-hover)]'
 
 ## 토큰 변경 보고 형식
 
 결과 요약에 아래 형식으로 포함한다:
 
     ### 토큰 변경
-    - 매칭: {N}개
-      - bg-layer-01 (--color-layer-01: #ffffff)
-      - text-text-primary (--color-text-primary: #101213)
+    - 신규: {N}개
+      - color.primary.filled: #1D1F20
+      - color.primary.filled.hover: #3E4142
       - ...
-    - 미매칭 → portal.css 추가: {N}개
-      - --color-{name}: #HEX (용도: ...)
-      - ...
-    - 구 토큰 교체: {N}개 (마이그레이션 모드)
-      - bg-fill-standard-default → bg-layer-01
-      - text-text-standard-default → text-text-primary
+    - 재사용: {N}개
+      - color.disabled.bg (기존 값 #F4F5F5)
       - ...
