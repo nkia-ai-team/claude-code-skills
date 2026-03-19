@@ -251,6 +251,47 @@ Framelink MCP `get_figma_data`로 기획 노드 데이터를 추출한다.
     | Step 8 | 데이터 제약/비즈니스 룰 기반 테스트 추가 | 20자 초과 입력 시 truncation 검증 등 |
     | Step 11 | 기획 스펙 반영률 보고 | 전체 N개 중 M개 반영, K개 미반영(사유) |
 
+## Step 1.6: Interaction Graph 추출
+
+Figma REST API에서 interactions 필드를 추출하여 State Machine / Navigation / Overlay / Variable Mode 그래프를 자동 생성한다.
+MCP 도구는 interactions를 생략하므로 REST API 직접 호출이 필수.
+
+상세 절차는 [interaction_graph.md](interaction_graph.md) 참조.
+
+### 요약
+
+1. REST API 호출: `GET /v1/files/{fileKey}/nodes?ids={nodeId}&depth=10` (FIGMA_ACCESS_TOKEN 사용)
+2. 응답에서 interactions 배열이 있는 노드를 재귀 수집
+3. 4가지 그래프로 분류:
+   - A. State Machine (CHANGE_TO) → 컴포넌트 내부 상태 설계
+   - B. Navigation Map (NAVIGATE) → 라우팅/뷰 전환
+   - C. Overlay Map (OVERLAY + CLOSE) → 모달/팝오버
+   - D. Variable Mode (SET_VARIABLE_MODE) → 테마/모드 전환
+4. **Main Component 조회** (MUST):
+   - 컴포넌트 URL 입력 시: 해당 노드에서 바로 interactions + dev 코멘트 추출
+   - 화면 URL 입력 시: INSTANCE의 componentId로 Main Component resolve → interactions + dev 코멘트 추출
+   - Code Connect가 있는 인스턴스는 건너뛰기 (이미 매핑됨)
+   - Comments API(`GET /v1/files/{fileKey}/comments`)로 dev 코멘트 추출, node_id로 필터링
+5. 프로토타입 미연결 시 구조 추론 (variant property, 노드 naming, 기획 스펙)
+6. 기획 스펙(Step 1.5)과 교차 대조
+
+### Main Component 조회가 중요한 이유
+
+인스턴스에는 prototype interaction과 dev 코멘트가 복사되지 않는다.
+Main Component에만 디자이너가 설정한 hover/click/focus 인터랙션과
+구현 의도를 설명하는 dev 코멘트가 달려 있다.
+이 정보 없이 컴포넌트를 빌드하면 인터랙션이 누락되고 사용자가 별도로 요청해야 한다.
+
+### 이후 Step에서의 활용
+
+| Step | 활용 방식 |
+|------|-----------|
+| Step 2 | State Machine을 React state 후보에 추가 |
+| Step 6 | Dev 코멘트의 스타일 지시를 컴포넌트 생성에 반영 |
+| Step 6.5 | Main Component interactions + Navigation/Overlay 연결 |
+| Step 8 | QA-기능에 Interaction Graph 검증 항목 추가 |
+| Step 8.5 | 추론된 인터랙션 사용자 확인 |
+
 ## Step 2: 어노테이션 파싱
 
 ### [MCP:ComponentSpec] 존재 시
@@ -266,7 +307,13 @@ Framelink MCP `get_figma_data`로 기획 노드 데이터를 추출한다.
    - 인터랙션 variant(isFocused, isCollapsed 등)를 React state로 구현할 대상 목록 작성
    - 각 variant가 어떤 시각적 변화를 일으키는지 MCP 데이터에서 확인
    - CSS pseudo로 충분한 것(hover, active)과 React state가 필요한 것(isFocused, isCollapsed) 구분
-3-a. **기획 스펙 기반 보강** (Step 1.5에서 기획 스펙이 추출된 경우):
+3-a. **Interaction Graph 기반 보강** (Step 1.6에서 그래프가 생성된 경우):
+   - State Machine의 각 항목을 React state 후보에 추가
+   - CHANGE_TO destination의 variant 값을 실제 state 이름으로 사용
+   - State Machine의 트리거를 이벤트 핸들러 후보에 추가 (ON_CLICK → onClick, ON_HOVER → onMouseEnter, AFTER_TIMEOUT → useEffect)
+   - Navigation Map의 항목을 라우팅 후보에 추가 (대상 화면명 → kebab-case route path)
+   - Overlay Map의 항목을 모달/팝오버 후보에 추가 (대상 오버레이 → Headless UI 컴포넌트 매핑)
+3-b. **기획 스펙 기반 보강** (Step 1.5에서 기획 스펙이 추출된 경우):
    - 기획서의 인터랙션 플로우([IF-xx])를 variant 분석에 추가
    - Figma variant에 없지만 기획서에 명시된 인터랙션을 React state 후보에 포함
    - 기획서의 데이터 제약([DC-xx])을 props 타입 제약 목록에 추가
@@ -460,55 +507,118 @@ MCP 데이터에서 아이콘 노드의 **정확한 이름**을 확인하고 매
     이유: 하드코딩된 어두운 fill(#222D44)이 어두운 배경(#06050A)에서 보이지 않는 문제가
     실험에서 발견되었다. currentColor로 변환하면 부모의 text 색상을 상속하여 자동 대응한다.
 
-## Step 5: 디자인 토큰 매칭/생성
+## Step 5: 디자인 토큰 매칭
 
-### 기존 토큰 파일 우선 참조 (CRITICAL)
+### 토큰 소스 (CRITICAL)
 
-config.designTeamTokens 경로에 디자인팀이 관리하는 토큰 파일이 있으면
-**반드시 먼저 읽고 기존 구조를 파악한 후** 작업한다.
+    토큰 소스:
+    - config.tokensCssPath → tokens.css (자동 생성, 수정 금지)
+    - config.portalCssPath → portal.css (수동 관리, AI Portal 전용)
+    - config.tokenSourceDir → tokens/ (DTCG 소스, 참조용)
 
-    절차:
-    1. config.designTeamTokens 파일을 Read로 읽는다 (MUST)
-    2. 기존 토큰의 구조(네이밍, 형식, 카테고리)를 파악한다
-    3. 기존 토큰의 색상 형식을 확인한다 (HSL인지 HEX인지)
-    4. HSL 형식인 경우: HSL → HEX 변환 후 MCP 추출 HEX와 비교
-    5. 매칭되는 기존 토큰이 있으면 반드시 재사용한다
-
-    HSL → HEX 변환 예시:
-    hsl(195, 4%, 67%) → 각 채널 계산 → #A5ABAE
-    비교: MCP 추출 #ABB2B5와 유사 → 기존 토큰 재사용 (완전 일치 아니어도 ΔE < 5이면 동일 취급)
-
-    금지:
-    ❌ config.designTeamTokens를 읽지 않고 독자적 토큰 구조 생성
-    ❌ 기존 토큰과 다른 네이밍 체계로 새 토큰 파일 작성
-    ❌ 기존 토큰 파일의 구조를 무시하고 flat 구조로 변환
-
-    기존 토큰과 다른 구조를 만들어야 하는 경우:
-    → 반드시 사용자에게 확인한다
-    → "기존 토큰이 HSL/카테고리 구조인데, 새로운 구조로 만들어도 될까요?"
-
-### tokens.json 경로
-    {config.tokensPath}
+    tokens.css는 npm run build:tokens로 자동 생성.
+    절대 수동 수정하지 않는다. 새 토큰이 필요하면 portal.css에 추가한다.
 
 ### 절차
-1. config.designTeamTokens 파일 읽기 (MUST — 있는 경우)
-2. tokens.json 읽기 (없으면 빈 객체 {} 로 생성)
-3. Figma에서 추출한 색상값(RGBA)을 HEX로 변환
-4. **기존 토큰에서 동일/유사 값 검색** (HEX 직접 비교 + HSL→HEX 변환 비교)
-   - 있으면: 기존 토큰 이름 사용
-   - 없으면: 시맨틱 이름으로 신규 토큰 생성 (기존 네이밍 체계 준수)
-5. 사이즈, border-radius, font-weight 등도 동일 절차
-6. tokens.json 업데이트 (신규 토큰 추가 — 기존 값 수정 금지)
-7. 변경 사항 기록 (결과 요약에 포함)
 
-### 토큰 네이밍 규칙
-    color.{tone}.{variant}: "#XXXXXX"      (예: color.primary.filled)
-    color.{tone}.{variant}.hover: "#XXXXXX" (예: color.primary.filled.hover)
-    color.disabled.bg: "#XXXXXX"
-    color.disabled.text: "#XXXXXX"
-    size.{component}.{size}: "{value}"       (예: size.button.xl)
-    radius.{component}: "{value}"            (예: radius.button)
-    font.weight.{name}: "{value}"            (예: font.weight.normal)
+#### 5-1. tokens.css 파싱
+
+config.tokensCssPath 파일을 Read로 읽고 `@theme { }` 블록에서 CSS 변수명 → 값 맵을 구성한다.
+
+    파싱:
+    1. @theme { } 블록에서 --변수명: 값; 패턴 추출
+    2. [data-theme="dark"] { } 블록에서 다크 모드 오버라이드 추출
+    3. [data-theme="contrast"] { } 블록에서 고대비 모드 오버라이드 추출
+
+    결과: { 변수명: { light: 값, dark: 값, contrast: 값 } }
+
+#### 5-2. portal.css 파싱
+
+config.portalCssPath 파일을 Read로 읽고 동일하게 파싱하여 맵에 병합한다.
+
+#### 5-3. Figma 색상 RGBA → HEX 변환
+
+Figma MCP에서 추출한 색상값(RGBA)을 HEX로 변환한다. (기존과 동일)
+
+    변환: Math.round(value * 255).toString(16).padStart(2, '0')
+    alpha가 1이면 6자리, 아니면 8자리 HEX
+
+#### 5-4. 시맨틱 토큰 매칭 (우선)
+
+Theme 카테고리 토큰에서 우선 검색한다.
+
+    검색 대상 카테고리 (시맨틱):
+    background, layer, field, border, text, icon, link,
+    feedback, interactive, focus, overlay
+
+    매칭 시: Tailwind 유틸리티 클래스로 직접 출력
+    예: --color-layer-01: #ffffff → bg-layer-01
+
+#### 5-5. 컴포넌트 전용 토큰 매칭
+
+시맨틱 매칭 실패 시 컴포넌트 전용 토큰에서 검색한다.
+
+    검색 대상 카테고리:
+    chip, tag, badge, toggle, tooltip, notification,
+    codeblock, prompt-input, chatting-bubble
+
+#### 5-6. Core 토큰 매칭
+
+시맨틱/컴포넌트 매칭 실패 시 Core 팔레트에서 검색한다. (지양)
+
+    지양 이유: Core 팔레트(gray-cool-500 등)는 테마 전환 시 값이 변하지 않아
+    다크 모드에서 문제가 발생한다.
+    불가피한 경우에만 사용하되, 결과 보고에 명시한다.
+
+#### 5-7. 사이즈 토큰 매칭
+
+Figma에서 추출한 height/padding/gap 값을 컴포넌트 사이즈 토큰으로 매칭한다.
+
+    --comp-height-* → h-[var(--comp-height-*)]
+    --comp-padding-x-* → px-[var(--comp-padding-x-*)]
+    --comp-padding-y-* → py-[var(--comp-padding-y-*)]
+    --comp-gap-* → gap-[var(--comp-gap-*)]
+
+#### 5-8. 타이포 토큰 매칭
+
+Figma에서 추출한 fontSize/lineHeight 조합을 text-* 클래스로 매칭한다.
+
+    | fontSize | lineHeight | Tailwind 클래스 |
+    |----------|-----------|-----------------|
+    | 11px     | 16px      | text-caption    |
+    | 12px     | 18px      | text-helper     |
+    | 14px     | 20px      | text-body       |
+    | 16px     | 24px      | text-body-reading 또는 text-subtitle |
+    | 20px     | 28px      | text-title      |
+    | 28px     | 36px      | text-heading    |
+    | 36px     | 44px      | text-display    |
+    | 48px     | 56px      | text-hero       |
+
+    fontWeight은 별도 유틸리티:
+    Medium (500) → font-medium, SemiBold (600) → font-semibold, Bold (700) → font-bold
+
+#### 5-9. 미매칭 토큰 처리
+
+매칭 실패한 색상은 portal.css에 신규 CSS 변수를 추가한다.
+
+    추가 규칙:
+    - portal.css의 @theme { } 블록 내에 정의
+    - 기존 portal.css의 네이밍 패턴 준수
+    - 주석으로 용도를 명시
+    - tokens.css는 절대 수정하지 않는다
+
+#### 5-10. 매칭 결과 보고
+
+사용된 토큰 목록과 미매칭 목록을 출력한다.
+
+    ### 토큰 매칭 결과
+    - 매칭: {N}개
+      - bg-layer-01 (--color-layer-01: #ffffff)
+      - text-text-primary (--color-text-primary: #101213)
+    - portal.css 추가: {N}개
+      - --color-{name}: #HEX (용도: ...)
+    - Core 팔레트 사용 (지양): {N}개
+      - bg-gray-cool-100 (불가피한 사유: ...)
 
 ## Step 6: React 컴포넌트 생성 또는 수정
 
@@ -572,7 +682,7 @@ Step 1에서 다운로드한 Figma 원본 이미지(temp/visual-comparison/{Comp
     }
 
     // 토큰 기반 스타일 맵
-    const toneVariantStyles = { ... }  // tokens.json 참조
+    const toneVariantStyles = { ... }  // tokens.css 시맨틱 토큰 → Tailwind 유틸리티 클래스
 
     export const Nds{Name} = forwardRef(...)
 
@@ -775,7 +885,105 @@ Figma variant(isFocused, isCollapsed, theme 등)이 존재하는데 코드에 �
 - 사용자에게 Lottie JSON 에셋 제공을 안내한다
 - lottie-react 또는 @lottiefiles/react-lottie-player 사용
 
-### E. 기획 스펙 기반 인터랙션 (Step 1.5 결과가 있는 경우)
+### E. Navigation 연결 (Interaction Graph 결과가 있는 경우)
+
+Interaction Graph의 Navigation Map 항목을 코드에 연결한다.
+
+    판단 기준:
+    - 같은 페이지 내 전환: useState 기반 뷰 전환
+    - 별도 페이지 이동: React Router navigate
+    - 외부 URL: window.open
+
+    구현 패턴 — 화면 내 뷰 전환:
+    const [currentView, setCurrentView] = useState<'main' | 'tools' | 'analysis'>('main')
+    <NdsButton onClick={() => setCurrentView('tools')}>도구</NdsButton>
+
+    구현 패턴 — 라우터 기반:
+    import { useNavigate } from 'react-router-dom'
+    const navigate = useNavigate()
+    <NdsButton onClick={() => navigate('/tools')}>도구</NdsButton>
+
+### F. Overlay 연결 (Interaction Graph 결과가 있는 경우)
+
+Interaction Graph의 Overlay Map 항목을 코드에 연결한다.
+
+    Headless UI 컴포넌트 매핑:
+    | Overlay 유형 | Headless UI | 트리거 |
+    |-------------|-------------|--------|
+    | 모달 (전체 화면 오버레이) | Dialog | ON_CLICK |
+    | 팝오버 (부분 오버레이) | Popover | ON_CLICK |
+    | 툴팁 (호버 오버레이) | Popover + hover 제어 | ON_HOVER |
+    | 드롭다운 메뉴 | Menu | ON_CLICK |
+
+    구현 패턴 — 모달:
+    import { Dialog } from '@headlessui/react'
+    const [isModalOpen, setIsModalOpen] = useState(false)
+
+    <NdsButton onClick={() => setIsModalOpen(true)}>설정</NdsButton>
+    <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <SettingsModal />
+    </Dialog>
+
+    구현 패턴 — 팝오버/툴팁:
+    import { Popover } from '@headlessui/react'
+
+    <Popover>
+        <Popover.Button>카테고리</Popover.Button>
+        <Popover.Panel>
+            <CategoryTooltip />
+        </Popover.Panel>
+    </Popover>
+
+### 오버레이/프리뷰 구현 시 필수 고려사항 (MUST)
+
+오버레이(모달, 프리뷰, 툴팁)를 구현할 때 아래 패턴을 반드시 따른다.
+실험에서 이미지 프리뷰 구현 시 Portal 미사용, event propagation, z-index 문제로
+여러 차례 수정 루프가 발생했다.
+
+#### Portal 렌더링 (MUST)
+
+오버레이는 반드시 React Portal(createPortal)로 document.body에 렌더링한다.
+컴포넌트 내부에 렌더링하면 부모의 overflow, transform, z-index stacking context에 갇힌다.
+
+    import { createPortal } from 'react-dom'
+
+    {isPreviewOpen && createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999 }}>
+            <Overlay />
+        </div>,
+        document.body
+    )}
+
+    금지: 컴포넌트 내부에 fixed/absolute로 오버레이 배치 (stacking context 문제 발생)
+
+#### Event Propagation 방지
+
+오버레이 내부 클릭이 배경의 닫기 핸들러로 전파되지 않도록 한다.
+
+    <div onClick={() => setOpen(false)}>       {/* 배경: 클릭 시 닫기 */}
+        <div onClick={(e) => e.stopPropagation()}>  {/* 콘텐츠: 전파 차단 */}
+            <img src={...} />
+        </div>
+    </div>
+
+#### 이미지 확대 (transform: scale)
+
+이미지 프리뷰에서 클릭 시 확대는 maxWidth/maxHeight 제거가 아닌 CSS transform: scale()을 사용한다.
+원본이 화면보다 작은 이미지도 확대 효과가 적용되어야 한다.
+
+    const [zoomed, setZoomed] = useState(false)
+
+    <img
+        onClick={() => setZoomed(!zoomed)}
+        style={{
+            maxWidth: '90vw', maxHeight: '90vh',
+            transform: zoomed ? 'scale(2)' : 'scale(1)',
+            transition: 'transform 0.3s ease',
+            cursor: zoomed ? 'zoom-out' : 'zoom-in',
+        }}
+    />
+
+### G. 기획 스펙 기반 인터랙션 (Step 1.5 결과가 있는 경우)
 
 Step 1.5에서 추출한 인터랙션 플로우([IF-xx])를 구현에 반영한다.
 Figma variant에 없더라도 기획서에 명시된 인터랙션은 이 단계에서 구현한다.
@@ -810,9 +1018,14 @@ Figma variant에 없더라도 기획서에 명시된 인터랙션은 이 단계�
     ✅ CSS pseudo로 처리할 것과 React state로 처리할 것이 정확히 구분되었는가
     ✅ 화면 수준 빌드 시: 컴포넌트 간 상호작용이 구현되었는가
     ✅ 애니메이션이 필요한 경우 적절한 방식(CSS/Lottie)으로 구현되었는가
+    ✅ Interaction Graph가 있는 경우: Navigation Map의 모든 항목에 onClick → navigate/setView가 연결되었는가
+    ✅ Interaction Graph가 있는 경우: Overlay Map의 모든 항목에 Dialog/Popover/Menu가 연결되었는가
     ✅ 기획 스펙이 있는 경우: 매핑된 [IF-xx] 항목이 모두 코드에 반영되었는가
 
-## Step 7: Storybook 스토리 생성
+## Step 7: Storybook 스토리 생성 (개발 참고용)
+
+Storybook은 개발 중 variant 확인과 빠른 이터레이션을 위한 참고 도구이다.
+**QA 검증은 Storybook이 아닌 dev 서버에서 수행한다** (Step 8 참조).
 
 ### 경로
     {config.storybookPath}/stories/{ComponentName}.stories.tsx
@@ -844,21 +1057,48 @@ CRITICAL: @source 디렉티브가 없으면 bg-[#1D1F20], w-[280px] 등 Tailwind
 CSS에 포함되지 않아 스타일이 적용되지 않는다.
 @source 경로는 globals.css 위치 기준 상대경로로, {config.componentPath}를 가리켜야 한다.
 
+### 인터랙티브 요소 핸들러 검증 (MUST)
+
+Default 스토리를 포함한 모든 스토리에서, 인터랙티브 UI 요소가 실제로 동작하는지 확인한다.
+
+    규칙:
+    - 핸들러(onClick, onFileSelect 등)가 없는데 클릭 가능한 UI 요소(버튼, 아이콘)가 보이면 안 됨
+    - Default 스토리에서 핸들러가 없으면: 해당 요소를 숨기거나 disabled 처리
+    - 또는 Default 스토리에도 기본 핸들러를 제공하여 동작하게 함
+
+    이유:
+    - 사용자가 Default 스토리에서 클립 버튼을 클릭했는데 아무 반응이 없으면
+      "파일 첨부가 안 된다"고 오해하게 됨 (실제로는 핸들러가 없을 뿐)
+    - 기능 검증 시 Default 스토리만 보고 판단하는 경우가 많음
+
+    검증 체크리스트:
+    ✅ Default 스토리에서 모든 버튼/아이콘이 클릭 시 반응하는가
+    ✅ 파일 첨부, 검색 등 콜백이 필요한 기능에 적절한 mock 핸들러가 있는가
+    ✅ 핸들러가 없는 상태를 보여주려면 별도 스토리(NoHandlers)로 분리하는가
+
 ### import 주의
 - render 함수 사용 시 import React from 'react' 필수
 - 컴포넌트는 상대경로로 import
 
-## Step 8: QA Phase (독립 서브에이전트 검증)
+## Step 8: QA Phase (독립 서브에이전트 검증 — dev 서버 대상)
 
-기존 Step 8(Playwright 테스트)과 Step 9(시각적 비교 루프)를 독립 QA 에이전트로 대체한다.
+컴포넌트를 화면에 통합한 후, **dev 서버에서** 독립 QA 에이전트 3개로 검증한다.
+Storybook이 아닌 dev 서버에서 QA를 수행한다 (실제 앱 환경에서의 동작 보장).
 상세 절차는 [qa_phase.md](qa_phase.md) 참조.
+
+### QA 전 준비
+
+Dev가 Step 7까지 완료하면, QA Phase 진입 전에:
+1. 생성/수정한 컴포넌트를 **대상 화면 코드에 통합** (import + JSX 삽입)
+2. dev 서버가 실행 중인지 확인
+3. Playwright MCP로 대상 화면까지 접근 가능한지 확인 (로그인 포함)
 
 ### 요약
 
-Dev가 Step 7까지 완료하면, 3개 QA 서브에이전트를 Task 도구로 병렬 실행한다.
+3개 QA 서브에이전트를 Task 도구로 병렬 실행한다.
 
-    QA-기능 (sonnet): Playwright 기능/인터랙션/접근성 테스트
-    QA-시각적 (opus): Figma ↔ Storybook 픽셀 단위 비교 (zoom 확대 포함)
+    QA-기능 (sonnet): Playwright E2E — dev 서버에서 기능/인터랙션/접근성 테스트
+    QA-시각적 (opus): Figma ↔ dev 서버 렌더링 비교 (zoom 확대 포함)
     QA-토큰 (haiku): 디자인 토큰 정합성 검증
 
 ### QA → Dev 수정 루프
@@ -874,7 +1114,7 @@ Dev가 Step 7까지 완료하면, 3개 QA 서브에이전트를 Task 도구로 �
 
     | QA 에이전트 | PASS | FAIL | 주요 FAIL 항목 |
     |------------|------|------|---------------|
-    | QA-기능    | 8    | 2    | disabled 클릭 미차단, ghost hover 미동작 |
+    | QA-기능    | 8    | 2    | 파일 첨부 플로우 실패, ghost hover 미동작 |
     | QA-시각적  | 12   | 3    | primary 배경색 ΔE=8, sm 패딩 초과 |
     | QA-토큰    | 5    | 1    | danger.ghost.hover 토큰 누락 |
     | **합계**   | **25** | **6** | |
@@ -884,13 +1124,27 @@ Dev가 Step 7까지 완료하면, 3개 QA 서브에이전트를 Task 도구로 �
 ### 전제 조건
 - Step 1에서 다운로드한 Figma 원본 이미지 존재: temp/visual-comparison/{ComponentName}/figma-original.png
 - 원본 이미지가 없으면 QA-시각적만 건너뛰고 QA-기능, QA-토큰은 실행
+- dev 서버가 실행 중이어야 함 (접근 불가 시 사용자에게 안내)
+- 컴포넌트가 화면에 통합되어 dev 서버에서 볼 수 있어야 함
 
-### 셀렉터 규칙 (QA 에이전트 공통)
-- 반드시 #storybook-root 하위에서 검색 (Storybook UI 버튼 회피)
-- 예: #storybook-root button, #storybook-root [data-testid="..."]
+## Step 8.5: Interaction Review (사용자 대화)
 
-### 스토리 URL 패턴
-    http://localhost:{config.storybookPort}/iframe.html?id={story-id}&viewMode=story
+QA Phase를 통과한 후, Step 1.6에서 추론(inferred)으로 생성한 인터랙션을
+사용자와 확인하여 최종 코드를 완성한다.
+
+상세 절차는 [interaction_review.md](interaction_review.md) 참조.
+
+### 실행 조건
+
+- Step 1.6에서 신뢰도가 "추론" 또는 "기획 기반"인 항목이 1개 이상: 이 Step 실행
+- 모든 항목이 "확인됨" (프로토타입 연결 기반): 이 Step **스킵**
+- Step 1.6에서 interactions가 0개여서 건너뛴 경우: 이 Step 실행 (사용자에게 인터랙션 질문)
+
+### 요약
+
+1. 추론된 인터랙션을 표로 보여주고 사용자에게 확인
+2. 사용자 응답(Y/N/수정/추가) 반영하여 코드 수정
+3. 사용자가 "완료" 또는 "넘어가기"라고 하면 Step 9로 진행
 
 ## Step 9: Code Connect 매핑 등록
 
@@ -974,6 +1228,12 @@ Code Connect 매핑은 **컴포넌트의 모든 variant를 빠짐없이** 매핑
     - QA-토큰: {PASS}/{TOTAL} 통과
     - 미해결 경고: (있을 경우 항목 목록)
 
+    ### Interaction Graph (Step 1.6 실행 시)
+    - 총 추출: {N}개 (State Machine {a}, Navigation {b}, Overlay {c}, Variable {d})
+    - 프로토타입 기반: {N}개 (확인됨)
+    - 구조 추론: {N}개 → Step 8.5에서 {M}개 확정, {K}개 제거
+    - 미구현: {N}개 (사유: 데이터 흐름 필요, 백엔드 연동 필요 등)
+
     ### 기획 스펙 반영 (Step 1.5 실행 시)
     - 전체: {N}개 항목
     - 반영: {M}개 (인터랙션 {a}개, 데이터 제약 {b}개, 비즈니스 룰 {c}개)
@@ -991,10 +1251,15 @@ Code Connect 매핑은 **컴포넌트의 모든 variant를 빠짐없이** 매핑
 핵심 흐름:
 1. 화면 MCP 데이터 추출
 2. 컴포넌트 인벤토리 생성 (연결됨/미연결 분류)
-3. 사용자 확인
-4. 미연결 컴포넌트 자동 빌드 (리프부터 Bottom-up, 각각 Step 1~9 실행)
-5. 화면 조립
-6. 결과 요약
+3. **미연결 컴포넌트의 Main Component 조회** (MUST):
+   - 각 INSTANCE의 componentId로 Main Component resolve
+   - Main Component의 interactions + dev 코멘트 추출 (Step 1.6-5)
+   - 추출 결과를 해당 컴포넌트 빌드 시 입력으로 전달
+4. 사용자 확인
+5. 미연결 컴포넌트 자동 빌드 (리프부터 Bottom-up, 각각 Step 1~9 실행)
+   - **빌드 시 Main Component에서 추출한 interactions + dev 코멘트를 활용**
+6. 화면 조립
+7. 결과 요약
 
 컴포넌트 노드와 화면 프레임 노드의 구분:
 - 컴포넌트 노드: type이 COMPONENT 또는 COMPONENT_SET
@@ -1215,6 +1480,182 @@ diff 결과를 실행 가능한 작업으로 분류한다.
     ### 화면 코드 변경
     - 파일: {화면파일.tsx}
     - 변경 라인 수: +{N} / -{M}
+
+## 토큰 마이그레이션 모드 (-m)
+
+기존 컴포넌트의 토큰 체계를 마이그레이션한다.
+구 토큰 → 신 토큰 자동 교체 + Figma 디자인 diff 반영.
+비즈니스 로직은 일절 변경하지 않는다.
+
+    입력:
+    /figma-to-react <figma-url> -m [figma-spec-url]
+    컴포넌트 URL 또는 화면 URL 모두 지원.
+
+### M-1. Figma MCP 추출
+
+컴포넌트 URL인 경우 Framelink MCP, 화면 URL인 경우 공식 MCP를 사용한다.
+추출 데이터는 디자인 diff용으로 사용한다.
+
+### M-2. 기존 코드 탐색
+
+기존 컴포넌트 코드를 찾는다.
+
+    탐색 방법:
+    1. Code Connect 매핑 확인 (MCP 응답에 CodeConnectSnippet 있는 경우)
+    2. {config.componentPath}에서 컴포넌트 이름으로 Glob/Grep 검색
+    3. 프로젝트 전체에서 Grep 검색 (위 경로에 없는 경우)
+
+    기존 코드를 찾지 못한 경우:
+    - 사용자에게 파일 경로를 질문
+    - -m 모드는 기존 코드가 반드시 존재해야 함 (신규 생성은 기본 모드 사용)
+
+### M-3. 토큰 마이그레이션 맵 구성
+
+#### M-3-1. tokens.css + portal.css 파싱
+
+Step 5의 5-1, 5-2와 동일. CSS 변수명 → 값 맵을 구성한다.
+
+#### M-3-2. 기존 코드에서 구 토큰 클래스 추출
+
+기존 코드에서 구 토큰 체계의 Tailwind 클래스를 추출한다.
+
+    탐색 패턴:
+    - fill-standard-*, fill-inverse-*, fill-tertiary-*, fill-disable-*, fill-transparent-*
+    - text-standard-*, text-secondary-default, text-tertiary-default,
+      text-inverse-default, text-disable-default, text-accent-*
+    - line-standard-*, line-disable-*
+    - brand-default (outline 컨텍스트)
+    - button-danger-*, button-link-*
+    - text-h-2 (구 타이포그래피)
+    - bg-[#HEX], text-[#HEX], border-[#HEX] (하드코딩)
+    - style={{ color: '#HEX' }}, style={{ backgroundColor: '#HEX' }} (inline 하드코딩)
+
+#### M-3-3. 정적 매핑 테이블 적용
+
+design_tokens.md의 "정적 매핑 테이블 (구 → 신 토큰)" 섹션을 참조하여 자동 치환한다.
+
+    치환 규칙:
+    - Tailwind 접두사(bg-/text-/border-/hover:bg-/active:bg- 등)는 유지
+    - 토큰 이름 부분만 교체
+
+    치환 예시:
+    bg-fill-standard-default              → bg-layer-01
+    hover:bg-fill-standard-hover          → hover:bg-layer-01-hover
+    text-text-standard-default            → text-text-primary
+    text-text-inverse-default             → text-text-on-color
+    border-line-standard-default          → border-border-default
+    focus-visible:outline-brand-default   → focus-visible:outline-focus-default
+
+    brand-default 분기 처리:
+    - text-brand-default (링크 컨텍스트) → text-link-primary
+    - text-brand-default (강조 컨텍스트) → text-text-brand
+    - bg-brand-default → bg-interactive-primary
+    - outline-brand-default → outline-focus-default
+
+#### M-3-4. 하드코딩 HEX → tokens.css 매칭
+
+코드에서 bg-[#HEX], text-[#HEX], style={{ color: '#HEX' }} 패턴을 찾아 tokens.css에서 매칭한다.
+
+    예시:
+    코드: bg-[#F3F5F7] → tokens.css: --color-layer-01-hover: #f3f5f7 → bg-layer-01-hover
+    코드: style={{ backgroundColor: '#101213' }} → tokens.css: --color-background-inverse: #101213
+         → className="bg-background-inverse"
+
+#### M-3-5. Figma 데이터로 미매칭 보완
+
+정적 매핑으로 해결되지 않는 토큰은 M-1에서 추출한 Figma MCP 데이터에서
+해당 위치의 색상을 추출하여 tokens.css에서 매칭한다.
+
+### M-4. Figma ↔ 코드 디자인 diff
+
+토큰 외의 디자인 변경사항을 식별한다.
+
+    비교 항목:
+    - 레이아웃 변경 (flex 방향, 비율, 간격, 순서)
+    - 타이포그래피 변경 (fontSize, fontWeight, lineHeight)
+    - border-radius 변경
+    - 새 요소 추가 / 기존 요소 제거
+
+    주의: 비즈니스 로직/핸들러 관련 변경은 식별하더라도 적용하지 않는다.
+
+### M-5. 변경 계획 사용자 확인
+
+사용자에게 아래 내용을 표 형식으로 보여주고 확인한다.
+
+    ## 토큰 마이그레이션 계획: {ComponentName}
+
+    ### 토큰 교체 (자동 매핑)
+    | 구 클래스 | 신 클래스 | 매핑 근거 |
+    |----------|----------|----------|
+    | bg-fill-standard-default | bg-layer-01 | 정적 매핑 |
+    | text-text-standard-default | text-text-primary | 정적 매핑 |
+    | bg-[#F3F5F7] | bg-layer-01-hover | HEX 매칭 |
+
+    ### 디자인 diff 항목
+    | 변경 | 현재 | Figma |
+    |------|------|-------|
+    | 패딩 | p-4 | p-3 |
+
+    ### 하드코딩 색상 교체
+    | 하드코딩 값 | 매칭 토큰 | 근거 |
+    |-----------|----------|------|
+    | text-[#121314] | text-text-primary | HEX 매칭 |
+
+    ### 매핑 불확실 항목 (사용자 결정 필요)
+    | 구 값 | 후보 | 질문 |
+    |------|------|------|
+    | bg-[#CEF3FA] | (tokens.css에 없음) | 유지? portal.css에 추가? |
+
+### M-6. 변경 적용
+
+#### M-6-1. 구 토큰 → 신 토큰 치환
+
+M-3-3의 정적 매핑 결과를 코드에 적용한다.
+
+#### M-6-2. 하드코딩 → 토큰 치환
+
+M-3-4의 HEX 매칭 결과를 코드에 적용한다.
+가능한 경우 inline style의 색상을 Tailwind 클래스로 전환한다.
+
+#### M-6-3. Figma diff 반영
+
+M-4에서 식별한 디자인 변경을 적용한다.
+레이아웃/스타일 변경만 적용, 비즈니스 로직은 절대 변경하지 않는다.
+
+#### M-6-4. Storybook 동기화
+
+.stories.tsx 파일에서도 구 토큰 참조가 있으면 함께 교체한다.
+
+### M-7. 결과 요약
+
+    ## 토큰 마이그레이션 결과: {ComponentName}
+
+    ### 토큰 교체
+    | 유형 | 건수 |
+    |------|------|
+    | 정적 매핑 교체 | {N}개 |
+    | HEX → 토큰 교체 | {N}개 |
+    | inline → className 전환 | {N}개 |
+    | Storybook 동기화 | {N}개 |
+
+    ### 디자인 diff 반영
+    | 변경 | 내용 |
+    |------|------|
+    | (항목별 나열) |
+
+    ### 미처리 항목
+    - (매핑 불확실하여 사용자 결정 보류 등)
+
+### -m 모드 변경 적용 원칙
+
+| 원칙 | 설명 |
+|------|------|
+| 스타일만 변경 | Tailwind 클래스, CSS 변수 참조, inline style의 색상/크기만 변경 |
+| 로직 불변 | useState, useEffect, 이벤트 핸들러, 조건 분기, API 호출 등 일체 불변 |
+| 포매팅 불변 | 들여쓰기, 줄바꿈, 변수명 등 스타일과 무관한 코드 포매팅 변경 금지 |
+| inline → className 전환 | 가능한 경우 inline style의 색상을 Tailwind 클래스로 전환 |
+| Storybook 동기화 | .stories.tsx 파일에서도 구 토큰 참조가 있으면 함께 교체 |
+| portal.css 토큰 보존 | portal.css에 있는 AI Portal 전용 토큰 (prompt-bg, avatar 등)은 유지 |
 
 ## 에러 처리
 
