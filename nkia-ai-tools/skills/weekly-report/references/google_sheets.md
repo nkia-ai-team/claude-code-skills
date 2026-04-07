@@ -12,7 +12,7 @@
 
 | 탭 이름 | 용도 |
 |--------|------|
-| `템플릿` | 빈 서식 템플릿 (숨김, sheetId: `1263786277`) |
+| `템플릿` | 빈 서식 템플릿 (숨김) |
 | `20260327` | 2026년 3월 4주차 |
 | `20260212` | 2026년 2월 2주차 |
 | ... | 과거 주차들 |
@@ -78,11 +78,17 @@ A(보고자), B(업무구분), F(업무구분)은 템플릿에서 이미 채워�
 
 **Step 1: 템플릿 탭 복제**
 
-`batchUpdate`의 `duplicateSheet`로 "템플릿" 탭(sheetId: `1263786277`)을 복제합니다:
+`batchUpdate`의 `duplicateSheet`로 "템플릿" 탭을 복제합니다.
+
+먼저 Section 2.1의 탭 목록 조회 응답에서 `title == "템플릿"`인 탭의 `sheetId`를 추출합니다:
+
+    sheets[].properties에서 title == "템플릿" → sheetId 추출 → TEMPLATE_SHEET_ID
+
+그 후 복제합니다:
 
     gws sheets spreadsheets batchUpdate \
       --params "{\"spreadsheetId\": \"${SHEET_ID}\"}" \
-      --json "{\"requests\": [{\"duplicateSheet\": {\"sourceSheetId\": 1263786277, \"insertSheetIndex\": 1, \"newSheetName\": \"${TAB_NAME}\"}}]}" \
+      --json "{\"requests\": [{\"duplicateSheet\": {\"sourceSheetId\": ${TEMPLATE_SHEET_ID}, \"insertSheetIndex\": 1, \"newSheetName\": \"${TAB_NAME}\"}}]}" \
       2>/dev/null
 
 - `insertSheetIndex: 1` — "템플릿" 탭 다음에 삽입 (최신 주가 위에 오도록)

@@ -106,8 +106,9 @@
 
 GitLab API로 MR 상세 정보를 조회합니다.
 
-    GITLAB_HOST={host} glab api "projects/{repo}/merge_requests/{mr_id}" \
-      --hostname {host}
+    GITLAB_HOST={host} glab api "projects/{repo}/merge_requests/{mr_id}"
+
+> ⚠️ 네임스페이스가 있는 프로젝트는 URL 인코딩 필요 — Section 3.5 참조
 
 **응답에서 추출할 데이터:**
 
@@ -123,8 +124,7 @@ GitLab API로 MR 상세 정보를 조회합니다.
 
 MR에 포함된 커밋 목록을 조회합니다.
 
-    GITLAB_HOST={host} glab api "projects/{repo}/merge_requests/{mr_id}/commits" \
-      --hostname {host}
+    GITLAB_HOST={host} glab api "projects/{repo}/merge_requests/{mr_id}/commits"
 
 **응답에서 추출할 데이터:**
 
