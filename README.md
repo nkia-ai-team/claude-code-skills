@@ -197,6 +197,45 @@ Confluence 문서를 검색, 조회, 생성, 수정합니다.
 → 작업 유형 선택 및 실행
 ```
 
+### weekly-report
+
+이번 주 Linear 이슈, Git 커밋, Google Calendar 이벤트를 자동 수집하여 팀 주간 업무 보고 구글 시트에 기록합니다.
+
+**주요 기능:**
+- Linear 이슈 자동 수집 (Done → 금주 실적, Todo → 차주 계획)
+- 이슈 MR/PR URL에서 레포 식별 → 해당 레포 Git 커밋 수집
+- Google Calendar에서 본인 휴가/반차 이벤트 조회 및 반영
+- 이번 주 목요일 날짜 탭 → 본인 행에 자동 기록
+- 최초 사용 시 설정 저장 (이름, 이메일, 캘린더명), 이후 자동 실행
+
+**사전 요구사항:**
+```bash
+# Google Workspace CLI 설치 (택 1)
+npm install -g @googleworkspace/cli
+brew install googleworkspace-cli
+
+# 인증 (최초 1회)
+gws auth setup
+gws auth login
+```
+
+**사용 예시:**
+```bash
+# 기본 사용 (이번 주 보고서 작성)
+/weekly-report
+
+# 미리보기만 (시트 기록 안 함)
+/weekly-report --dry-run
+
+# 특정 주 지정
+/weekly-report --week 2026-04-02
+
+# 설정 재입력
+/weekly-report --reconfigure
+```
+
+---
+
 ## 업데이트
 
 ```bash
