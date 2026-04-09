@@ -99,12 +99,37 @@ description: Generate weekly work reports by collecting Linear issues, Git commi
 
     gws auth status
 
-인증이 안 되어 있으면 자동으로 인증 프로세스를 시작합니다:
+인증이 안 되어 있으면 사용자에게 두 가지 방법을 안내합니다:
+
+**방법 1: 브라우저가 열리는 환경 (VS Code 터미널, 일반 터미널)**
+
+별도 터미널에서 아래 명령어를 순서대로 실행하세요:
 
     gws auth setup    # GCP 프로젝트 생성 및 API 활성화
     gws auth login    # Sheets + Calendar 스코프 선택
 
-필요한 API 스코프:
+**방법 2: 브라우저가 안 열리는 환경 (SSH, Claude Code 내부 터미널 등)**
+
+아래 링크에서 직접 설정 후, 토큰을 환경변수로 전달합니다:
+
+1. GCP 프로젝트 생성 & API 활성화:
+   - https://console.cloud.google.com/apis/dashboard → 프로젝트 생성
+   - https://console.cloud.google.com/apis/library/sheets.googleapis.com → Sheets API 활성화
+   - https://console.cloud.google.com/apis/library/calendar-json.googleapis.com → Calendar API 활성화
+   - https://console.cloud.google.com/apis/credentials → OAuth 2.0 클라이언트 ID 생성 (데스크톱 앱)
+
+2. 생성된 OAuth 클라이언트 JSON 다운로드 후:
+
+       export GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE=~/path/to/client_secret.json
+       gws auth login
+
+   또는 기존 gcloud 인증이 있다면:
+
+       gws auth login --use-application-default
+
+완료되면 돌아와서 진행하겠습니다.
+
+**필요한 API 스코프:**
 - `https://www.googleapis.com/auth/spreadsheets` (Sheets 읽기/쓰기)
 - `https://www.googleapis.com/auth/calendar.readonly` (Calendar 읽기)
 
