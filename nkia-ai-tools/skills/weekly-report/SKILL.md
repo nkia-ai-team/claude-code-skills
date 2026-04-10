@@ -111,7 +111,7 @@ description: Generate weekly work reports by collecting Linear issues, Git commi
     Google Sheets와 Calendar API를 사용하려면 gws 로그인이 필요합니다.
     브라우저가 열리는 터미널(VS Code 터미널, 일반 터미널)에서 아래 명령어를 실행하세요:
 
-    export GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE={이 스킬의 references/client_secret.json 절대경로}
+    cp {이 스킬의 references/client_secret.json 절대경로} ~/.config/gws/client_secret.json
     gws auth login
 
     로그인 시 Sheets와 Calendar 스코프를 모두 선택하세요.
@@ -119,6 +119,7 @@ description: Generate weekly work reports by collecting Linear issues, Git commi
     ---
 
 `{절대경로}`는 스킬 실행 시 자동으로 계산하여 표시합니다.
+`~/.config/gws/` 디렉토리가 없으면 `mkdir -p ~/.config/gws`를 먼저 실행합니다.
 
 **필요한 API 스코프:**
 - `https://www.googleapis.com/auth/spreadsheets` (Sheets 읽기/쓰기)
