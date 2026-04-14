@@ -20,26 +20,25 @@
 
 ## 1. 레포 유형 판별 + 최신 base 브랜치 찾기
 
-원격 ref 목록을 **한 번만 가져와서 변수에 캐싱**하고, 그 결과로 레포 유형 판별과 최신 base 선택을 모두 수행합니다. 이렇게 하면 동일한 `git ls-remote` 호출이 반복되지 않습니다.
+**레포 유형은 레포 이름 접미사로 판별**합니다. 네트워크 왕복 없이 즉시 결정되며, 새 사이클 직후 버전 브랜치가 아직 뽑히지 않은 상태에서도 안전합니다. 이후 최신 base 브랜치만 `git ls-remote`로 조회합니다.
 
-    # 1) 원격 정보 갱신 + 버전 브랜치 목록 한 번에 캐싱
-    git fetch origin --quiet
-    REMOTE_VERSIONED=$(git ls-remote --heads origin 'develop-10.*' \
-      | awk '{print $2}' \
-      | sed 's|refs/heads/||')
-
-    # 2) UI 레포 여부 판별 (-chat 접미사 브랜치 존재 여부)
-    if echo "$REMOTE_VERSIONED" | grep -qE '^develop-10\.[0-9]+\.[0-9]+_[0-9]+-chat$'; then
+    # 1) 레포 이름으로 UI/일반 판별 (팀 컨벤션: UI 레포는 '-ui' 접미사)
+    REPO=$(basename "$(git rev-parse --show-toplevel)")
+    if [[ "$REPO" == *-ui ]]; then
       REPO_TYPE=ui
-      BASE=$(echo "$REMOTE_VERSIONED" \
-        | grep -E '^develop-10\.[0-9]+\.[0-9]+_[0-9]+-chat$' \
-        | sort -V | tail -1)
+      BASE_PATTERN='^develop-10\.[0-9]+\.[0-9]+_[0-9]+-chat$'
     else
       REPO_TYPE=general
-      BASE=$(echo "$REMOTE_VERSIONED" \
-        | grep -E '^develop-10\.[0-9]+\.[0-9]+_[0-9]+$' \
-        | sort -V | tail -1)
+      BASE_PATTERN='^develop-10\.[0-9]+\.[0-9]+_[0-9]+$'
     fi
+
+    # 2) 원격 정보 갱신 후 패턴에 맞는 최신 버전 브랜치 선택
+    git fetch origin --quiet
+    BASE=$(git ls-remote --heads origin 'develop-10.*' \
+      | awk '{print $2}' \
+      | sed 's|refs/heads/||' \
+      | grep -E "$BASE_PATTERN" \
+      | sort -V | tail -1)
 
     # 3) BASE가 비어있으면 에러
     if [ -z "$BASE" ]; then
@@ -51,8 +50,8 @@
 
 | 조건 | REPO_TYPE | BASE 패턴 |
 |------|-----------|-----------|
-| `develop-10.x.y_z-chat` 형태가 하나라도 존재 | `ui` | 최신 `develop-10.x.y_z-chat` |
-| 그 외 | `general` | 최신 `develop-10.x.y_z` |
+| 레포 이름이 `-ui`로 끝남 (예: `lucida-ui`) | `ui` | 최신 `develop-10.x.y_z-chat` |
+| 그 외 (예: `lucida-chat-ap`, `lucida-chat-ai`) | `general` | 최신 `develop-10.x.y_z` |
 
 **`sort -V`의 동작:** `develop-10.2.4_3` < `develop-10.2.4_10`을 올바르게 처리하므로 `_z` 값이 두 자리 이상이어도 안전합니다.
 
