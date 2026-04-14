@@ -1,152 +1,227 @@
 ---
 name: weekly-report
-description: Generate weekly work reports by collecting Linear issues and GitLab MR/commit data, then writing the result to a Google Sheet tab. Use this skill when creating weekly work reports.
+description: Generate weekly work reports by collecting Linear issues, Git commits, and Google Calendar events, then write them to the team's Google Sheets. Use this skill when writing the weekly status report on Thursdays.
 ---
 
-# Weekly Report — 주간업무보고 자동화
+# Weekly Report — 주간 업무 보고서 자동화
 
 ## CRITICAL: First Step — Read the References
 
 **BEFORE generating any report, you MUST read:**
-- [data_collection.md](references/data_collection.md) — 주간 범위 계산, Linear 이슈 수집, GitLab MR/커밋 역추적
-- [report_rendering.md](references/report_rendering.md) — 보고서 렌더링 규칙, 시트 컬럼 매핑, 미리보기 형식
-- [google_sheets.md](references/google_sheets.md) — gws CLI 사용법, 탭 구조, 탭 생성/기입 방법
+- [data_collection.md](references/data_collection.md) — Linear 이슈, Git 커밋, Google Calendar 수집 로직
+- [sheet_operations.md](references/sheet_operations.md) — 구글 시트 탭/행 탐색 및 셀 기록
+- [report_rendering.md](references/report_rendering.md) — 컬럼별 렌더링 규칙
 
 ---
 
 ## Overview
 
-Linear 이슈 활동과 GitLab MR/커밋 데이터를 자동 수집하여 주간업무보고를 생성하고, 구글 시트의 **주차별 탭**에 작성자 행을 기입합니다.
+이번 주 Linear 이슈, Git 커밋, Google Calendar 이벤트를 자동 수집하여 팀 주간 업무 보고 구글 시트에 기록하는 스킬입니다.
 
 **하는 일:**
-- 이번 주 Linear 이슈 활동 수집 (assignee=me, updatedAt 기준)
-- 각 이슈의 attachments에서 GitLab MR URL 역추적 → MR 커밋 내역 조회
-- 이슈별 분류 및 요약 생성 (C열: 금주 요약, D열: 금주 상세, G열: 차주 계획)
-- 구글 시트의 해당 주차 탭에 작성자 행 기입 (탭이 없으면 생성)
+- Linear 이슈 수집 (Done → 금주 실적, In Progress/Todo → 차주 계획)
+- 이슈 attachments에서 레포 식별 → 해당 레포 Git 커밋 수집
+- Google Calendar에서 본인 등록 휴가/반차 이벤트 조회
+- 수집 데이터를 시트 컬럼 형식에 맞게 구조화
+- 이번 주 목요일 날짜 탭 찾기 → 본인 행에 기록
 
 **하지 않는 일:**
-- 레포 경로를 직접 설정/관리 (Linear → MR 역추적으로 레포를 자동 파악)
-- 프로젝트별 업데이트 (→ `/linear-project-updater` 사용)
-- 다른 팀원의 보고서 작성 (본인 행만 기입)
+- 투입시간(E열) 계산 — 생략
+- 다른 팀원의 보고서 작성
+- 시트 구조/형식 변경
 
 ---
 
 ## Usage
 
-    /weekly-report                                        # 이번 주, 기본값
-    /weekly-report --week 2026-03-20                      # 특정 주 (해당 날짜가 속한 금~목)
-    /weekly-report --next "데모 피드백 수정, 완료 리뷰 시연"   # 차주 할 일 직접 추가
+    /weekly-report
 
 **Options:**
 
 | 옵션 | 설명 |
 |-----|------|
-| `--week <YYYY-MM-DD>` | 기준 주 지정 (해당 날짜가 속한 금~목). 미지정 시 이번 주 |
-| `--next "<텍스트>"` | 차주 할 일에 자유 텍스트 항목 추가 (자동 생성 항목과 병합) |
-
----
-
-## Workflow
-
-### Step 1: Calculate Week Range
-
-**금요일~목요일** 단위로 주간 범위를 계산합니다.
-탭 이름은 weekEnd(목요일)를 `YYYYMMDD` 형식으로 변환합니다.
-
-계산 로직은 [data_collection.md Section 1](references/data_collection.md) 참조
-
-### Step 2: Check Tab & Row
-
-구글 시트에서 해당 주차 탭이 존재하는지, 작성자 행이 있는지 확인합니다.
-
-- **탭 존재** → A열에서 작성자 이름 동적 탐색 → 해당 행에 C/D/G열 기입
-- **탭 없음** → "템플릿" 탭 복제 (서식+팀원명 완전 보존) → 숨김 해제 → C/D/G열 기입
-
-탭 확인/생성 로직은 [google_sheets.md Section 2](references/google_sheets.md) 참조
-
-### Step 3: Collect Data (병렬)
-
-**아래 작업을 병렬로 실행합니다:**
-
-1. **Linear 이슈 수집** — `list_issues(assignee=me, updatedAt=weekStart)` + 상태별 조회
-2. **이슈별 상세 + MR 역추적** — `get_issue`로 attachments에서 GitLab MR URL 추출
-3. **GitLab MR/커밋 조회** — `glab api`로 MR 상세 및 커밋 내역 조회
-
-데이터 수집 로직은 [data_collection.md Section 2~4](references/data_collection.md) 참조
-
-### Step 4: Read Existing Tab Style
-
-이번 주 탭에 이미 다른 팀원이 작성한 데이터가 있으면 읽어서 **문체, 상세도, 형식**을 참고합니다. 같은 탭 안에서 일관된 수준의 보고서를 생성해야 합니다.
-
-### Step 5: Classify & Render
-
-수집된 데이터를 분류하고 시트 컬럼별 텍스트를 생성합니다.
-
-| 컬럼 | 내용 |
-|------|------|
-| C (금주 요약) | 이슈 제목 기반 번호 리스트 |
-| D (금주 상세) | 이슈 + MR 커밋 기반 번호 + 서브불릿 |
-| G (차주 계획) | In Progress/Todo 기반 번호 리스트 + 사용자 입력 |
-
-분류 및 렌더링 로직은 [report_rendering.md](references/report_rendering.md) 참조
-
-### Step 6: Preview & Confirm
-
-생성된 보고서를 미리보기로 출력한 뒤, `AskUserQuestion`으로 저장 여부를 확인합니다.
-
-- "저장" → Step 7로 진행
-- "취소" → 종료
-- 자유 텍스트 → 수정 후 다시 미리보기
-
-미리보기 형식 및 AskUserQuestion 사용법은 [report_rendering.md Section 6](references/report_rendering.md) 참조
-
-### Step 7: Write to Sheet
-
-확인 후 `gws sheets spreadsheets values update`로 해당 탭의 작성자 행에 데이터를 기입합니다.
-
-시트 기입 로직은 [google_sheets.md Section 3](references/google_sheets.md) 참조
-
-### Step 8: Show Result
-
-    === 주간업무보고 저장 완료 ===
-
-    탭: {{tabName}}
-    행: {{rowNumber}} ({{author}})
-    시트: https://docs.google.com/spreadsheets/d/{{SHEET_ID}}/edit#gid={{sheetId}}
-
-    ==============================
-
----
-
-## Prerequisites
-
-### gws (Google Workspace CLI)
-
-이 스킬은 구글 시트 연동에 `gws`를 사용합니다. 실행 전 설치 여부를 확인하고, 미설치 시 안내합니다:
-
-    which gws
-
-**미설치 시 안내 메시지:**
-
-    gws(Google Workspace CLI)가 설치되어 있지 않습니다.
-    아래 명령어로 설치 후 다시 실행해주세요:
-
-    1. 설치: npm install -g @googleworkspace/cli
-    2. 인증 설정: gws auth setup
-    3. 로그인: gws auth login
-
-    참고: https://github.com/googleworkspace/cli
-
-설치/인증이 완료되면 스킬을 다시 실행합니다. gws 없이는 스킬이 동작하지 않습니다.
+| `--week <YYYY-MM-DD>` | 기준 주 지정 (해당 날짜가 속한 주의 목요일). 미지정 시 이번 주 |
+| `--dry-run` | 미리보기만 (시트 기록 안 함) |
+| `--reconfigure` | 저장된 설정 초기화 후 재설정 |
 
 ---
 
 ## Configuration
 
-| 항목 | 환경변수 | 설명 |
-|------|---------|------|
-| 구글 시트 ID | `WEEKLY_REPORT_SHEET_ID` | 주간업무보고 구글 시트의 ID (기본값: `17VHfLRTWJOmh9I59XWnqw3TPa8iHh9NC4iEhoJViJxQ`) |
-| 작성자 이름 | `WEEKLY_REPORT_AUTHOR` | 보고서 작성자 이름 (기본: Linear 프로필에서 추출) |
+최초 실행 시 사용자에게 아래 정보를 입력받아 config 파일에 저장합니다.
+
+**저장 위치:** `~/.config/nkia-ai-tools/weekly-report.json`
+
+```json
+{
+  "reporterName": "방성준",
+  "googleEmail": "happypigs7@gmail.com",
+  "calendarName": "AI연구소",
+  "spreadsheetId": "17VHfLRTWJOmh9I59XWnqw3TPa8iHh9NC4iEhoJViJxQ"
+}
+```
+
+| 필드 | 설명 | 용도 |
+|------|------|------|
+| `reporterName` | 보고자 이름 | 시트 A열에서 본인 행 매칭 |
+| `googleEmail` | 구글 이메일 | Calendar 이벤트 creator 필터링 |
+| `calendarName` | 팀 캘린더 이름 | 휴가/반차 이벤트 조회 대상 |
+| `spreadsheetId` | 스프레드시트 ID | 대상 시트 |
+
+설정이 이미 존재하면 입력 없이 바로 진행합니다. `--reconfigure`로 재설정 가능합니다.
+
+---
+
+## Workflow
+
+### Step 1: Check & Install gws CLI
+
+`gws` CLI 설치 여부를 확인하고, 없으면 자동 설치합니다.
+
+    which gws
+
+**미설치 시 자동 설치:**
+
+1. `npm`이 있는지 확인 → 있으면 npm으로 설치:
+
+       npm install -g @googleworkspace/cli
+
+2. `npm`이 없고 `brew`가 있으면 brew로 설치:
+
+       brew install googleworkspace-cli
+
+3. 둘 다 없으면 에러:
+
+       ERROR: gws CLI를 설치할 수 없습니다.
+       npm 또는 brew를 먼저 설치해주세요.
+
+**설치 후 인증 확인:**
+
+    gws auth status
+
+인증이 안 되어 있으면 스킬에 포함된 OAuth 클라이언트 JSON을 사용하여 로그인을 안내합니다.
+
+**OAuth 클라이언트 JSON 위치:** `references/client_secret.json` (팀 공용, 스킬에 포함)
+
+사용자에게 아래 안내를 표시합니다:
+
+    ---
+    gws 인증 설정 필요
+
+    Google Sheets와 Calendar API를 사용하려면 gws 로그인이 필요합니다.
+    브라우저가 열리는 터미널(VS Code 터미널, 일반 터미널)에서 아래 명령어를 실행하세요:
+
+    cp {이 스킬의 references/client_secret.json 절대경로} ~/.config/gws/client_secret.json
+    gws auth login
+
+    로그인 시 Sheets와 Calendar 스코프를 모두 선택하세요.
+    완료되면 말씀해주시면 이어서 진행하겠습니다.
+    ---
+
+`{절대경로}`는 스킬 실행 시 자동으로 계산하여 표시합니다.
+`~/.config/gws/` 디렉토리가 없으면 `mkdir -p ~/.config/gws`를 먼저 실행합니다.
+
+**필요한 API 스코프:**
+- `https://www.googleapis.com/auth/spreadsheets` (Sheets 읽기/쓰기)
+- `https://www.googleapis.com/auth/calendar.readonly` (Calendar 읽기)
+
+### Step 2: Load or Create Config
+
+config 파일 존재 여부를 확인합니다.
+
+- **존재**: 설정 로드 후 Step 3으로
+- **미존재**: 사용자에게 4개 필드 순서대로 질문 → 저장 → Step 3으로
+
+### Step 3: Determine Target Week
+
+이번 주 목요일 날짜를 계산합니다.
+
+- 기본값: 오늘 기준 이번 주 목요일
+- `--week` 옵션: 지정된 날짜가 속한 주의 목요일
+- 주간 범위: **금요일~목요일** (가이드라인과 동일)
+
+### Step 4: Collect Data (병렬)
+
+**아래 3개 데이터 소스를 병렬로 수집합니다:**
+
+1. **Linear 이슈** — 내 이슈 중 이번 주 활동분
+2. **Google Calendar** — 이번 주 휴가/반차 이벤트
+3. **Git 커밋** — Linear 이슈 attachments에서 식별된 레포별 커밋
+
+데이터 수집 상세 로직은 [data_collection.md](references/data_collection.md) 참조
+
+### Step 5: Render Report
+
+수집된 데이터를 시트 컬럼 형식에 맞게 구조화합니다.
+
+| 컬럼 | 내용 | 소스 |
+|------|------|------|
+| B | 업무구분 | 기본 "백로그" |
+| C | 업무 (목표일, 진행율) | Linear 이슈 제목 기반 번호 리스트 |
+| D | 업무 내용 | 이슈별 상세 (커밋 기반 보강) |
+| F | 차주 업무 구분 | 기본 "백로그" |
+| G | 차주 업무 | 다음 사이클/Todo 이슈 기반 |
+
+렌더링 규칙은 [report_rendering.md](references/report_rendering.md) 참조
+
+### Step 6: Preview & Confirm
+
+생성된 보고서를 사용자에게 미리보기로 표시합니다.
+
+    === 주간 업무 보고서 미리보기 ===
+
+    대상: 방성준 | 탭: 20260409 | 행: 9
+
+    [B] 업무구분: 백로그
+    [C] 업무 (목표일, 진행율):
+        1. RCA 멀티턴 후속 질문 LLM 기반 답변 생성
+        2. alarm_select_popup 채팅 인라인 렌더링
+        3. ...
+
+    [D] 업무 내용:
+        1. RCA 멀티턴 후속 질문 LLM 기반 답변 생성
+        - alarm_analysis 플러그인에 RCA 후속 질문 intent 분류 추가
+        - followup intent 시 alarm_select_popup 대신 텍스트 스트리밍
+        2. ...
+
+    [F] 차주 업무 구분: 백로그
+    [G] 차주 업무:
+        1. RCA Agent 서비스 통합 테스트 구축
+        - Tier 1 smoke test + Tier 2 E2E 테스트 완성
+        ...
+
+    📅 휴가/반차: 없음
+
+    ================================
+
+    이대로 시트에 기록할까요? (수정이 필요하면 말씀해주세요)
+
+`--dry-run` 옵션이면 여기서 종료합니다.
+
+사용자가 수정을 요청하면 해당 부분만 수정 후 다시 미리보기를 보여줍니다.
+
+### Step 7: Write to Google Sheets
+
+시트 탐색 및 기록 로직은 [sheet_operations.md](references/sheet_operations.md) 참조
+
+1. 시트에서 이번 주 목요일 탭(`YYYYMMDD` 형식) 찾기
+2. 해당 탭에서 A열 보고자 이름으로 행 번호 찾기
+3. B~D, F~G 셀에 값 기록
+
+### Step 8: Show Results
+
+    === 주간 업무 보고서 작성 완료 ===
+
+    시트: 주간 업무 보고
+    탭: 20260409
+    보고자: 방성준 (행 9)
+    기록 항목: B, C, D, F, G
+
+    금주 실적: 5건 (Done 4건 + 기타 1건)
+    차주 계획: 2건
+    휴가/반차: 없음
+
+    ===================================
 
 ---
 
@@ -154,14 +229,46 @@ Linear 이슈 활동과 GitLab MR/커밋 데이터를 자동 수집하여 주간
 
 | 스킬 | 연동 |
 |-----|------|
-| `/linear-project-updater` | 프로젝트별 상세 업데이트 (이 스킬은 개인 주간보고) |
-| `/submit` | MR 생성 시 Linear attachments에 MR URL 자동 연결 → 이 스킬이 역추적 |
-| `/wrap-up` | 이슈 완료 후 증빙 첨부 → 이 스킬이 완료 이슈 데이터 활용 |
+| `/linear-project-updater` | 프로젝트 업데이트와 주간 보고는 데이터 소스가 유사하나 출력 대상이 다름 (Linear vs Google Sheets) |
+| `/kickoff` | kickoff로 시작한 이슈가 이번 주 보고에 자동 반영 |
+| `/wrap-up` | wrap-up으로 완료된 이슈의 MR 링크가 레포 식별에 활용 |
+
+---
+
+## Error Handling
+
+### gws CLI 미설치
+
+    ERROR: gws CLI가 설치되지 않았습니다.
+    설치: npm install -g @googleworkspace/cli
+    인증: gws auth setup && gws auth login
+
+### gws 인증 만료
+
+    ERROR: Google 인증이 만료되었습니다.
+    재인증: gws auth login
+
+### 탭을 찾을 수 없음
+
+    ERROR: 탭 "20260409"을(를) 찾을 수 없습니다.
+    시트에 해당 날짜 탭이 존재하는지 확인해주세요.
+
+### 보고자 이름 미매칭
+
+    ERROR: A열에서 "방성준"을(를) 찾을 수 없습니다.
+    config의 reporterName이 시트에 기재된 이름과 일치하는지 확인해주세요.
+    재설정: /weekly-report --reconfigure
+
+### Linear 이슈 0건
+
+정상 진행합니다. 커밋과 캘린더 데이터만으로 보고서를 구성하며, 데이터가 전혀 없으면 안내 메시지를 출력합니다:
+
+    INFO: 이번 주 활동 데이터가 없습니다. 빈 보고서를 생성합니다.
 
 ---
 
 ## Resources
 
-- [data_collection.md](references/data_collection.md) — 주간 범위 계산, Linear 이슈 조회, GitLab MR/커밋 역추적, 이슈 분류
-- [report_rendering.md](references/report_rendering.md) — 보고서 렌더링 규칙, 컬럼별 생성 로직, 미리보기 형식
-- [google_sheets.md](references/google_sheets.md) — gws CLI 사용법, 탭 구조, 탭 생성/기입 방법, 에러 처리
+- [data_collection.md](references/data_collection.md) — Linear 이슈 수집, Git 커밋 수집, Google Calendar 이벤트 수집, 레포 식별 로직
+- [sheet_operations.md](references/sheet_operations.md) — 구글 시트 탭 탐색, 행 탐색, 셀 기록, gws CLI 명령어
+- [report_rendering.md](references/report_rendering.md) — 컬럼별 렌더링 규칙, 휴가/반차 반영, 업무 내용 구조화
