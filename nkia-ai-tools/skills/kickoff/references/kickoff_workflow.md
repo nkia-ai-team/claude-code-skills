@@ -11,58 +11,54 @@
 | 일반 레포 (chat-ai, chat-ap 등) | `develop-10.x.y_z` | `develop-10.2.4_3` |
 | UI 레포 (lucida-ui 등) | `develop-10.x.y_z-chat` | `develop-10.2.4_3-chat` |
 
-`_z`는 레포마다 다를 수 있습니다. 사이클 전환(이전 버전 → develop 머지, 새 버전 브랜치 생성)은 사람이 직접 수행하므로, Kickoff는 **현재 시점 최신 버전 브랜치**만 찾아서 쓰면 됩니다.
+**가정:**
+- `_z`(언더스코어 + 정수)는 **항상 존재**합니다. `develop-10.2.4-chat`처럼 `_z`가 없는 형태는 사용하지 않습니다.
+- `_z` 값은 레포마다 다를 수 있습니다.
+- 사이클 전환(이전 버전 → develop 머지, 새 버전 브랜치 생성)은 사람이 직접 수행하므로, Kickoff는 **현재 시점 최신 버전 브랜치**만 찾아서 쓰면 됩니다.
 
 ---
 
-## 1. 레포 유형 판별
+## 1. 레포 유형 판별 + 최신 base 브랜치 찾기
 
-현재 작업 디렉토리의 원격 브랜치를 확인하여 UI/일반 레포를 판별합니다.
+원격 ref 목록을 **한 번만 가져와서 변수에 캐싱**하고, 그 결과로 레포 유형 판별과 최신 base 선택을 모두 수행합니다. 이렇게 하면 동일한 `git ls-remote` 호출이 반복되지 않습니다.
 
+    # 1) 원격 정보 갱신 + 버전 브랜치 목록 한 번에 캐싱
     git fetch origin --quiet
+    REMOTE_VERSIONED=$(git ls-remote --heads origin 'develop-10.*' \
+      | awk '{print $2}' \
+      | sed 's|refs/heads/||')
 
-    # UI 레포면 develop-10.*-chat 브랜치가 존재
-    git ls-remote --heads origin 'develop-10.*-chat' | head -1
+    # 2) UI 레포 여부 판별 (-chat 접미사 브랜치 존재 여부)
+    if echo "$REMOTE_VERSIONED" | grep -qE '^develop-10\.[0-9]+\.[0-9]+_[0-9]+-chat$'; then
+      REPO_TYPE=ui
+      BASE=$(echo "$REMOTE_VERSIONED" \
+        | grep -E '^develop-10\.[0-9]+\.[0-9]+_[0-9]+-chat$' \
+        | sort -V | tail -1)
+    else
+      REPO_TYPE=general
+      BASE=$(echo "$REMOTE_VERSIONED" \
+        | grep -E '^develop-10\.[0-9]+\.[0-9]+_[0-9]+$' \
+        | sort -V | tail -1)
+    fi
 
-| 판별 기준 | 레포 유형 |
-|-----------|----------|
-| `develop-10.x.y_z-chat` 원격 브랜치 존재 | UI 레포 |
-| 그 외 (`develop-10.x.y_z`만 존재) | 일반 레포 |
+    # 3) BASE가 비어있으면 에러
+    if [ -z "$BASE" ]; then
+      echo "최신 develop-10.x.y_z 브랜치를 찾을 수 없습니다."
+      exit 1
+    fi
+
+**판별 규칙:**
+
+| 조건 | REPO_TYPE | BASE 패턴 |
+|------|-----------|-----------|
+| `develop-10.x.y_z-chat` 형태가 하나라도 존재 | `ui` | 최신 `develop-10.x.y_z-chat` |
+| 그 외 | `general` | 최신 `develop-10.x.y_z` |
+
+**`sort -V`의 동작:** `develop-10.2.4_3` < `develop-10.2.4_10`을 올바르게 처리하므로 `_z` 값이 두 자리 이상이어도 안전합니다.
 
 ---
 
-## 2. 최신 버전 브랜치 찾기
-
-### 일반 레포
-
-    git ls-remote --heads origin 'develop-10.*' \
-      | awk '{print $2}' \
-      | sed 's|refs/heads/||' \
-      | grep -E '^develop-10\.[0-9]+\.[0-9]+_[0-9]+$' \
-      | sort -V \
-      | tail -1
-
-### UI 레포
-
-    git ls-remote --heads origin 'develop-10.*-chat' \
-      | awk '{print $2}' \
-      | sed 's|refs/heads/||' \
-      | grep -E '^develop-10\.[0-9]+\.[0-9]+_[0-9]+-chat$' \
-      | sort -V \
-      | tail -1
-
-`sort -V`는 `10.2.4_3` < `10.2.4_10`을 올바르게 처리합니다.
-
-검색 결과가 비어있으면 에러로 안내합니다:
-
-    최신 버전 브랜치(develop-10.x.y_z)를 찾을 수 없습니다.
-    원격에 버전 브랜치가 있는지 확인해주세요.
-    $ git fetch origin
-    $ git branch -r | grep develop-10
-
----
-
-## 3. 일반 레포 브랜치 생성 — `{prefix}/{team-key}-{no}-{slug}`
+## 2. 일반 레포 브랜치 생성 — `{prefix}/{team-key}-{no}-{slug}`
 
 ### Label → Prefix 매핑
 
@@ -95,12 +91,7 @@
 
 ### 브랜치 생성
 
-최신 버전 브랜치를 base로 feature 브랜치를 뽑습니다.
-
-    BASE=$(git ls-remote --heads origin 'develop-10.*' \
-      | awk '{print $2}' | sed 's|refs/heads/||' \
-      | grep -E '^develop-10\.[0-9]+\.[0-9]+_[0-9]+$' \
-      | sort -V | tail -1)
+Section 1에서 캐싱한 `$BASE`를 base로 feature 브랜치를 뽑습니다.
 
     git fetch origin "$BASE"
     git checkout -b {prefix}/{team-key}-{no}-{slug} "origin/$BASE"
@@ -110,7 +101,9 @@
 
 ---
 
-## 4. UI 레포 브랜치 생성 — `develop-10.x.y_z-chat-{function}`
+## 3. UI 레포 브랜치 생성 — `develop-10.x.y_z-chat-{function}`
+
+> **UI 레포는 별도 브랜치 컨벤션을 사용합니다.** 일반 레포처럼 `feature/{이슈번호}-{slug}` 형태가 아니라, 부모 버전 브랜치를 그대로 확장한 `{version}-chat-{function}` 계층 구조를 씁니다. 따라서 Linear 이슈 번호는 **브랜치명이 아닌 커밋 메시지에만** 포함됩니다.
 
 ### 계층 구조
 
@@ -135,12 +128,7 @@ module은 `chat` 고정이므로 사용자에게 확인하지 않습니다.
 
 ### 브랜치 생성
 
-최신 `develop-10.x.y_z-chat` 브랜치를 base로 feature 브랜치를 뽑습니다.
-
-    BASE=$(git ls-remote --heads origin 'develop-10.*-chat' \
-      | awk '{print $2}' | sed 's|refs/heads/||' \
-      | grep -E '^develop-10\.[0-9]+\.[0-9]+_[0-9]+-chat$' \
-      | sort -V | tail -1)
+Section 1에서 캐싱한 `$BASE`(예: `develop-10.2.4_3-chat`)를 base로 feature 브랜치를 뽑습니다.
 
     git fetch origin "$BASE"
     git checkout -b "${BASE}-{function}" "origin/$BASE"
@@ -150,13 +138,13 @@ module은 `chat` 고정이므로 사용자에게 확인하지 않습니다.
 
 ### 주의사항
 
-- UI 레포에서는 Linear 이슈 번호가 브랜치명에 포함되지 않음
+- UI 레포에서는 Linear 이슈 번호가 브랜치명에 포함되지 않음 (UI 컨벤션)
 - Linear 이슈 번호는 **커밋 메시지**에 포함됨
-- 브랜치에 버전이 박혀있으므로, 다음 사이클로 넘어갈 때는 새 버전 brand에서 다시 kickoff 필요
+- 브랜치에 버전이 박혀있으므로, 다음 사이클로 넘어갈 때는 새 버전 branch에서 다시 kickoff 필요
 
 ---
 
-## 5. 타겟 브랜치 판별 (참고)
+## 4. 타겟 브랜치 판별 (참고)
 
 kickoff에서는 직접 사용하지 않지만, `/submit` 스킬에서 사용하는 타겟 브랜치 기본값은 **feature 브랜치를 뽑은 base 버전 브랜치와 동일**합니다.
 
@@ -171,7 +159,7 @@ kickoff에서는 직접 사용하지 않지만, `/submit` 스킬에서 사용하
 
 ---
 
-## 6. 에러 처리
+## 5. 에러 처리
 
 ### 이슈를 찾을 수 없는 경우
 
@@ -182,6 +170,8 @@ kickoff에서는 직접 사용하지 않지만, `/submit` 스킬에서 사용하
 
     최신 develop-10.x.y_z 브랜치를 찾을 수 없습니다.
     원격에 버전 브랜치가 push되어 있는지 확인해주세요.
+    $ git fetch origin
+    $ git branch -r | grep develop-10
 
 ### 브랜치가 이미 존재하는 경우
 
