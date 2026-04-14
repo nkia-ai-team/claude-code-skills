@@ -41,9 +41,9 @@ Linear 이슈를 읽어 브랜치를 생성하고, 개발 착수 준비를 자�
 Description에서 AC 항목을 파싱합니다.
 - 설계 AC 존재 여부 확인 (키워드: "설계", "설계 문서", "design", "아키텍처")
 
-### Step 3: Detect Repo Type & Create Branch
+### Step 3: Detect Repo Type, Find Latest Base, Create Branch
 
-현재 작업 디렉토리의 레포 유형을 판별하여 적절한 브랜치를 생성합니다.
+현재 작업 디렉토리의 레포 유형을 판별하고 **최신 버전 브랜치(`develop-10.x.y_z` 또는 `develop-10.x.y_z-chat`)**를 찾아 feature 브랜치를 생성합니다.
 
 **사전 확인:** uncommitted 변경사항이 있으면 브랜치 생성 전에 사용자에게 안내합니다.
 
@@ -57,7 +57,13 @@ Description에서 AC 항목을 파싱합니다.
     $ git stash       # 임시 저장
     $ git add . && git commit  # 커밋
 
-레포 판별, 브랜치 네이밍 규칙, label 매핑은 [kickoff_workflow.md](references/kickoff_workflow.md) 참조
+**순서:**
+1. `git fetch origin --quiet`로 원격 정보 갱신
+2. `develop-10.*-chat` 존재 여부로 UI/일반 레포 판별
+3. 패턴에 맞는 버전 브랜치 목록 → `sort -V | tail -1`로 최신 선택
+4. 최신 버전 브랜치에서 feature 브랜치 생성
+
+레포 판별, 최신 브랜치 조회 명령, 브랜치 네이밍 규칙, label 매핑은 [kickoff_workflow.md](references/kickoff_workflow.md) 참조
 
 ### Step 4: Transition Issue Status
 
@@ -83,6 +89,7 @@ AC에 설계 관련 항목이 있으면 설계 문서 초안을 생성합니다.
 
     제목: Chat AI: streaming 구조 리팩토링 (WriterEmitterAdapter 전환)
     상태: Todo → In Progress
+    Base: origin/develop-10.2.4_3 (최신 버전 브랜치)
     브랜치: refactor/nkiaai-305-streaming-writer-emitter-adapter
 
     AC 항목 (3개):
