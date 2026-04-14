@@ -143,18 +143,16 @@ config 파일 존재 여부를 확인합니다.
 
 ### Step 4: Collect Data
 
+> **전제 조건 — Cycle 정렬:** 이 스킬은 **팀의 Linear cycle 주기가 calendar week(금~목)와 대략 정렬되어 있다고 가정**합니다. Cycle과 주간 경계가 크게 어긋나는 조직(예: 월 단위 cycle)에서는 직전 cycle 이슈 포함 범위가 예상과 다를 수 있습니다.
+
 **순서 의존성이 있으므로 아래 순서대로 실행합니다:**
 
-1. **현재 Cycle 파악** (순차) — `mcp__linear__list_cycles(team, active: true)`로 `currentCycle`, `prevCycle` 결정. **완료 후 2~4는 병렬로 실행.**
-2. **Linear 이슈 수집** (병렬) — `list_issues(cycle=currentCycle)` + `list_issues(cycle=prevCycle, state="Done")` + 상태별 조회 (In Progress, Todo)
+1. **현재 Cycle 파악** (순차) — `mcp__linear__list_cycles(team)` 응답을 `startsAt` 내림차순 정렬 → 첫 번째 = `currentCycle`, 두 번째 = `prevCycle`. 두 번째가 없으면 `prevCycle = null`. **완료 후 2~4는 병렬로 실행.**
+2. **Linear 이슈 수집** (병렬) — `list_issues(cycle=currentCycle)` + `list_issues(cycle=prevCycle, state="Done")` (prevCycle이 null이면 스킵) + 상태별 조회 (In Progress, Todo)
 3. **Google Calendar** (병렬) — 이번 주 휴가/반차 이벤트
 4. **Git 커밋** (병렬) — Linear 이슈 attachments에서 식별된 레포별 커밋
 
 > `updatedAt` 대신 **cycle + `completedAt`** 조합으로 수집하여 bulk-close 오집계를 방지합니다. 자세한 로직은 [data_collection.md Section 2](references/data_collection.md) 참조.
-
-### Prerequisite: Cycle 정렬
-
-이 스킬은 **팀의 Linear cycle 주기가 calendar week(금~목)와 대략 정렬되어 있다고 가정**합니다. Cycle과 주간 경계가 크게 어긋나는 조직(예: 월 단위 cycle)에서는 직전 cycle 이슈 포함 범위가 예상과 다를 수 있습니다.
 
 ### Step 5: Render Report
 
