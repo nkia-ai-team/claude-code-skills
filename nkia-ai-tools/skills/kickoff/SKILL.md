@@ -59,11 +59,12 @@ Description에서 AC 항목을 파싱합니다.
 
 **순서:**
 1. `git fetch origin --quiet`로 원격 정보 갱신
-2. `develop-10.*-chat` 존재 여부로 UI/일반 레포 판별
-3. 패턴에 맞는 버전 브랜치 목록 → `sort -V | tail -1`로 최신 선택
-4. 최신 버전 브랜치에서 feature 브랜치 생성
+2. `git ls-remote --heads origin 'develop-10.*'` 결과를 한 번만 가져와 변수에 캐싱
+3. 캐시에서 `-chat` 접미사 존재 여부로 UI/일반 레포 판별 → REPO_TYPE 결정
+4. 같은 캐시에서 패턴에 맞는 버전 브랜치만 추출 → `sort -V | tail -1`로 최신 BASE 선택
+5. `origin/$BASE`에서 feature 브랜치 생성
 
-레포 판별, 최신 브랜치 조회 명령, 브랜치 네이밍 규칙, label 매핑은 [kickoff_workflow.md](references/kickoff_workflow.md) 참조
+레포 판별 + 최신 base 캐싱 스크립트, 브랜치 네이밍 규칙, label 매핑은 [kickoff_workflow.md](references/kickoff_workflow.md) 참조
 
 ### Step 4: Transition Issue Status
 
