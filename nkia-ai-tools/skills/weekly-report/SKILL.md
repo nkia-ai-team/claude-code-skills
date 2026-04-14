@@ -41,6 +41,7 @@ description: Generate weekly work reports by collecting Linear issues, Git commi
 | 옵션 | 설명 |
 |-----|------|
 | `--week <YYYY-MM-DD>` | 기준 주 지정 (해당 날짜가 속한 주의 목요일). 미지정 시 이번 주 |
+| `--next "<텍스트>"` | 차주 할 일에 자유 텍스트 항목 추가 (자동 생성 항목과 병합) |
 | `--dry-run` | 미리보기만 (시트 기록 안 함) |
 | `--reconfigure` | 저장된 설정 초기화 후 재설정 |
 
@@ -140,15 +141,20 @@ config 파일 존재 여부를 확인합니다.
 - `--week` 옵션: 지정된 날짜가 속한 주의 목요일
 - 주간 범위: **금요일~목요일** (가이드라인과 동일)
 
-### Step 4: Collect Data (병렬)
+### Step 4: Collect Data
 
-**아래 3개 데이터 소스를 병렬로 수집합니다:**
+**순서 의존성이 있으므로 아래 순서대로 실행합니다:**
 
-1. **Linear 이슈** — 내 이슈 중 이번 주 활동분
-2. **Google Calendar** — 이번 주 휴가/반차 이벤트
-3. **Git 커밋** — Linear 이슈 attachments에서 식별된 레포별 커밋
+1. **현재 Cycle 파악** (순차) — `mcp__linear__list_cycles(team, active: true)`로 `currentCycle`, `prevCycle` 결정. **완료 후 2~4는 병렬로 실행.**
+2. **Linear 이슈 수집** (병렬) — `list_issues(cycle=currentCycle)` + `list_issues(cycle=prevCycle, state="Done")` + 상태별 조회 (In Progress, Todo)
+3. **Google Calendar** (병렬) — 이번 주 휴가/반차 이벤트
+4. **Git 커밋** (병렬) — Linear 이슈 attachments에서 식별된 레포별 커밋
 
-데이터 수집 상세 로직은 [data_collection.md](references/data_collection.md) 참조
+> `updatedAt` 대신 **cycle + `completedAt`** 조합으로 수집하여 bulk-close 오집계를 방지합니다. 자세한 로직은 [data_collection.md Section 2](references/data_collection.md) 참조.
+
+### Prerequisite: Cycle 정렬
+
+이 스킬은 **팀의 Linear cycle 주기가 calendar week(금~목)와 대략 정렬되어 있다고 가정**합니다. Cycle과 주간 경계가 크게 어긋나는 조직(예: 월 단위 cycle)에서는 직전 cycle 이슈 포함 범위가 예상과 다를 수 있습니다.
 
 ### Step 5: Render Report
 
@@ -160,7 +166,7 @@ config 파일 존재 여부를 확인합니다.
 | C | 업무 (목표일, 진행율) | Linear 이슈 제목 기반 번호 리스트 |
 | D | 업무 내용 | 이슈별 상세 (커밋 기반 보강) |
 | F | 차주 업무 구분 | 기본 "백로그" |
-| G | 차주 업무 | 다음 사이클/Todo 이슈 기반 |
+| G | 차주 업무 | 다음 사이클/Todo 이슈 기반 + `--next "..."` 자유 텍스트 병합 |
 
 렌더링 규칙은 [report_rendering.md](references/report_rendering.md) 참조
 
