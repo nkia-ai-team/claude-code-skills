@@ -58,13 +58,12 @@ Description에서 AC 항목을 파싱합니다.
     $ git add . && git commit  # 커밋
 
 **순서:**
-1. `git fetch origin --quiet`로 원격 정보 갱신
-2. `git ls-remote --heads origin 'develop-10.*'` 결과를 한 번만 가져와 변수에 캐싱
-3. 캐시에서 `-chat` 접미사 존재 여부로 UI/일반 레포 판별 → REPO_TYPE 결정
-4. 같은 캐시에서 패턴에 맞는 버전 브랜치만 추출 → `sort -V | tail -1`로 최신 BASE 선택
-5. `origin/$BASE`에서 feature 브랜치 생성
+1. 레포 이름(`basename $(git rev-parse --show-toplevel)`)이 `-ui`로 끝나면 UI 레포, 아니면 일반 레포
+2. `git fetch origin --quiet`로 원격 정보 갱신
+3. `git ls-remote --heads origin 'develop-10.*'`에서 레포 유형별 패턴으로 필터링 → `sort -V | tail -1`로 최신 BASE 선택
+4. `origin/$BASE`에서 feature 브랜치 생성
 
-레포 판별 + 최신 base 캐싱 스크립트, 브랜치 네이밍 규칙, label 매핑은 [kickoff_workflow.md](references/kickoff_workflow.md) 참조
+레포 판별, 최신 base 조회 스크립트, 브랜치 네이밍 규칙, label 매핑은 [kickoff_workflow.md](references/kickoff_workflow.md) 참조
 
 ### Step 4: Transition Issue Status
 
