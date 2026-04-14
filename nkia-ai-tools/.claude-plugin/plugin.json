@@ -1,12 +1,12 @@
 {
   "name": "nkia-ai-tools",
-  "version": "1.4.4",
-  "description": "NKIA-AI 팀 개발 워크플로우 도구 모음 - 코드 리뷰, 커밋 자동화, Linear 이슈/프로젝트/이니셔티브 관리, 증빙 수집, Confluence 문서 관리, Figma-to-React 컴포넌트 변환",
+  "version": "1.5.0",
+  "description": "NKIA-AI 팀 개발 워크플로우 도구 모음 - 코드 리뷰, 커밋 자동화, Linear 이슈/프로젝트/이니셔티브 관리, 증빙 수집, Confluence 문서 관리, Figma-to-React 컴포넌트 변환, 주간업무보고 자동화",
   "author": {
     "name": "NKIA-AI Team"
   },
   "repository": "https://github.com/nkia-ai/claude-code-plugins",
   "license": "MIT",
-  "keywords": ["code-review", "commit", "linear", "issue-management", "project-updater", "initiative-updater", "evidence", "confluence", "figma", "react", "workflow", "automation", "weekly-report", "google-sheets", "google-calendar"],
+  "keywords": ["code-review", "commit", "linear", "issue-management", "project-updater", "initiative-updater", "evidence", "confluence", "figma", "react", "weekly-report", "google-sheets", "google-calendar", "workflow", "automation"],
   "skills": "./skills"
 }
