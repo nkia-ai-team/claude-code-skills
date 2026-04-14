@@ -30,11 +30,17 @@
 
 이슈 수집에 앞서 현재 활성 cycle을 파악합니다. **이 단계가 완료된 후** 2.1의 이슈 조회를 시작합니다.
 
-    mcp__linear__list_cycles(team: myTeam, active: true)
-    → 현재 활성 cycle의 ID를 currentCycle로 설정
-    → 직전 cycle ID를 prevCycle로 설정 (cycleNumber - 1)
+    mcp__linear__list_cycles(team: myTeam)
+    → 응답을 startsAt 내림차순으로 정렬
+    → 첫 번째 항목 = currentCycle
+    → 두 번째 항목 = prevCycle
+    → 두 번째 항목이 없으면 (팀의 첫 사이클인 경우) prevCycle = null
 
-> API가 cycle 목록을 반환하지 않으면: 첫 번째 이슈의 `cycle.id`에서 currentCycle을 추출합니다.
+`cycleNumber - 1` 같은 산술 추론은 사용하지 않습니다. cycle은 ID(uuid) 기반으로 식별되고, `startsAt` 정렬이 항상 정확한 직전 사이클을 반환합니다.
+
+**Fallback (`list_cycles`가 비어있거나 호출 실패 시):**
+- 첫 번째 이슈의 `cycle.id`를 `currentCycle`로 추출
+- `prevCycle = null`로 설정하고 **2.1의 조회 B는 스킵**합니다 (직전 cycle Done 이슈는 보고서에서 제외됨)
 
 **왜 cycle 기반 수집이 필요한가:**
 이전에는 `updatedAt >= weekStart` 조건으로 이슈를 수집했지만, 이전 cycle 이슈를 이번 주에 **bulk-close** 처리하면 `updatedAt`이 이번 주로 찍혀서 해당 이슈들이 이번 주 작업으로 오집계되는 문제가 있었습니다. Cycle 필터로 소속을 먼저 제한하고, 완료 여부는 `completedAt`으로 판단하면 오집계가 방지됩니다.
@@ -46,12 +52,12 @@
 | # | 용도 | API 호출 | 필터 비고 |
 |---|------|----------|-----------|
 | A | 현재 cycle 전체 이슈 | `mcp__linear__list_issues(assignee: "me", cycle: currentCycle)` | 이번 주 작업 이슈 기준 |
-| B | 직전 cycle Done 이슈 | `mcp__linear__list_issues(assignee: "me", cycle: prevCycle, state: "Done")` | 조회 후 **로컬**에서 `completedAt >= weekStart`로 필터 |
+| B | 직전 cycle Done 이슈 | `mcp__linear__list_issues(assignee: "me", cycle: prevCycle, state: "Done")` | `prevCycle == null`이면 **스킵**. 그 외에는 조회 후 **로컬**에서 `completedAt >= weekStart`로 필터 |
 | C | In Progress 이슈 | `mcp__linear__list_issues(assignee: "me", state: "In Progress")` | cycle 무관, 모든 진행 중 이슈 |
 | D | Todo 이슈 | `mcp__linear__list_issues(assignee: "me", state: "Todo")` | cycle 무관, 모든 예정 이슈 |
 
 - 조회 A: "이번주 한 일" + "업무 내용" 생성용 (cycle 필터로 bulk-close 오집계 방지)
-- 조회 B: 직전 cycle에서 **이번 주에 완료된** 이슈 cross-cycle 추적 (`completedAt >= weekStart` 로컬 필터 필수)
+- 조회 B: 직전 cycle에서 **이번 주에 완료된** 이슈 cross-cycle 추적 (`completedAt >= weekStart` 로컬 필터 필수, prevCycle 없으면 스킵)
 - 조회 C, D: "다음주 할 일" 생성용 (현재 cycle 여부와 무관하게 모든 활성 이슈 포함)
 
 ### 2.2 이슈 분류
@@ -62,9 +68,11 @@
 |---------|----------|------|
 | **done_issues** | (cycle == currentCycle OR cycle == prevCycle) AND state == "Done" AND **completedAt >= weekStart** | 금주 실적 — 완료 항목 |
 | **in_review_issues** | cycle == currentCycle AND state == "In Review" AND **completedAt >= weekStart** | 금주 실적 — 리뷰 중 항목 |
-| **in_progress_issues** | cycle == currentCycle AND state == "In Progress" | 금주 실적 — 진행 중 항목 + 차주 계획 |
+| **in_progress_issues** | cycle == currentCycle AND state == "In Progress" AND **updatedAt >= weekStart** | 금주 실적 — 진행 중 항목 (이번 주 활동 있는 것만) + 차주 계획 |
 | **todo_issues** | state == "Todo" (cycle 무관) | 차주 계획 |
 | **new_issues** | cycle == currentCycle AND createdAt >= weekStart AND createdAt <= weekEnd | 업무 내용 — 신규 등록 |
+
+> `in_progress_issues`는 cycle 소속 + **이번 주 활동 여부**(`updatedAt >= weekStart`)를 함께 검사합니다. 활동이 없는 stale 이슈가 매주 보고서에 등장하지 않도록 보장합니다. (`updatedAt`은 이 카테고리에서만 활동 신호로 사용되며, done/in_review 분류에는 영향을 주지 않습니다.)
 
 > `completedAt`은 Linear API 응답 필드 기준이며, `completedAt >= weekStart`는 로컬에서 필터링합니다.
 > `weekStart` 경계값은 포함(`>=`)이고, `weekEnd`도 포함입니다.
