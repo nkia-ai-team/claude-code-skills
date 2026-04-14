@@ -1,25 +1,68 @@
 # Kickoff Workflow — 브랜치 생성 규칙
 
-## 1. 레포 유형 판별
+## 0. 기본 개념 — 버전별 develop 브랜치
 
-현재 작업 디렉토리의 레포 특성으로 자동 판별합니다.
+사이클마다 버전이 찍힌 개발 브랜치가 새로 뽑힙니다. 사이클이 끝나면 그 브랜치는 `develop`으로 머지되고, 다시 `develop`에서 다음 버전 브랜치가 나옵니다. Kickoff에서는 **최신 버전 브랜치**를 base로 feature 브랜치를 뽑습니다.
 
-| 판별 기준 | 레포 유형 |
-|-----------|----------|
-| `develop-ui` 브랜치 존재 + `package.json`에 UI 프레임워크 (Vue, React 등) | UI 레포 |
-| 그 외 | 일반 레포 |
+**네이밍:**
 
-판별 명령:
+| 레포 유형 | 버전 브랜치 패턴 | 예시 |
+|-----------|------------------|------|
+| 일반 레포 (chat-ai, chat-ap 등) | `develop-10.x.y_z` | `develop-10.2.4_3` |
+| UI 레포 (lucida-ui 등) | `develop-10.x.y_z-chat` | `develop-10.2.4_3-chat` |
 
-    # develop-ui 브랜치 존재 확인
-    git branch -a | grep develop-ui
-
-    # package.json에 UI 프레임워크 확인
-    cat package.json | grep -E '"vue"|"react"|"angular"|"nuxt"|"next"'
+`_z`는 레포마다 다를 수 있습니다. 사이클 전환(이전 버전 → develop 머지, 새 버전 브랜치 생성)은 사람이 직접 수행하므로, Kickoff는 **현재 시점 최신 버전 브랜치**만 찾아서 쓰면 됩니다.
 
 ---
 
-## 2. 일반 레포 브랜치 — `{prefix}/{team-key}-{no}-{slug}`
+## 1. 레포 유형 판별
+
+현재 작업 디렉토리의 원격 브랜치를 확인하여 UI/일반 레포를 판별합니다.
+
+    git fetch origin --quiet
+
+    # UI 레포면 develop-10.*-chat 브랜치가 존재
+    git ls-remote --heads origin 'develop-10.*-chat' | head -1
+
+| 판별 기준 | 레포 유형 |
+|-----------|----------|
+| `develop-10.x.y_z-chat` 원격 브랜치 존재 | UI 레포 |
+| 그 외 (`develop-10.x.y_z`만 존재) | 일반 레포 |
+
+---
+
+## 2. 최신 버전 브랜치 찾기
+
+### 일반 레포
+
+    git ls-remote --heads origin 'develop-10.*' \
+      | awk '{print $2}' \
+      | sed 's|refs/heads/||' \
+      | grep -E '^develop-10\.[0-9]+\.[0-9]+_[0-9]+$' \
+      | sort -V \
+      | tail -1
+
+### UI 레포
+
+    git ls-remote --heads origin 'develop-10.*-chat' \
+      | awk '{print $2}' \
+      | sed 's|refs/heads/||' \
+      | grep -E '^develop-10\.[0-9]+\.[0-9]+_[0-9]+-chat$' \
+      | sort -V \
+      | tail -1
+
+`sort -V`는 `10.2.4_3` < `10.2.4_10`을 올바르게 처리합니다.
+
+검색 결과가 비어있으면 에러로 안내합니다:
+
+    최신 버전 브랜치(develop-10.x.y_z)를 찾을 수 없습니다.
+    원격에 버전 브랜치가 있는지 확인해주세요.
+    $ git fetch origin
+    $ git branch -r | grep develop-10
+
+---
+
+## 3. 일반 레포 브랜치 생성 — `{prefix}/{team-key}-{no}-{slug}`
 
 ### Label → Prefix 매핑
 
@@ -52,16 +95,26 @@
 
 ### 브랜치 생성
 
-    git checkout -b {prefix}/{team-key}-{no}-{slug}
-    # 예: git checkout -b refactor/nkiaai-305-streaming-writer-emitter-adapter
+최신 버전 브랜치를 base로 feature 브랜치를 뽑습니다.
+
+    BASE=$(git ls-remote --heads origin 'develop-10.*' \
+      | awk '{print $2}' | sed 's|refs/heads/||' \
+      | grep -E '^develop-10\.[0-9]+\.[0-9]+_[0-9]+$' \
+      | sort -V | tail -1)
+
+    git fetch origin "$BASE"
+    git checkout -b {prefix}/{team-key}-{no}-{slug} "origin/$BASE"
+
+    # 예: BASE=develop-10.2.4_3
+    # git checkout -b refactor/nkiaai-305-streaming-writer-emitter-adapter origin/develop-10.2.4_3
 
 ---
 
-## 3. UI 레포 브랜치 — `develop-ui-chat-{function}`
+## 4. UI 레포 브랜치 생성 — `develop-10.x.y_z-chat-{function}`
 
 ### 계층 구조
 
-    master → develop → develop-ui → develop-ui-chat → develop-ui-chat-{function}
+    master → develop → develop-10.x.y_z-chat → develop-10.x.y_z-chat-{function}
 
 module은 `chat` 고정이므로 사용자에게 확인하지 않습니다.
 
@@ -82,35 +135,53 @@ module은 `chat` 고정이므로 사용자에게 확인하지 않습니다.
 
 ### 브랜치 생성
 
-    git checkout -b develop-ui-chat-{function}
-    # 예: git checkout -b develop-ui-chat-auditTrail
+최신 `develop-10.x.y_z-chat` 브랜치를 base로 feature 브랜치를 뽑습니다.
+
+    BASE=$(git ls-remote --heads origin 'develop-10.*-chat' \
+      | awk '{print $2}' | sed 's|refs/heads/||' \
+      | grep -E '^develop-10\.[0-9]+\.[0-9]+_[0-9]+-chat$' \
+      | sort -V | tail -1)
+
+    git fetch origin "$BASE"
+    git checkout -b "${BASE}-{function}" "origin/$BASE"
+
+    # 예: BASE=develop-10.2.4_3-chat
+    # git checkout -b develop-10.2.4_3-chat-auditTrail origin/develop-10.2.4_3-chat
 
 ### 주의사항
 
 - UI 레포에서는 Linear 이슈 번호가 브랜치명에 포함되지 않음
 - Linear 이슈 번호는 **커밋 메시지**에 포함됨
+- 브랜치에 버전이 박혀있으므로, 다음 사이클로 넘어갈 때는 새 버전 brand에서 다시 kickoff 필요
 
 ---
 
-## 4. 타겟 브랜치 판별 (참고)
+## 5. 타겟 브랜치 판별 (참고)
 
-kickoff에서는 직접 사용하지 않지만, `/submit` 스킬에서 사용하는 타겟 브랜치 기본값:
+kickoff에서는 직접 사용하지 않지만, `/submit` 스킬에서 사용하는 타겟 브랜치 기본값은 **feature 브랜치를 뽑은 base 버전 브랜치와 동일**합니다.
 
 | 레포 | 기본 타겟 |
 |------|----------|
-| lucida-ui | `develop-ui-chat` |
-| lucida-chat-ap | `develop` |
-| lucida-chat-ai | `develop-sandbox` |
-| 기타 | `develop` |
+| lucida-ui | 최신 `develop-10.x.y_z-chat` |
+| lucida-chat-ap | 최신 `develop-10.x.y_z` |
+| lucida-chat-ai | 최신 `develop-10.x.y_z` |
+| 기타 | 최신 `develop-10.x.y_z` |
+
+> 이전에 사용하던 `develop`, `develop-sandbox`, `develop-ui-chat` 같은 고정 base는 더 이상 사용하지 않습니다.
 
 ---
 
-## 5. 에러 처리
+## 6. 에러 처리
 
 ### 이슈를 찾을 수 없는 경우
 
     이슈 {issue-id}를 찾을 수 없습니다.
     이슈 ID를 확인해주세요 (예: NKIAAI-305)
+
+### 최신 버전 브랜치를 찾을 수 없는 경우
+
+    최신 develop-10.x.y_z 브랜치를 찾을 수 없습니다.
+    원격에 버전 브랜치가 push되어 있는지 확인해주세요.
 
 ### 브랜치가 이미 존재하는 경우
 
