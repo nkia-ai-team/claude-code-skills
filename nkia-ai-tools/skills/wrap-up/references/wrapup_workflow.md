@@ -4,32 +4,85 @@
 
 머지 후 어느 브랜치로 전환할지 결정합니다.
 
-### 판별 규칙
+### 판별 원리
 
-git remote URL에서 레포 이름을 추출하여 판별:
+wrap-up 시점에는 HEAD가 방금 머지된 feature 브랜치입니다. 이 HEAD가 **실제로 어느 base에서 분기됐는지**를 원격 후보 브랜치와의 커밋 거리로 찾습니다. `<cand>..HEAD`(HEAD에 있으나 후보에 없는 커밋 수)가 가장 작은 후보가 실제 base입니다.
 
-    git remote get-url origin
+kickoff가 `develop-10.2.4_3`에서 feature를 뽑았다고 가정:
 
-| 레포 | 전환 브랜치 |
-|------|-----------|
-| lucida-ui | `develop-ui-chat` |
-| lucida-chat-ap | `develop` |
-| lucida-chat-ai | `develop-sandbox` |
-| 기타 | `develop` |
+| 후보 | `<cand>..HEAD` | 판정 |
+|------|----------------|------|
+| `origin/develop-10.2.4_3` | N (feature 커밋 수) | **최솟값 — 실제 base** |
+| `origin/develop-10.2.4_2` | N + (2→3 델타) | 이전 버전 |
+| `origin/develop` | N + (누적) | 상위 base |
+| `origin/main` | 훨씬 더 큼 | 최상위 |
 
-### 브랜치 정리 명령
+submit 스킬과 동일한 알고리즘이며, 레포 이름 테이블은 사용하지 않습니다.
+
+### 판별 + 브랜치 정리 스크립트
+
+    git fetch origin --quiet
+
+    # 후보 base: 버전 브랜치 (-chat 변형 포함) + 전통 fallback
+    candidates=$(git for-each-ref --format='%(refname:short)' refs/remotes/origin/ \
+      | grep -E '^origin/(develop-10\.[0-9]+\.[0-9]+_[0-9]+(-chat)?|develop|main|master)$')
+
+    if [ -z "$candidates" ]; then
+      echo "WARN: 후보 base 브랜치를 찾지 못했습니다. fallback으로 develop 또는 main 사용." >&2
+      TARGET_BRANCH=$(git ls-remote --heads origin develop main 2>/dev/null \
+        | awk '{print $2}' | sed 's|refs/heads/||' | head -1)
+    else
+      # HEAD의 고유 커밋 수가 가장 적은 후보 = 실제 base
+      best_base=""
+      best_ahead=999999999
+      for cand in $candidates; do
+        ahead=$(git rev-list --count "$cand..HEAD" 2>/dev/null) || continue
+        if [ "$ahead" -lt "$best_ahead" ]; then
+          best_ahead=$ahead
+          best_base=$cand
+        fi
+      done
+      TARGET_BRANCH="${best_base#origin/}"
+    fi
+
+    echo "Auto-detected target: $TARGET_BRANCH (ahead: $best_ahead)"
 
     # 타겟 브랜치로 전환
-    git checkout {target-branch}
+    git checkout "$TARGET_BRANCH"
 
     # 최신화
-    git pull origin {target-branch}
+    git pull origin "$TARGET_BRANCH"
 
     # 원격 정리
     git remote prune origin
 
     # 머지된 로컬 브랜치 삭제 (현재 브랜치 + 보호 브랜치 제외, 정확한 이름 매칭)
-    git branch --merged | grep -v '^\*' | grep -v -x -E '  (main|master|develop|develop-ui|develop-ui-chat|develop-sandbox|release.*)' | xargs -r git branch -d
+    git branch --merged | grep -v '^\*' \
+      | grep -v -x -E '  (main|master|develop|develop-ui|develop-ui-chat|develop-sandbox|release.*|develop-10\.[0-9]+\.[0-9]+_[0-9]+(-chat)?)' \
+      | xargs -r git branch -d
+
+### 보호 브랜치 regex 설명
+
+정확한 이름 매칭(`-x`)으로 아래 브랜치만 보호합니다:
+
+| 패턴 | 목적 |
+|------|------|
+| `main`, `master` | 최상위 default 브랜치 |
+| `develop` | 전통 dev 브랜치 |
+| `develop-ui`, `develop-ui-chat`, `develop-sandbox` | 레거시 base (지금은 안 쓰지만 잔존 가능성 대비) |
+| `release.*` | 릴리스 브랜치 |
+| `develop-10\.[0-9]+\.[0-9]+_[0-9]+(-chat)?` | **kickoff가 매 사이클 뽑는 현재/과거 버전 base** — 실수로 삭제 방지 |
+
+UI feature 브랜치(`develop-10.2.4_3-chat-auditTrail` 등)는 위 regex와 `$` 매칭이 안 되므로 정상적으로 삭제 대상이 됩니다.
+
+### 엣지 케이스
+
+| 케이스 | 동작 |
+|--------|------|
+| 후보 목록이 비어있음 | fallback으로 `origin/develop` 또는 `main` 사용 |
+| 모든 `rev-list` 실패 (shallow clone 등) | `best_base`가 비어있으면 사용자에게 에러 안내 |
+| 여러 후보에서 `ahead` 동률 | 먼저 순회된 후보 선택 (`for-each-ref` 사전식 정렬이므로 결정적) |
+| HEAD가 base와 동일 (이미 checkout됨) | `ahead=0` 후보 선택, 정상 동작 |
 
 ---
 
