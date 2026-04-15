@@ -50,30 +50,49 @@ PR/MR 머지 후 브랜치 정리부터 증빙 등록, AC 검증, 이슈 상태 
 
 #### Step 1: Switch & Update
 
-**타겟 브랜치 판별** (레포 이름으로 자동 판별):
+**타겟 브랜치 판별** (git 히스토리로 자동 감지):
 
-| 레포 | 전환 브랜치 |
-|------|-----------|
-| lucida-ui | `develop-ui-chat` |
-| lucida-chat-ap | `develop` |
-| lucida-chat-ai | `develop-sandbox` |
-| 기타 | `develop` |
+wrap-up 시점에는 HEAD가 방금 머지된 feature 브랜치이므로, HEAD가 **실제로 어느 base에서 분기됐는지**를 원격 후보 브랜치와의 커밋 거리로 찾습니다. 레포 이름 테이블에 의존하지 않으므로, kickoff가 매 사이클 새로 뽑는 `develop-10.x.y_z` / `develop-10.x.y_z-chat` 버전 브랜치에 자동 대응합니다.
 
-상세는 [wrapup_workflow.md Section 1](references/wrapup_workflow.md) 참조
+    git fetch origin --quiet
 
-    git checkout {target-branch}
-    git pull origin {target-branch}
+    # 후보 base: 버전 브랜치 + 전통 fallback
+    candidates=$(git for-each-ref --format='%(refname:short)' refs/remotes/origin/ \
+      | grep -E '^origin/(develop-10\.[0-9]+\.[0-9]+_[0-9]+(-chat)?|develop|main|master)$')
+
+    # HEAD의 고유 커밋 수가 가장 적은 후보 = 실제 base
+    best_base=""
+    best_ahead=999999999
+    for cand in $candidates; do
+      ahead=$(git rev-list --count "$cand..HEAD" 2>/dev/null) || continue
+      if [ "$ahead" -lt "$best_ahead" ]; then
+        best_ahead=$ahead
+        best_base=$cand
+      fi
+    done
+
+    TARGET_BRANCH="${best_base#origin/}"
+
+    git checkout "$TARGET_BRANCH"
+    git pull origin "$TARGET_BRANCH"
     git remote prune origin
+
+> 레포 이름 테이블(`lucida-ui→develop-ui-chat`, `lucida-chat-ai→develop-sandbox` 등)은 사용하지 않습니다. 같은 레포에서도 사이클마다 base가 바뀌므로 레포 이름만으로는 판별 불가능합니다. submit 스킬과 동일한 로직.
+
+상세(fallback, 엣지 케이스)는 [wrapup_workflow.md Section 1](references/wrapup_workflow.md) 참조
 
 #### Step 2: Delete Merged Local Branches
 
 머지된 로컬 브랜치를 삭제합니다. 사용자 확인 없이 바로 삭제합니다.
 
-    git branch --merged | grep -v '^\*' | grep -v -x -E '  (main|master|develop|develop-ui|develop-ui-chat|develop-sandbox|release.*)' | xargs -r git branch -d
+    git branch --merged | grep -v '^\*' \
+      | grep -v -x -E '  (main|master|develop|develop-ui|develop-ui-chat|develop-sandbox|release.*|develop-10\.[0-9]+\.[0-9]+_[0-9]+(-chat)?)' \
+      | xargs -r git branch -d
 
 - 현재 브랜치(`*`)는 제외
 - 보호 브랜치는 정확한 이름 매칭으로 제외 (부분 매칭 아님)
-- UI feature 브랜치(`develop-ui-chat-auditTrail` 등)는 정상 삭제
+- **버전 base 브랜치 보호**: `develop-10.x.y_z` / `develop-10.x.y_z-chat` 패턴을 명시적으로 제외하여 현재 사이클 base가 실수로 삭제되지 않도록 함
+- UI feature 브랜치(`develop-10.2.4_3-chat-auditTrail` 등)는 `$`로 끝나지 않으므로 정상 삭제
 
 ---
 
