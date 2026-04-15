@@ -108,18 +108,43 @@ description: Submit completed work — commit, push, create PR/MR, run code revi
 
 #### Step 5: Create PR/MR
 
-**타겟 브랜치 판별** (인자 미지정 시 레포 이름으로 자동 판별):
+**타겟 브랜치 판별** (인자 미지정 시 git 히스토리로 자동 감지):
 
-| 레포 | 기본 타겟 |
+HEAD가 실제로 어느 브랜치에서 뽑혔는지 **원격 후보 브랜치와의 커밋 거리**로 자동 판별합니다. 레포 이름 하드코딩에 의존하지 않으므로, kickoff가 매 사이클 새로 뽑는 `develop-10.x.y_z` / `develop-10.x.y_z-chat` 버전 브랜치에도 자연스럽게 대응합니다.
+
+**핵심 아이디어:** HEAD의 고유 커밋 수(`<cand>..HEAD`)가 가장 적은 원격 후보가 HEAD가 실제로 뽑힌 base 브랜치입니다. develop-10.2.4_3에서 분기했다면 `develop-10.2.4_3..HEAD`만 본인 feature 커밋 수로 나오고, 그 외 후보(`develop-10.2.4_2`, `develop`, `main` 등)는 버전 누적분까지 포함해 더 큰 값이 나옵니다.
+
+    git fetch origin --quiet
+
+    # 후보 base: 버전 브랜치 + 전통 fallback
+    candidates=$(git for-each-ref --format='%(refname:short)' refs/remotes/origin/ \
+      | grep -E '^origin/(develop-10\.[0-9]+\.[0-9]+_[0-9]+(-chat)?|develop|main|master)$')
+
+    # HEAD의 고유 커밋 수가 가장 적은 후보 = 실제 base
+    best_base=""
+    best_ahead=999999999
+    for cand in $candidates; do
+      ahead=$(git rev-list --count "$cand..HEAD" 2>/dev/null) || continue
+      if [ "$ahead" -lt "$best_ahead" ]; then
+        best_ahead=$ahead
+        best_base=$cand
+      fi
+    done
+
+    TARGET_BRANCH="${best_base#origin/}"
+
+**Fallback (후보 목록이 비어있거나 모든 `rev-list`가 실패한 경우):**
+
+| 조건 | fallback |
 |------|----------|
-| lucida-ui | `develop-ui-chat` |
-| lucida-chat-ap | `develop` |
-| lucida-chat-ai | `develop-sandbox` |
-| 기타 | `develop` |
+| `origin/develop` 존재 | `develop` |
+| 그 외 | `main` |
 
-`/submit {브랜치명}` 으로 타겟을 직접 지정할 수도 있습니다.
+> 레포 이름 테이블(`lucida-ui`, `lucida-chat-ap` 등) 하드코딩은 **사용하지 않습니다**. 사용자가 어느 브랜치에서 뽑았는지가 진실의 원천이며, 같은 레포에서도 사이클마다 버전이 바뀌므로 레포 이름만으로는 판별 불가능합니다.
 
-PR/MR 제목 규칙, 플랫폼별 생성 명령어는 [submit_workflow.md](references/submit_workflow.md) 참조
+`/submit {브랜치명}` 으로 타겟을 직접 지정할 수도 있습니다 (자동 감지 결과를 override).
+
+PR/MR 제목 규칙, 플랫폼별 생성 명령어, 자동 감지 엣지 케이스는 [submit_workflow.md](references/submit_workflow.md) 참조
 
 **PR Body 형식:**
 

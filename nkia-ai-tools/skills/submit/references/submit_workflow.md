@@ -25,22 +25,76 @@ PIMS 번호와 Linear 이슈 번호는 Phase 1 Step 2에서 `/commit --format ui
 
 ### 우선순위
 
-1. `/submit` 뒤에 브랜치명이 지정되면 → 해당 브랜치
-2. 미지정 시 레포 이름으로 판별:
+1. `/submit` 뒤에 브랜치명이 지정되면 → 해당 브랜치 (override)
+2. 미지정 시 **git 히스토리로 자동 감지** (레포 이름 테이블은 사용하지 않음)
+3. 자동 감지가 실패하면 `origin/develop` 또는 `main` fallback
 
-| 레포 | 기본 타겟 |
-|------|----------|
-| lucida-ui | `develop-ui-chat` |
-| lucida-chat-ap | `develop` |
-| lucida-chat-ai | `develop-sandbox` |
-| 기타 | `develop` |
+### 2.1 자동 감지 알고리즘
 
-### 레포 이름 확인
+HEAD가 실제로 어느 브랜치에서 뽑혔는지 찾습니다. 핵심 원리: **원격 후보 브랜치 중 `<cand>..HEAD`(HEAD에 있으나 후보에 없는 커밋 수)가 가장 작은 후보가 실제 base**입니다.
+
+#### 왜 이 방법이 맞는가
+
+kickoff가 `develop-10.2.4_3`에서 feature 브랜치를 뽑았다고 가정:
+
+| 후보 | `<cand>..HEAD` | 의미 |
+|------|----------------|------|
+| `origin/develop-10.2.4_3` | N (feature 커밋 수) | **최솟값 — 실제 base** |
+| `origin/develop-10.2.4_2` | N + (2→3 델타) | 이전 버전 브랜치 |
+| `origin/develop` | N + (develop→10.2.4_3 누적) | 상위 base |
+| `origin/main` | 훨씬 더 큼 | 최상위 |
+
+레포 이름이 `lucida-ui`든 `lucida-chat-ai`든 상관 없이, HEAD의 **실제 조상**을 찾아내므로 하드코딩 테이블 없이도 정확합니다.
+
+### 2.2 자동 감지 스크립트
+
+    git fetch origin --quiet
+
+    # 후보 base: 버전 브랜치 (-chat 변형 포함) + 전통 fallback
+    candidates=$(git for-each-ref --format='%(refname:short)' refs/remotes/origin/ \
+      | grep -E '^origin/(develop-10\.[0-9]+\.[0-9]+_[0-9]+(-chat)?|develop|main|master)$')
+
+    if [ -z "$candidates" ]; then
+      echo "WARN: 후보 base 브랜치를 찾지 못했습니다. fallback으로 origin/develop 또는 main 사용." >&2
+      TARGET_BRANCH=$(git ls-remote --heads origin develop main 2>/dev/null \
+        | awk '{print $2}' | sed 's|refs/heads/||' | head -1)
+    else
+      # HEAD의 고유 커밋 수가 가장 적은 후보 = 실제 base
+      best_base=""
+      best_ahead=999999999
+      for cand in $candidates; do
+        ahead=$(git rev-list --count "$cand..HEAD" 2>/dev/null) || continue
+        if [ "$ahead" -lt "$best_ahead" ]; then
+          best_ahead=$ahead
+          best_base=$cand
+        fi
+      done
+      TARGET_BRANCH="${best_base#origin/}"
+    fi
+
+    echo "Auto-detected target: $TARGET_BRANCH (ahead: $best_ahead)"
+
+### 2.3 엣지 케이스
+
+| 케이스 | 동작 |
+|--------|------|
+| HEAD가 base와 동일 (fast-forward 가능) | `ahead=0`이 최솟값 → base를 정확히 반환. 단 이 경우 submit할 커밋이 없으므로 Step 1에서 이미 종료됨 |
+| 여러 후보에서 ahead 동률 | 먼저 순회된 후보 선택 (`for-each-ref`는 사전식 정렬이므로 결정적) |
+| `rev-list` 실패 (후보가 shallow clone에 없음) | 해당 후보 스킵 (`\|\| continue`) |
+| 모든 후보가 실패 | `best_base`가 비어있어 `TARGET_BRANCH`가 빈 문자열 → 사용자에게 에러 안내 |
+| kickoff가 `develop-10.x.y_z-chat-{function}` 하위 feature로 뽑은 경우 | `-chat` 접미사 브랜치가 후보에 포함되어 가장 가까운 ancestor로 선택됨 |
+| 사용자가 `develop`에서 직접 뽑은 경우 | 버전 브랜치들은 `ahead`가 더 크므로 자연스럽게 `develop`이 선택됨 |
+
+### 2.4 레포 이름 확인 (참고용, 자동 감지에는 불필요)
+
+플랫폼 감지나 MR 제목 생성에만 사용:
 
     # git remote에서 레포 이름 추출
     git remote get-url origin
     # → https://github.com/org/lucida-chat-ai.git → lucida-chat-ai
     # → https://cims2.nkia.net:8443/gitlab/lucida-ui.git → lucida-ui
+
+> **주의:** 레포 이름을 타겟 브랜치 판별에 사용하지 **않습니다**. 같은 레포에서도 kickoff가 매 사이클 다른 버전 브랜치에서 feature를 뽑으므로, 레포 이름 테이블은 구조적으로 잘못된 정보원입니다.
 
 ---
 
