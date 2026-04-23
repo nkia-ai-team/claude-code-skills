@@ -35,6 +35,16 @@ USER_SRC="${2:-/home/sjbang/dev/user/docx}"
 mkdir -p "$STAGING/admin" "$STAGING/user"
 : > "$REPORT"
 
+# pandoc >= 2.11 uses --markdown-headings=atx; 2.9.x uses --atx-headers.
+# Pick whichever this install supports so the script is portable.
+if pandoc --help 2>&1 | grep -q -- '--markdown-headings='; then
+  ATX_OPT=(--markdown-headings=atx)
+elif pandoc --help 2>&1 | grep -q -- '--atx-headers'; then
+  ATX_OPT=(--atx-headers)
+else
+  ATX_OPT=()
+fi
+
 slugify_stem() {
   local stem="$1"
   stem="${stem// /-}"
@@ -68,7 +78,7 @@ convert_one() {
 
   if pandoc -f docx -t gfm \
       --wrap=none \
-      --markdown-headings=atx \
+      "${ATX_OPT[@]}" \
       --extract-media="$imgdir" \
       -o "$out" "$src" 2>>"$REPORT"; then
     printf 'OK\t%s\t%s\n' "$type" "$base" >>"$REPORT"
