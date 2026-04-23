@@ -162,3 +162,22 @@ _아직 비어 있습니다. Story 3 시작 시 alert 카테고리부터 채워�
 
 > 위 `menu_path` 는 pandoc 이 추출한 md 본문 H1 제목을 그대로 초안으로 옮긴 것입니다.
 > 사람이 polestar10 웹에서 대조 후 frontmatter 의 `menu_path_verified` 를 `true` 로 토글.
+
+### db
+
+**admin** (2 file(s)):
+
+| slug | menu_path (초안) | 경로 |
+|---|---|---|
+| db-001 | POLESTAR10DB백업 | manuals/admin/db/db-001.md |
+| db-002 | POLESTAR10DB복구 | manuals/admin/db/db-002.md |
+
+**user** (2 file(s)):
+
+| slug | menu_path (초안) | 경로 |
+|---|---|---|
+| db-001 | CUBRID목록 | manuals/user/db/db-001.md |
+| db-002 | CUBRID상세 | manuals/user/db/db-002.md |
+
+> 위 `menu_path` 는 pandoc 이 추출한 md 본문 H1 제목을 그대로 초안으로 옮긴 것입니다.
+> 사람이 polestar10 웹에서 대조 후 frontmatter 의 `menu_path_verified` 를 `true` 로 토글.
