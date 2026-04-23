@@ -115,22 +115,35 @@ def strip_frontmatter(body: str) -> str:
 
 def rewrite_image_refs(body: str, orig_stem: str, type_: str, slug: str) -> str:
     """Rewrite every image path that points into the staging tree so it reads
-    './images/<slug>/...' relative to the final .md location."""
-    # pandoc --extract-media produces paths of the form
-    #   <extract-dir>/media/<filename>
-    # where <extract-dir> was '_staging/<type>/images/<orig_stem>'.
-    # The concrete path in the md can appear in two forms:
-    #   1) absolute:   /home/.../_staging/<type>/images/<orig_stem>/media/...
-    #   2) relative:   _staging/<type>/images/<orig_stem>/media/...
-    #   3) bare:       images/<orig_stem>/media/...  (rare)
-    patterns = [
-        re.compile(re.escape(str(STAGING / type_ / "images" / orig_stem)) + r"/"),
-        re.compile(r"(?<![\w/])" + re.escape(f"_staging/{type_}/images/{orig_stem}") + r"/"),
-        re.compile(r"(?<![\w/])" + re.escape(f"images/{orig_stem}") + r"/"),
-    ]
+    './images/<slug>/...' relative to the final .md location.
+
+    pandoc --extract-media produces URLs of the form
+        <extract-dir>/media/<filename>
+    where <extract-dir> was '_staging/<type>/images/<orig_stem>'. In the md
+    text the URL may be:
+      1) absolute: /home/.../_staging/<type>/images/<orig_stem>/media/...
+      2) relative: _staging/<type>/images/<orig_stem>/media/...
+      3) bare:     images/<orig_stem>/media/...
+    and any of () [] in the URL get backslash-escaped by pandoc (markdown URL
+    escape rules), so we must match both the escaped and unescaped forms.
+    """
+    escaped_stem = (
+        orig_stem
+        .replace("(", "\\(")
+        .replace(")", "\\)")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+    )
+    variants = {orig_stem, escaped_stem}
     replacement = f"./images/{slug}/"
-    for pat in patterns:
-        body = pat.sub(replacement, body)
+    for stem in variants:
+        patterns = [
+            re.compile(re.escape(str(STAGING / type_ / "images") + "/" + stem) + r"/"),
+            re.compile(r"(?<![\w/])" + re.escape(f"_staging/{type_}/images/{stem}") + r"/"),
+            re.compile(r"(?<![\w/])" + re.escape(f"images/{stem}") + r"/"),
+        ]
+        for pat in patterns:
+            body = pat.sub(replacement, body)
     return body
 
 
