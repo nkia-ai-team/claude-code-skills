@@ -1,0 +1,17 @@
+agent: kcm
+versions:
+  - version: "TBD"
+    release_date: "TBD"
+arch_support:
+  amd64:
+    method: native
+    asset_url: "TBD"
+  arm64:
+    method: cross-build
+    asset_url: "TBD (cross-built on amd64 host via docker buildx --platform=linux/arm64)"
+detection_command: "kubectl get ds -A -o name 2>/dev/null | grep -i kcm || echo 'no kcm DaemonSet'"
+prerequisites:
+  - "Kubernetes cluster with kubectl access"
+  - "metrics-server installed (K3s ships without it; add --kubelet-insecure-tls)"
+  - "Container image available for target arch (AMD64 native, ARM64 cross-build)"
+  - "RBAC for nodes/proxy, pods, services (get/list/watch)"

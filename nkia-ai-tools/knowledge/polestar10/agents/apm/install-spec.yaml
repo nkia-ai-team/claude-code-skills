@@ -1,0 +1,17 @@
+agent: apm
+versions:
+  - version: "TBD"
+    release_date: "TBD"
+arch_support:
+  amd64:
+    method: native
+    asset_url: "TBD"
+  arm64:
+    method: native
+    asset_url: "TBD"
+detection_command: "ps -ef | grep -i 'javaagent.*apm' | grep -v grep"
+prerequisites:
+  - "Java 8, 11, or 17 runtime (Java 21 unsupported)"
+  - "Write access to the JVM launch script or systemd unit"
+  - "Outbound TCP connectivity to the APM collector endpoint"
+  - "Disk space >= 100MB for the agent bundle"

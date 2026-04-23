@@ -1,0 +1,17 @@
+agent: wpm
+versions:
+  - version: "TBD"
+    release_date: "TBD"
+arch_support:
+  amd64:
+    method: native
+    asset_url: "TBD"
+  arm64:
+    method: native
+    asset_url: "TBD"
+detection_command: "ps -ef | grep -i 'javaagent.*wpm' | grep -v grep"
+prerequisites:
+  - "Java 8/11/17 runtime (Java 21 is unsupported — see install-guide.md)"
+  - "Write access to Tomcat JAVA_OPTS / CATALINA_OPTS"
+  - "Outbound network connectivity to the WPM collector host"
+  - "For K8s: deployment-level grouping (Pod-name based agent identity)"
