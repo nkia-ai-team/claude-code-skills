@@ -12,6 +12,12 @@ _아직 비어 있습니다. Story 3 시작 시 alert 카테고리부터 채워�
   PRD 에 적힌 `--markdown-headings=atx` 옵션이 아직 없습니다. `convert-docx.sh` 는 런타임에
   `--help` 를 점검해서 2.11+ 에서는 PRD 그대로, 2.9.x 에서는 deprecated alias 인 `--atx-headers`
   를 사용합니다. 결과 마크다운은 동일(ATX 스타일 `#` 헤딩)이며 수동 액션 필요 없음.
+- **plugin.json `agents` 키 수동 추가 (ralph rule #2 default-apply)**: Story 16 은 Claude Code
+  `/agents` 목록에 `polestar10-expert` 가 자동 등록되는지 확인 후 필요 시에만
+  `"agents": "./agents"` 키를 추가하라고 지시합니다. ralph 는 플러그인 런타임에서 `/agents` 호출을
+  할 수 없으므로, 안전한 기본값(명시적 키 추가) 을 적용했습니다. 로컬에서 `polestar10-expert` 가
+  이미 자동 감지되면 `nkia-ai-tools/.claude-plugin/plugin.json` 의 `"agents": "./agents"` 라인은
+  제거해도 무방합니다.
 
 ### alert
 
