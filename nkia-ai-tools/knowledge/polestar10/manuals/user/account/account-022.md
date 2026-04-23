@@ -23,7 +23,7 @@ menu_path_verified: false
 
 상면관리 모니터링을 위한 화면 레이아웃은 다음과 같습니다.
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/상면관리\(뷰\)/media/image4.png)
+![](./images/account-022/media/image4.png)
 
 ▶ \[그림1\] 상면관리 모니터링 화면 레이아웃
 
@@ -51,7 +51,7 @@ menu_path_verified: false
 </tbody>
 </table>
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/상면관리\(뷰\)/media/image5.png)
+![](./images/account-022/media/image5.png)
 
 > ▶ \[그림2\] 검색기능
 
@@ -61,7 +61,7 @@ menu_path_verified: false
 
 화면 좌측의 카메라 뷰 체인저를 클릭하여 Top View 또는 Optimum View 로 변경합니다. 최초 접속 시 Default 카메라 뷰는 Optimum View입니다.
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/상면관리\(뷰\)/media/image6.png)
+![](./images/account-022/media/image6.png)
 
 > ▶ \[그림3\] 카메라 뷰 체인저
 
@@ -80,7 +80,7 @@ menu_path_verified: false
 </tbody>
 </table>
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/상면관리\(뷰\)/media/image7.png)
+![](./images/account-022/media/image7.png)
 
 > ▶ \[그림4\] 모니터링 모드 변경
 > 
@@ -96,7 +96,7 @@ menu_path_verified: false
 
 이동할 수 있는 데이터 센터의 리스트를 확인할 수 있고 클릭하여 해당 센터의 상면으로 이동할 수 있습니다.
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/상면관리\(뷰\)/media/image8.png)
+![](./images/account-022/media/image8.png)
 
 > ▶ \[그림5\] 상면(데이터센터) 변경하기
 
@@ -113,7 +113,7 @@ menu_path_verified: false
 </tbody>
 </table>
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/상면관리\(뷰\)/media/image9.png)
+![](./images/account-022/media/image9.png)
 
 > ▶ \[그림6\] 전체 랙 현황 다운로드
 > 
@@ -127,7 +127,7 @@ menu_path_verified: false
 
 개별 랙을 클릭하면 툴팁을 통해 해당 랙의 이름을 확인할 수 있으며 우측 사이드랙에서는 해당 랙의 상세 현황을 확인할 수 있습니다.
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/상면관리\(뷰\)/media/image10.png)
+![](./images/account-022/media/image10.png)
 
 > ▶ \[그림7\] 모니터링 모드 변경
 > 
@@ -165,7 +165,7 @@ menu_path_verified: false
 
 선택된 랙의 속성정보를 제공합니다. 랙 속성정보는 사전에 자산정보관리 컬럼정의에서 확정된 정보를 기준으로 합니다.
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/상면관리\(뷰\)/media/image11.png)
+![](./images/account-022/media/image11.png)
 
 > ▶ \[그림8\] 랙 속성정보
 > 
@@ -179,7 +179,7 @@ menu_path_verified: false
 
 선택된 장비의 속성정보를 제공합니다. 장비 속성정보는 사전에 자산정보관리 컬럼정의에서 확정된 정보를 기준으로 합니다.
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/상면관리\(뷰\)/media/image12.png)
+![](./images/account-022/media/image12.png)
 
 > ▶ \[그림9\] 장비 속성정보
 > 
@@ -202,7 +202,7 @@ menu_path_verified: false
 </tbody>
 </table>
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/상면관리\(뷰\)/media/image13.png)
+![](./images/account-022/media/image13.png)
 
 > ▶ \[그림10\] 2D 행/열 상면현황
 

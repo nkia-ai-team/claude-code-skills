@@ -14,7 +14,7 @@ menu_path_verified: false
 
 2차 인증설정
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/시스템설정2차인증-\(1\)/media/image1.png)
+![](./images/account-031/media/image1.png)
 
 ▶ \[그림1\] 2차 인증설정 화면
 
@@ -49,9 +49,9 @@ menu_path_verified: false
 
 2차인증 로그인
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/시스템설정2차인증-\(1\)/media/image2.png)
+![](./images/account-031/media/image2.png)
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/시스템설정2차인증-\(1\)/media/image3.png)
+![](./images/account-031/media/image3.png)
 
 ▶ \[그림2\] 2차인증 로그인 인증 화면
 
@@ -90,11 +90,11 @@ menu_path_verified: false
 
 오퍼레이션 2차인증 화면
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/시스템설정2차인증-\(1\)/media/image5.png)
+![](./images/account-031/media/image5.png)
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/시스템설정2차인증-\(1\)/media/image6.png)
+![](./images/account-031/media/image6.png)
 
-![](/home/sjbang/dev/claude-code-skills/nkia-ai-tools/knowledge/polestar10/_staging/user/images/시스템설정2차인증-\(1\)/media/image7.png)
+![](./images/account-031/media/image7.png)
 
 ▶ \[그림3\] 2차인증 오퍼레이션 화면
 
