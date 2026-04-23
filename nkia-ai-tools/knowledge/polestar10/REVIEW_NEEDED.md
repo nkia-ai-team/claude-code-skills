@@ -143,3 +143,22 @@ _아직 비어 있습니다. Story 3 시작 시 alert 카테고리부터 채워�
 
 > 위 `menu_path` 는 pandoc 이 추출한 md 본문 H1 제목을 그대로 초안으로 옮긴 것입니다.
 > 사람이 polestar10 웹에서 대조 후 frontmatter 의 `menu_path_verified` 를 `true` 로 토글.
+
+### network
+
+**user** (9 file(s)):
+
+| slug | menu_path (초안) | 경로 |
+|---|---|---|
+| network-001 | 네트워크 | manuals/user/network/network-001.md |
+| network-002 | 네트워크목록 | manuals/user/network/network-002.md |
+| network-003 | 네트워크상세 | manuals/user/network/network-003.md |
+| network-004 | 네트워크세션감시 | manuals/user/network/network-004.md |
+| network-005 | 네트워크스크립트템플릿 | manuals/user/network/network-005.md |
+| network-006 | 네트워크자동맵 | manuals/user/network/network-006.md |
+| network-007 | 소프트웨어수집이력 | manuals/user/network/network-007.md |
+| network-008 | 운영관리_네트워크 | manuals/user/network/network-008.md |
+| network-009 | 전체구성목록 | manuals/user/network/network-009.md |
+
+> 위 `menu_path` 는 pandoc 이 추출한 md 본문 H1 제목을 그대로 초안으로 옮긴 것입니다.
+> 사람이 polestar10 웹에서 대조 후 frontmatter 의 `menu_path_verified` 를 `true` 로 토글.
