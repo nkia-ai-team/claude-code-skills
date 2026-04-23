@@ -181,3 +181,39 @@ _아직 비어 있습니다. Story 3 시작 시 alert 카테고리부터 채워�
 
 > 위 `menu_path` 는 pandoc 이 추출한 md 본문 H1 제목을 그대로 초안으로 옮긴 것입니다.
 > 사람이 polestar10 웹에서 대조 후 frontmatter 의 `menu_path_verified` 를 `true` 로 토글.
+
+### k8s
+
+**admin** (1 file(s)):
+
+| slug | menu_path (초안) | 경로 |
+|---|---|---|
+| k8s-001 | 클러스터설치 | manuals/admin/k8s/k8s-001.md |
+
+**user** (20 file(s)):
+
+| slug | menu_path (초안) | 경로 |
+|---|---|---|
+| k8s-001 | 쿠버네티스HPA목록 | manuals/user/k8s/k8s-001.md |
+| k8s-002 | 쿠버네티스네임스페이스목록 | manuals/user/k8s/k8s-002.md |
+| k8s-003 | 쿠버네티스노드목록 | manuals/user/k8s/k8s-003.md |
+| k8s-004 | 쿠버네티스데몬셋목록 | manuals/user/k8s/k8s-004.md |
+| k8s-005 | 쿠버네티스디플로이먼트목록 | manuals/user/k8s/k8s-005.md |
+| k8s-006 | 쿠버네티스리플리카셋목록 | manuals/user/k8s/k8s-006.md |
+| k8s-007 | 쿠버네티스서비스목록 | manuals/user/k8s/k8s-007.md |
+| k8s-008 | 쿠버네티스스테이트풀셋목록 | manuals/user/k8s/k8s-008.md |
+| k8s-009 | 쿠버네티스스토리지클래스목록 | manuals/user/k8s/k8s-009.md |
+| k8s-010 | 쿠버네티스인그레스목록 | manuals/user/k8s/k8s-010.md |
+| k8s-011 | 쿠버네티스잡목록 | manuals/user/k8s/k8s-011.md |
+| k8s-012 | 쿠버네티스전체구성클러스터목록 | manuals/user/k8s/k8s-012.md |
+| k8s-013 | 쿠버네티스컨테이너목록 | manuals/user/k8s/k8s-013.md |
+| k8s-014 | 쿠버네티스컨피그맵목록 | manuals/user/k8s/k8s-014.md |
+| k8s-015 | 쿠버네티스크론잡목록 | manuals/user/k8s/k8s-015.md |
+| k8s-016 | 쿠버네티스클러스터목록 | manuals/user/k8s/k8s-016.md |
+| k8s-017 | 쿠버네티스클러스터상세 | manuals/user/k8s/k8s-017.md |
+| k8s-018 | 쿠버네티스파드목록 | manuals/user/k8s/k8s-018.md |
+| k8s-019 | 쿠버네티스퍼시스턴트볼륨목록 | manuals/user/k8s/k8s-019.md |
+| k8s-020 | 쿠버네티스퍼시스턴트볼륨클레임목록 | manuals/user/k8s/k8s-020.md |
+
+> 위 `menu_path` 는 pandoc 이 추출한 md 본문 H1 제목을 그대로 초안으로 옮긴 것입니다.
+> 사람이 polestar10 웹에서 대조 후 frontmatter 의 `menu_path_verified` 를 `true` 로 토글.
