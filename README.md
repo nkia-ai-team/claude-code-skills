@@ -1,6 +1,8 @@
 # NKIA-AI Claude Code Skills
 
-NKIA-AI 팀의 Claude Code 플러그인 마켓플레이스입니다.
+NKIA-AI 팀의 Claude Code 플러그인 마켓플레이스입니다. 개발 워크플로우(kickoff → commit → submit → wrap-up), Linear 이슈/프로젝트/이니셔티브 관리, Confluence·Figma·주간보고 자동화를 하나의 플러그인에 모았습니다.
+
+현재 버전: **v1.5.0**
 
 ## 설치 방법
 
@@ -14,7 +16,85 @@ NKIA-AI 팀의 Claude Code 플러그인 마켓플레이스입니다.
 # 3. Claude Code 재시작
 ```
 
-## 포함된 스킬
+## 스킬 개요
+
+개발 한 사이클 동안 아래 순서로 조합해서 사용합니다.
+
+```
+/kickoff → (개발) → /commit → /submit → (머지) → /wrap-up
+```
+
+| 카테고리 | 스킬 | 설명 |
+|---------|------|------|
+| **개발 워크플로우** | [kickoff](#kickoff) | Linear 이슈로 작업 시작, 브랜치 생성, In Progress 전환 |
+| | [commit](#commit) | NKIA 컨벤션 커밋 메시지 자동 생성 |
+| | [code-review](#code-review) | GitHub PR / GitLab MR 자동 리뷰 |
+| | [submit](#submit) | 커밋 → 푸시 → PR/MR → 리뷰 루프 오케스트레이터 |
+| | [wrap-up](#wrap-up) | 머지 후 브랜치 정리 + 증빙 수집 + AC 검증 + In Review 전환 |
+| **Linear 이슈** | [linear-issue-creator](#linear-issue-creator) | 템플릿 기반 이슈 생성 (자연어 / 단계별) |
+| | [linear-issue-evidence](#linear-issue-evidence) | 완료 AC 체크 + 증빙 첨부 |
+| | [linear-issue-validator](#linear-issue-validator) | DoD/AC 항목 자동 검증 및 결과 게시 |
+| **Linear 리포팅** | [linear-project-creator](#linear-project-creator) | 프로젝트 생성 및 문서화 |
+| | [linear-project-updater](#linear-project-updater) | 프로젝트 주간 상태 업데이트 자동 생성 |
+| | [linear-initiative-updater](#linear-initiative-updater) | 소속 프로젝트 Health 집계 → 이니셔티브 업데이트 |
+| **문서 & 자동화** | [confluence-manager](#confluence-manager) | Confluence 문서 검색·조회·생성·수정 |
+| | [figma-to-react](#figma-to-react) | Figma → React + Storybook + Playwright 파이프라인 |
+| | [weekly-report](#weekly-report) | 팀 주간업무보고 자동 수집 및 시트 기록 |
+
+---
+
+## 개발 워크플로우 스킬
+
+### kickoff
+
+Linear 이슈를 읽어 브랜치를 만들고, 이슈를 **In Progress**로 전환하여 개발 착수 준비까지 자동화합니다.
+
+**주요 기능:**
+- Linear 이슈 정보 조회 (title, description, labels, AC)
+- 레포 유형에 맞는 **최신 버전 develop 브랜치** 기반으로 feature 브랜치 생성
+- 이슈 상태 전환 (Todo → In Progress)
+- 설계 AC가 있는 경우 설계 문서 scaffold 생성
+- uncommitted 변경사항 사전 점검 및 안내
+
+**사용 예시:**
+```bash
+/kickoff NKIAAI-305
+```
+
+---
+
+### commit
+
+Git 커밋 시 NKIA 팀 컨벤션에 맞는 커밋 메시지를 자동 생성합니다.
+
+**주요 기능:**
+- 브랜치명에서 PIMS 번호 자동 추출
+- 변경사항 분석하여 Type 키워드 자동 결정
+- `#{PIMS번호} {Type} : {설명}` 형식 메시지 생성
+- 커밋 전 미리보기 및 수정 가능
+
+**Type Keywords:**
+
+| Type | 용도 |
+|------|------|
+| Feat | 새로운 기능 추가 |
+| Fix | 오류 수정 |
+| Refactor | 리팩토링/성능 개선 |
+| Cleanup | 불필요한 코드 정리 |
+| Docs | 문서 변경 |
+| Config | 설정 파일 변경 |
+| Test | 테스트 코드 |
+| Style | 코드 스타일 수정 |
+
+**사용 예시:**
+```bash
+/commit                          # 기본 (자동 분석)
+/commit API 엔드포인트 추가      # 메시지 힌트
+/commit --type Fix               # Type 직접 지정
+/commit --pims 114667            # PIMS 번호 직접 지정
+```
+
+---
 
 ### code-review
 
@@ -31,14 +111,13 @@ GitHub PR 또는 GitLab MR의 코드를 자동으로 리뷰하고 댓글로 결�
 
 **사전 요구사항:**
 ```bash
-# GitHub 사용 시
-brew install gh
-gh auth login
+# GitHub
+brew install gh && gh auth login
 
-# GitLab 사용 시
+# GitLab
 brew install glab
-glab auth login                                    # gitlab.com
-glab auth login --hostname cims2.nkia.net:8443    # 회사 GitLab
+glab auth login                                     # gitlab.com
+glab auth login --hostname cims2.nkia.net:8443      # 회사 GitLab
 ```
 
 **사용 예시:**
@@ -50,33 +129,94 @@ glab auth login --hostname cims2.nkia.net:8443    # 회사 GitLab
 /code-review https://cims2.nkia.net:8443/gitlab/lucida-domain-wpm/-/merge_requests/13
 
 # 특정 영역 집중 리뷰
-/code-review <URL> --focus security      # 보안만 집중
-/code-review <URL> --focus performance   # 성능만 집중
-/code-review <URL> --focus quality       # 코드 품질만 집중
+/code-review <URL> --focus security      # 보안만
+/code-review <URL> --focus performance   # 성능만
+/code-review <URL> --focus quality       # 코드 품질만
 ```
 
 ---
+
+### submit
+
+개발 완료 후 **커밋 → 푸시 → PR/MR 생성 → 코드 리뷰 → 자동 수정** 루프까지 한 번에 실행하는 오케스트레이터 스킬입니다.
+
+**주요 기능:**
+- `/commit` 워크플로우로 커밋
+- 원격 푸시
+- PR/MR 생성 (레포 유형에 맞는 제목, 타겟 브랜치, 본인 assignee)
+- `/code-review` 워크플로우로 리뷰 실행
+- 지적사항 자동 수정 → 재커밋 → 재리뷰 (최대 3회)
+- **merge는 절대 실행하지 않음** (사용자가 직접 수행)
+
+**사용 예시:**
+```bash
+/submit                    # 타겟 브랜치 자동 판별
+/submit develop-ui-chat    # 타겟 브랜치 직접 지정
+```
+
+---
+
+### wrap-up
+
+PR/MR 머지 후의 마무리 작업(브랜치 정리 → 증빙 수집 → AC 검증 → In Review 전환)을 자동화합니다.
+
+**주요 기능:**
+- 머지 대상 브랜치로 전환 + pull + prune + 머지된 로컬 브랜치 삭제
+- `/linear-issue-evidence` 워크플로우로 증빙 수집·등록
+- 증빙 자가 점검 및 미흡 항목 자동 보강
+- 수동 업로드 안내 및 업로드 미디어 AC 자동 매핑
+- `/linear-issue-validator` 워크플로우로 AC 검증
+- 검증 실패 시 자동 보강 → 재검증 (최대 3회)
+- 검증 통과 시 이슈 상태 In Review로 전환
+
+**사용 예시:**
+```bash
+/wrap-up NKIAAI-305
+```
+
+---
+
+## Linear 이슈 관리 스킬
 
 ### linear-issue-creator
 
 Linear 이슈를 템플릿 기반으로 빠르게 생성합니다.
 
 **주요 기능:**
-- 8가지 작업 템플릿 지원 (빌드/배포, 데이터 작업, 평가, 기능 개발, 기능 개선, 리팩토링, 리서치, 버그 수정)
-- 자연어 입력으로 이슈 자동 생성
-- DoD (Definition of Done) / AC (Acceptance Criteria) 자동 생성
+- 9가지 작업 템플릿 지원 (빌드/배포, 데이터 작업, 평가, 기능 개발, 기능 개선, 리팩토링, 리서치, 버그 수정, 문서)
+- 자연어 또는 회의록 입력으로 이슈 자동 생성
+- 구체적인 DoD / AC 자동 생성
 - 마감일 기반 사이클 자동 배정
 - 작업 타입별 라벨 자동 적용
 
 **사용 예시:**
 ```bash
-# Auto Mode (자연어)
-"chat ai llm모델을 aws bedrock 모델로 변경해야되는데 기간은 11월 30일까지야 담당자는 나야"
+# Auto Mode (자연어 또는 회의록)
+"chat ai llm모델을 aws bedrock 모델로 변경해야 되는데 기간은 11월 30일까지야 담당자는 나야"
 → AI가 자동으로 이슈 구조화 및 생성
 
 # Manual Mode (단계별 입력)
 /linear-issue-creator
 → 템플릿 선택 및 상세 정보 입력
+```
+
+---
+
+### linear-issue-evidence
+
+완료된 Linear 이슈의 AC 항목에 대해 체크박스를 체크하고 증빙 자료를 첨부합니다. 일반적으로 `/wrap-up` 내부에서 자동 실행되지만, 개별 호출도 가능합니다.
+
+**주요 기능:**
+- 완료된 AC 항목 자동 판단
+- AC에 명시된 증빙 유형별 실제 증빙 수집 (PR 조회, 테스트 실행, 스크린샷 캡처 등)
+- AC 체크박스 업데이트 (`[ ]` → `[x]`)
+- 증빙 자료를 `→ 결과물:` 뒤에 삽입
+- PR/MR 링크는 이슈 리소스(`links`)로 첨부
+- 터미널 출력은 반드시 코드 블록으로 감싸 가독성 유지
+
+**사용 예시:**
+```bash
+/linear-issue-evidence NKIAAI-137
 ```
 
 ---
@@ -108,10 +248,7 @@ Linear 이슈를 템플릿 기반으로 빠르게 생성합니다.
 
 **사용 예시:**
 ```bash
-# 이슈 ID로 검증
 /linear-issue-validator NKIA-123
-
-# 이슈 URL로 검증
 /linear-issue-validator https://linear.app/nkia-ai/issue/NKIA-123
 
 # 옵션
@@ -123,44 +260,7 @@ Linear 이슈를 템플릿 기반으로 빠르게 생성합니다.
 
 ---
 
-### commit
-
-Git 커밋 시 NKIA 팀 컨벤션에 맞는 커밋 메시지를 자동 생성합니다.
-
-**주요 기능:**
-- 브랜치명에서 PIMS 번호 자동 추출
-- 변경사항 분석하여 Type 키워드 자동 결정
-- `#{PIMS번호} {Type} : {설명}` 형식 메시지 생성
-- 커밋 전 미리보기 및 수정 가능
-
-**Type Keywords:**
-| Type | 용도 |
-|------|------|
-| Feat | 새로운 기능 추가 |
-| Fix | 오류 수정 |
-| Refactor | 리팩토링/성능 개선 |
-| Cleanup | 불필요한 코드 정리 |
-| Docs | 문서 변경 |
-| Config | 설정 파일 변경 |
-| Test | 테스트 코드 |
-| Style | 코드 스타일 수정 |
-
-**사용 예시:**
-```bash
-# 기본 사용 (자동 분석)
-/commit
-
-# 메시지 힌트와 함께
-/commit API 엔드포인트 추가
-
-# Type 직접 지정
-/commit --type Fix
-
-# PIMS 번호 직접 지정
-/commit --pims 114667
-```
-
----
+## Linear 리포팅 스킬
 
 ### linear-project-creator
 
@@ -176,14 +276,61 @@ Linear 프로젝트를 체계적인 문서와 함께 생성합니다.
 **사용 예시:**
 ```bash
 /linear-project-creator
-→ 프로젝트 정보 입력 및 자동 문서 생성
 ```
 
 ---
 
+### linear-project-updater
+
+프로젝트에 속한 이슈의 **이번 주 활동**을 기반으로 주간 상태 업데이트를 생성합니다.
+
+**주요 기능:**
+- 이번 주 이슈 활동 자동 수집 (신규 생성, AC/증빙 업데이트, Done 전환, In Progress 전환, 블로커)
+- 이전 업데이트의 "다음 주 계획" 참조 → 달성 여부 비교
+- Health 자동 제안 (On Track / At Risk / Off Track)
+- 가이드라인 템플릿으로 렌더링
+- Linear Project Status Update로 저장
+
+**사용 예시:**
+```bash
+/linear-project-updater                  # 내가 리드인 프로젝트 전체
+/linear-project-updater "My Project"     # 특정 프로젝트
+
+# 옵션
+/linear-project-updater --week 2026-04-20    # 기준 주 지정
+/linear-project-updater --skip-previous      # 이전 업데이트 비교 생략
+```
+
+---
+
+### linear-initiative-updater
+
+이니셔티브에 속한 **소속 프로젝트들의 최신 상태 업데이트**를 집계하여 이니셔티브 수준 현황 리포트를 생성합니다.
+
+**주요 기능:**
+- 소속 프로젝트 목록 자동 조회
+- 각 프로젝트의 최신 Status Update에서 Health 수집
+- 프로젝트 리드 정보 수집
+- Initiative Health 자동 제안 (worst-case 집계)
+- 가이드라인 템플릿으로 렌더링
+- Linear Initiative Status Update로 저장
+
+**사용 예시:**
+```bash
+/linear-initiative-updater                    # 전체 또는 선택
+/linear-initiative-updater "My Initiative"    # 특정 이니셔티브
+
+# 옵션
+/linear-initiative-updater --include-stale    # 최근 2주 업데이트 없는 프로젝트도 포함
+```
+
+---
+
+## 문서 & 자동화 스킬
+
 ### confluence-manager
 
-Confluence 문서를 검색, 조회, 생성, 수정합니다.
+NKIA-AI 스페이스 전용 Confluence 문서를 검색, 조회, 생성, 수정합니다.
 
 **주요 기능:**
 - Confluence 문서 검색
@@ -197,6 +344,41 @@ Confluence 문서를 검색, 조회, 생성, 수정합니다.
 → 작업 유형 선택 및 실행
 ```
 
+---
+
+### figma-to-react
+
+Figma MCP에서 컴포넌트 데이터를 추출하여 Headless UI + Tailwind CSS 기반 React 컴포넌트를 생성하고, Storybook 스토리와 Playwright E2E 테스트까지 자동화하는 파이프라인입니다.
+
+**주요 기능:**
+- 컴포넌트/화면 신규 빌드
+- 증분 추가 (`-a`): 기존 화면에 새 컴포넌트 추가
+- 화면 업데이트 (`-u`): 레이아웃/컴포넌트 변경 반영 (토큰 마이그레이션 포함)
+- 토큰 마이그레이션 (`-m`): 디자인 토큰 체계 갱신
+- Component Spec 기반 Storybook / Playwright 자동 생성
+- QA 서브에이전트 검증 단계 포함
+
+**사전 요구사항:**
+- 프로젝트 루트에 `.figma-to-react.config.md` 설정 파일
+- Figma MCP 연결
+
+**사용 예시:**
+```bash
+# 신규 생성
+/figma-to-react https://...?node-id=1234-5678
+
+# 기획 스펙 URL 포함
+/figma-to-react https://...?node-id=1234-5678 https://...?node-id=2811-65001
+
+# 증분 추가
+/figma-to-react -a https://...?node-id=5678-1234
+
+# 화면 업데이트
+/figma-to-react -u https://...?node-id=5678-1234
+```
+
+---
+
 ### weekly-report
 
 이번 주 Linear 이슈, Git 커밋, Google Calendar 이벤트를 자동 수집하여 팀 주간 업무 보고 구글 시트에 기록합니다.
@@ -207,6 +389,7 @@ Confluence 문서를 검색, 조회, 생성, 수정합니다.
 - Google Calendar에서 본인 휴가/반차 이벤트 조회 및 반영
 - 이번 주 목요일 날짜 탭 → 본인 행에 자동 기록
 - 최초 사용 시 설정 저장 (이름, 이메일, 캘린더명), 이후 자동 실행
+- Cycle 기반 이슈 수집 및 `--next` 옵션 지원
 
 **사전 요구사항:**
 ```bash
@@ -221,17 +404,11 @@ gws auth login
 
 **사용 예시:**
 ```bash
-# 기본 사용 (이번 주 보고서 작성)
-/weekly-report
-
-# 미리보기만 (시트 기록 안 함)
-/weekly-report --dry-run
-
-# 특정 주 지정
-/weekly-report --week 2026-04-02
-
-# 설정 재입력
-/weekly-report --reconfigure
+/weekly-report                       # 이번 주 보고서 작성
+/weekly-report --dry-run             # 미리보기만 (시트 기록 안 함)
+/weekly-report --week 2026-04-02     # 특정 주 지정
+/weekly-report --next                # 다음 사이클 계획 포함
+/weekly-report --reconfigure         # 설정 재입력
 ```
 
 ---
