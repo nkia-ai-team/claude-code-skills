@@ -1,28 +1,30 @@
-"""Record HAR for the assign_owner flow (담당자 권한 부여).
+"""Record HAR by navigating toward the owner/permission page.
 
-Placeholder selectors; refine after first HAR pass.
+Selectors for the actual 권한 부여 modal require further exploration; this
+capture at least exercises the sidebar + any preset endpoints reachable
+via URL. Deeper capture deferred.
 """
 
 from __future__ import annotations
+
+import asyncio
 
 from playwright.async_api import BrowserContext
 
 from record_har import _base_url, login_via_ui, main_runner
 
 
-async def assign_owner(context: BrowserContext) -> None:
+async def navigate_owner(context: BrowserContext) -> None:
     await login_via_ui(context)
     page = await context.new_page()
-    await page.goto(_base_url() + "/#/management/owner")
-    await page.wait_for_load_state("networkidle")
-    try:
-        await page.click('button:has-text("권한 부여"), button:has-text("할당")', timeout=5000)
-        await page.wait_for_load_state("networkidle")
-    except Exception as exc:
-        print(f"warn: assign_owner UI flow raised {exc!r} — inspect HAR")
-    finally:
-        await page.close()
+    # Best guess paths — SPA falls back to dashboard if unknown but API calls
+    # still fire, which is what we want for the HAR.
+    await page.goto(_base_url() + "/account/user", wait_until="networkidle")
+    await asyncio.sleep(2)
+    await page.goto(_base_url() + "/account/role", wait_until="networkidle")
+    await asyncio.sleep(2)
+    await page.close()
 
 
 if __name__ == "__main__":
-    main_runner("03-assign-owner.har", assign_owner)
+    main_runner("03-assign-owner.har", navigate_owner)
