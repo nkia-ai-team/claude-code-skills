@@ -31,8 +31,9 @@ def test_fall_through_is_api_error_subclass():
 @pytest.mark.parametrize(
     "method,kwargs",
     [
-        ("login", {}),
-        ("list_targets", {}),
+        # Write-side endpoints whose schema is TBD — these MUST raise
+        # FallThroughRequired without any network I/O (pure contract).
+        # login + list_targets + list_groups are wired (see test_roundtrip.py).
         ("add_target", {"payload": {"name": "x"}}),
         ("delete_target", {"target_id": "id"}),
         ("assign_owner", {"target_id": "id", "user_id": "u"}),
@@ -41,7 +42,7 @@ def test_fall_through_is_api_error_subclass():
         ("add_alert_policy", {"payload": {"metric": "cpu"}}),
     ],
 )
-def test_every_method_raises_fall_through(method, kwargs):
+def test_unmapped_write_ops_raise_fall_through(method, kwargs):
     with Polestar10Client(_dummy_config()) as client:
         with pytest.raises(FallThroughRequired) as exc_info:
             getattr(client, method)(**kwargs)

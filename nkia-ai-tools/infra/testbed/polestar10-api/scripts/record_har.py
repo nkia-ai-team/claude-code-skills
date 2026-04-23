@@ -72,10 +72,16 @@ async def login_via_ui(context: BrowserContext) -> None:
     user, password = _credentials()
     page = await context.new_page()
     await page.goto(_base_url() + "/login", wait_until="networkidle")
-    await page.fill('input[name="username"], input[type="text"]', user)
-    await page.fill('input[name="password"], input[type="password"]', password)
-    await page.click('button[type="submit"], button:has-text("로그인")')
-    await page.wait_for_load_state("networkidle")
+    # selectors confirmed from live /login DOM:
+    #   #loginId (placeholder "아이디"), #password, button text "로그인"
+    await page.fill("#loginId", user)
+    await page.fill("#password", password)
+    await page.get_by_role("button", name="로그인").click()
+    # wait for redirect away from /login (or for error toast)
+    try:
+        await page.wait_for_url(lambda u: "/login" not in u, timeout=10000)
+    except Exception:
+        await page.wait_for_load_state("networkidle")
     await page.close()
 
 

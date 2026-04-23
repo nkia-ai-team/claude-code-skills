@@ -4,3 +4,7 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 tests/pytest.log
+
+# HARs contain session JWTs, hashed credentials, and internal IPs.
+# Never commit — generate locally via scripts/0*.py.
+har-captures/*.har

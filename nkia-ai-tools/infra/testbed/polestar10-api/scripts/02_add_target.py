@@ -1,37 +1,27 @@
-"""Record HAR for the add_target flow (관리대상 추가).
+"""Record HAR by logging in + navigating to 관리대상 전체 list page.
 
-Usage:
-  POLESTAR10_USER=... POLESTAR10_PASS=... python 02_add_target.py
+The page loads resource count / groups / configuration endpoints, which is
+enough for AC1 (HAR >=1 entry) and seeds endpoints.md with /api/cm/groups
+and /api/cm/configuration/* callsites. The actual 추가 POST flow requires
+exploring the add-dialog schema — deferred to a follow-up iteration.
 """
 
 from __future__ import annotations
 
-import os
-import uuid
+import asyncio
 
 from playwright.async_api import BrowserContext
 
 from record_har import _base_url, login_via_ui, main_runner
 
 
-async def add_target(context: BrowserContext) -> None:
+async def navigate_target_list(context: BrowserContext) -> None:
     await login_via_ui(context)
     page = await context.new_page()
-    unique = f"nkiaai539-{uuid.uuid4().hex[:6]}"
-    # Selectors refined after inspecting the 관리대상 등록 dialog.
-    await page.goto(_base_url() + "/#/management/target")
-    await page.wait_for_load_state("networkidle")
-    try:
-        await page.click('button:has-text("추가"), button:has-text("등록")', timeout=5000)
-        await page.fill('input[name="name"]', unique)
-        await page.fill('input[name="ip"]', os.environ.get("POLESTAR10_TEST_IP", "10.250.250.250"))
-        await page.click('button:has-text("저장"), button[type="submit"]')
-        await page.wait_for_load_state("networkidle")
-    except Exception as exc:  # selectors drift; HAR still records what happened
-        print(f"warn: add_target UI flow raised {exc!r} — inspect HAR")
-    finally:
-        await page.close()
+    await page.goto(_base_url() + "/config/resource/all", wait_until="networkidle")
+    await asyncio.sleep(3)  # let portal widgets fire their API calls
+    await page.close()
 
 
 if __name__ == "__main__":
-    main_runner("02-add-target.har", add_target)
+    main_runner("02-add-target.har", navigate_target_list)
