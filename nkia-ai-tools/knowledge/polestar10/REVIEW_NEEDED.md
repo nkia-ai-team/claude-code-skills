@@ -90,3 +90,56 @@ _아직 비어 있습니다. Story 3 시작 시 alert 카테고리부터 채워�
 
 > 위 `menu_path` 는 pandoc 이 추출한 md 본문 H1 제목을 그대로 초안으로 옮긴 것입니다.
 > 사람이 polestar10 웹에서 대조 후 frontmatter 의 `menu_path_verified` 를 `true` 로 토글.
+
+### account
+
+**user** (43 file(s)):
+
+| slug | menu_path (초안) | 경로 |
+|---|---|---|
+| account-001 | MYPAGE | manuals/user/account/account-001.md |
+| account-002 | 계정 | manuals/user/account/account-002.md |
+| account-003 | 권한 | manuals/user/account/account-003.md |
+| account-004 | 기능관리 | manuals/user/account/account-004.md |
+| account-005 | 기본사용자정의항목관리 | manuals/user/account/account-005.md |
+| account-006 | 담당자구분 | manuals/user/account/account-006.md |
+| account-007 | 로그인 | manuals/user/account/account-007.md |
+| account-008 | 메뉴관리 | manuals/user/account/account-008.md |
+| account-009 | 메시지파싱규칙 | manuals/user/account/account-009.md |
+| account-010 | 부서관리 | manuals/user/account/account-010.md |
+| account-011 | 비밀번호찾기 | manuals/user/account/account-011.md |
+| account-012 | 빌더대시보드목록 | manuals/user/account/account-012.md |
+| account-013 | 사용자관리 | manuals/user/account/account-013.md |
+| account-014 | 사용자정의SQL탬플릿 | manuals/user/account/account-014.md |
+| account-015 | 사용자정의스크립트템플릿 | manuals/user/account/account-015.md |
+| account-016 | 사용자정의항목_SNMP | manuals/user/account/account-016.md |
+| account-017 | 사용자정의항목_SQL | manuals/user/account/account-017.md |
+| account-018 | 사용자정의항목_SYSLOG | manuals/user/account/account-018.md |
+| account-019 | 사용자정의항목_TRAP | manuals/user/account/account-019.md |
+| account-020 | 사용자정의항목_네트워크스크립트 | manuals/user/account/account-020.md |
+| account-021 | 사용자정의항목_스크립트 | manuals/user/account/account-021.md |
+| account-022 | 상면관리(뷰) | manuals/user/account/account-022.md |
+| account-023 | 상면목록 | manuals/user/account/account-023.md |
+| account-024 | 서비스수준관리 | manuals/user/account/account-024.md |
+| account-025 | 서비스종합현황 | manuals/user/account/account-025.md |
+| account-026 | 서비스카탈로그 | manuals/user/account/account-026.md |
+| account-027 | 서비스포트폴리오 | manuals/user/account/account-027.md |
+| account-028 | 소프트웨어EOS관리 | manuals/user/account/account-028.md |
+| account-029 | 소프트웨어스크립트관리 | manuals/user/account/account-029.md |
+| account-030 | 소프트웨어현황 | manuals/user/account/account-030.md |
+| account-031 | 시스템설정2차인증-(1) | manuals/user/account/account-031.md |
+| account-032 | 연계정보관리 | manuals/user/account/account-032.md |
+| account-033 | 요청현황 | manuals/user/account/account-033.md |
+| account-034 | 운영관리_ITAM_기준정보관리 | manuals/user/account/account-034.md |
+| account-035 | 운영관리_ITSM_담당자그룹관리 | manuals/user/account/account-035.md |
+| account-036 | 운영관리_공통코드관리 | manuals/user/account/account-036.md |
+| account-037 | 위젯대시보드목록 | manuals/user/account/account-037.md |
+| account-038 | 위젯대시보드편집 | manuals/user/account/account-038.md |
+| account-039 | 자산구성작업 | manuals/user/account/account-039.md |
+| account-040 | 자산구성조회 | manuals/user/account/account-040.md |
+| account-041 | 자산정보관리 | manuals/user/account/account-041.md |
+| account-042 | 정보관리 | manuals/user/account/account-042.md |
+| account-043 | 조직관리 | manuals/user/account/account-043.md |
+
+> 위 `menu_path` 는 pandoc 이 추출한 md 본문 H1 제목을 그대로 초안으로 옮긴 것입니다.
+> 사람이 polestar10 웹에서 대조 후 frontmatter 의 `menu_path_verified` 를 `true` 로 토글.
