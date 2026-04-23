@@ -217,3 +217,38 @@ _아직 비어 있습니다. Story 3 시작 시 alert 카테고리부터 채워�
 
 > 위 `menu_path` 는 pandoc 이 추출한 md 본문 H1 제목을 그대로 초안으로 옮긴 것입니다.
 > 사람이 polestar10 웹에서 대조 후 frontmatter 의 `menu_path_verified` 를 `true` 로 토글.
+
+### system
+
+**admin** (1 file(s)):
+
+| slug | menu_path (초안) | 경로 |
+|---|---|---|
+| system-001 | 룰체인툴설정 | manuals/admin/system/system-001.md |
+
+**user** (19 file(s)):
+
+| slug | menu_path (초안) | 경로 |
+|---|---|---|
+| system-001 | WebURL목록 | manuals/user/system/system-001.md |
+| system-002 | 대시보드불러오기 | manuals/user/system/system-002.md |
+| system-003 | 데이터수집설정 | manuals/user/system/system-003.md |
+| system-004 | 라이선스관리 | manuals/user/system/system-004.md |
+| system-005 | 보고서관리 | manuals/user/system/system-005.md |
+| system-006 | 보고서템플릿관리 | manuals/user/system/system-006.md |
+| system-007 | 분류관리 | manuals/user/system/system-007.md |
+| system-008 | 소프트웨어수집 | manuals/user/system/system-008.md |
+| system-009 | 시스템그룹트리 | manuals/user/system/system-009.md |
+| system-010 | 시스템설정보안설정 | manuals/user/system/system-010.md |
+| system-011 | 시스템트리관리 | manuals/user/system/system-011.md |
+| system-012 | 업무시간및휴일설정 | manuals/user/system/system-012.md |
+| system-013 | 연계시스템 | manuals/user/system/system-013.md |
+| system-014 | 연계시스템목록 | manuals/user/system/system-014.md |
+| system-015 | 연계시스템상세 | manuals/user/system/system-015.md |
+| system-016 | 위젯대시보드뷰어 | manuals/user/system/system-016.md |
+| system-017 | 접근제어일괄설정 | manuals/user/system/system-017.md |
+| system-018 | 태그설정 | manuals/user/system/system-018.md |
+| system-019 | 통보설정 | manuals/user/system/system-019.md |
+
+> 위 `menu_path` 는 pandoc 이 추출한 md 본문 H1 제목을 그대로 초안으로 옮긴 것입니다.
+> 사람이 polestar10 웹에서 대조 후 frontmatter 의 `menu_path_verified` 를 `true` 로 토글.
