@@ -51,3 +51,42 @@ _아직 비어 있습니다. Story 3 시작 시 alert 카테고리부터 채워�
 
 > 위 `menu_path` 는 pandoc 이 추출한 md 본문 H1 제목을 그대로 초안으로 옮긴 것입니다.
 > 사람이 polestar10 웹에서 대조 후 frontmatter 의 `menu_path_verified` 를 `true` 로 토글.
+
+### perf
+
+**user** (29 file(s)):
+
+| slug | menu_path (초안) | 경로 |
+|---|---|---|
+| perf-001 | PMS | manuals/user/perf/perf-001.md |
+| perf-002 | Ping감시 | manuals/user/perf/perf-002.md |
+| perf-003 | SNMPOID템플릿 | manuals/user/perf/perf-003.md |
+| perf-004 | SQLServer상세 | manuals/user/perf/perf-004.md |
+| perf-005 | TCP포트감시 | manuals/user/perf/perf-005.md |
+| perf-006 | 공유노트목록 | manuals/user/perf/perf-006.md |
+| perf-007 | 공유노트상세 | manuals/user/perf/perf-007.md |
+| perf-008 | 기본포트인증관리 | manuals/user/perf/perf-008.md |
+| perf-009 | 대시보드생성및편집 | manuals/user/perf/perf-009.md |
+| perf-010 | 로그이상감지 | manuals/user/perf/perf-010.md |
+| perf-011 | 서버목록 | manuals/user/perf/perf-011.md |
+| perf-012 | 성능예측 | manuals/user/perf/perf-012.md |
+| perf-013 | 성능이상감지개별현황 | manuals/user/perf/perf-013.md |
+| perf-014 | 성능이상감지시각화 | manuals/user/perf/perf-014.md |
+| perf-015 | 성능이상감지정책 | manuals/user/perf/perf-015.md |
+| perf-016 | 성능조회 | manuals/user/perf/perf-016.md |
+| perf-017 | 성능조회시점분석 | manuals/user/perf/perf-017.md |
+| perf-018 | 애플리케이션서비스상세 | manuals/user/perf/perf-018.md |
+| perf-019 | 애플리케이션전체목록 | manuals/user/perf/perf-019.md |
+| perf-020 | 윈도우서비스감시 | manuals/user/perf/perf-020.md |
+| perf-021 | 윈도우성능카운터감시 | manuals/user/perf/perf-021.md |
+| perf-022 | 이상감지분석 | manuals/user/perf/perf-022.md |
+| perf-023 | 장기예측개별현황 | manuals/user/perf/perf-023.md |
+| perf-024 | 즐겨찾기 | manuals/user/perf/perf-024.md |
+| perf-025 | 토폴로지맵목록 | manuals/user/perf/perf-025.md |
+| perf-026 | 토폴로지맵뷰어 | manuals/user/perf/perf-026.md |
+| perf-027 | 토폴로지맵편집 | manuals/user/perf/perf-027.md |
+| perf-028 | 파일감시 | manuals/user/perf/perf-028.md |
+| perf-029 | 프로세스감시 | manuals/user/perf/perf-029.md |
+
+> 위 `menu_path` 는 pandoc 이 추출한 md 본문 H1 제목을 그대로 초안으로 옮긴 것입니다.
+> 사람이 polestar10 웹에서 대조 후 frontmatter 의 `menu_path_verified` 를 `true` 로 토글.
