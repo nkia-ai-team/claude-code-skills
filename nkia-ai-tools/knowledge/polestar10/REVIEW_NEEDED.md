@@ -252,3 +252,49 @@ _아직 비어 있습니다. Story 3 시작 시 alert 카테고리부터 채워�
 
 > 위 `menu_path` 는 pandoc 이 추출한 md 본문 H1 제목을 그대로 초안으로 옮긴 것입니다.
 > 사람이 polestar10 웹에서 대조 후 frontmatter 의 `menu_path_verified` 를 `true` 로 토글.
+
+### agent-install
+
+**admin** (23 file(s)):
+
+| slug | menu_path (초안) | 경로 |
+|---|---|---|
+| agent-install-001 | APMJavaAgent사전설치환경조사 | manuals/admin/agent-install/agent-install-001.md |
+| agent-install-002 | APMJavaAgent삭제 | manuals/admin/agent-install/agent-install-002.md |
+| agent-install-003 | APMJavaAgent설치 | manuals/admin/agent-install/agent-install-003.md |
+| agent-install-004 | ls<br /> | manuals/admin/agent-install/agent-install-004.md |
+| agent-install-005 | AP원복가이드 | manuals/admin/agent-install/agent-install-005.md |
+| agent-install-006 | AP패치가이드 | manuals/admin/agent-install/agent-install-006.md |
+| agent-install-007 | KCMAgent기동 | manuals/admin/agent-install/agent-install-007.md |
+| agent-install-008 | KCMAgent사전설치환경조사 | manuals/admin/agent-install/agent-install-008.md |
+| agent-install-009 | KCMAgent삭제 | manuals/admin/agent-install/agent-install-009.md |
+| agent-install-010 | KCMAgent설치 | manuals/admin/agent-install/agent-install-010.md |
+| agent-install-011 | KCMAgent중지 | manuals/admin/agent-install/agent-install-011.md |
+| agent-install-012 | POLESTAR10기동 | manuals/admin/agent-install/agent-install-012.md |
+| agent-install-013 | POLESTAR10설치 | manuals/admin/agent-install/agent-install-013.md |
+| agent-install-014 | POLESTAR10중지 | manuals/admin/agent-install/agent-install-014.md |
+| agent-install-015 | SMSAgent기동 | manuals/admin/agent-install/agent-install-015.md |
+| agent-install-016 | SMSAgent사전설치환경조사 | manuals/admin/agent-install/agent-install-016.md |
+| agent-install-017 | SMSAgent설치 | manuals/admin/agent-install/agent-install-017.md |
+| agent-install-018 | SMSAgent제거 | manuals/admin/agent-install/agent-install-018.md |
+| agent-install-019 | SMSAgent중지 | manuals/admin/agent-install/agent-install-019.md |
+| agent-install-020 | 부록 | manuals/admin/agent-install/agent-install-020.md |
+| agent-install-021 | 사전설치 | manuals/admin/agent-install/agent-install-021.md |
+| agent-install-022 | 사전설치환경조사 | manuals/admin/agent-install/agent-install-022.md |
+| agent-install-023 | 서문 | manuals/admin/agent-install/agent-install-023.md |
+
+**user** (8 file(s)):
+
+| slug | menu_path (초안) | 경로 |
+|---|---|---|
+| agent-install-001 | WPMAgent사전설치환경조사 | manuals/user/agent-install/agent-install-001.md |
+| agent-install-002 | WPMAgent삭제 | manuals/user/agent-install/agent-install-002.md |
+| agent-install-003 | WPMAgent설치 | manuals/user/agent-install/agent-install-003.md |
+| agent-install-004 | 서문 | manuals/user/agent-install/agent-install-004.md |
+| agent-install-005 | 서버에이전트관리 | manuals/user/agent-install/agent-install-005.md |
+| agent-install-006 | 애플리케이션서비스목록 | manuals/user/agent-install/agent-install-006.md |
+| agent-install-007 | 애플리케이션에이전트목록 | manuals/user/agent-install/agent-install-007.md |
+| agent-install-008 | 애플리케이션에이전트상세 | manuals/user/agent-install/agent-install-008.md |
+
+> 위 `menu_path` 는 pandoc 이 추출한 md 본문 H1 제목을 그대로 초안으로 옮긴 것입니다.
+> 사람이 polestar10 웹에서 대조 후 frontmatter 의 `menu_path_verified` 를 `true` 로 토글.

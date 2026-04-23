@@ -8,3 +8,6 @@
 
 ## system
 - [system](system/00-toc-system.md)
+
+## agent-install
+- [agent-install](agent-install/00-toc-agent-install.md)
