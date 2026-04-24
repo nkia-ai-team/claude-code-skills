@@ -1,127 +1,85 @@
-# Recipe: 관리대상 목록 조회
+# Recipe: 관리대상 조회 (count + per-type list)
 
-- **엔드포인트**: `POST /api/cm/configuration/list`
-- **인증 필요**: `recipes/login.md` 먼저 실행
-- **부작용**: 없음 (read-only)
+⚠️ **중요한 정정**: 초기 추론에서 `POST /api/cm/configuration/list` 가 전체 관리대상 목록 API 로 보였으나, 실제로는 **catch-all 핸들러가 항상 빈 `configItems:[]` 를 반환**하는 스텁이었음. 47개 관리대상이 등록된 상태에서도 empty 를 반환하는 것으로 확인됨. **이 경로는 사용하지 말 것.**
 
-## 전제 환경변수
+진짜 조회 엔드포인트는 **type-specific**:
+
+| Type | Count 엔드포인트 | List 엔드포인트 | 확정 여부 |
+|---|---|---|---|
+| Web URL | `POST /api/weburl/count` | TBD | count ✅ / list ⏳ |
+| 전체 | `POST /api/cm/portal/configuration/count` | TBD | ✅ |
+| 서버 | `POST /api/sms/hosts/count` (추정) | TBD | ⏳ TBD |
+| DB | `POST /api/dpm/count` (추정) | TBD | ⏳ TBD |
+| APM / KCM / NMS | `POST /api/<type>/count` (추정) | TBD | ⏳ TBD |
+
+- `/api/cm/portal/configuration/count` 는 **전역 총량** 반환 (type 필터 없음)
+- `/api/weburl/count` 는 **WebURL 만** 카운트. 검증용으로 충분
+- **세부 리스트** (각 항목의 id/name/속성 조회) 엔드포인트는 type 별 UI 목록 페이지에서 DevTools 녹화로 확정 필요 (TBD)
+
+---
+
+## 확정 레시피
+
+### 전체 관리대상 수
 
 ```bash
 : "${POLESTAR10_BASE_URL:=https://192.168.230.104}"
 : "${POLESTAR10_COOKIE_JAR:=/tmp/polestar10.cookies}"
 : "${POLESTAR10_CURL_OPTS:=-sk}"
+
+curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d '{}' \
+  "$POLESTAR10_BASE_URL/api/cm/portal/configuration/count"
+# → {"success":true,"data":47,"errorCode":null,...}
 ```
 
-## 레시피 — 전체 목록 (첫 페이지 50건)
+### Web URL 수 (검증용)
 
 ```bash
 curl $POLESTAR10_CURL_OPTS -X POST \
   --cookie "$POLESTAR10_COOKIE_JAR" \
   -H 'Content-Type: application/json' \
-  -d '{"page":0,"size":50}' \
-  "$POLESTAR10_BASE_URL/api/cm/configuration/list"
+  -d '{}' \
+  "$POLESTAR10_BASE_URL/api/weburl/count"
+# → {"success":true,"data":<N>,"errorCode":null,...}
 ```
 
-## 레시피 — 타입 필터
+### 용도
+
+`add-target.md` 의 2-step 흐름(save → register) 직후 검증:
 
 ```bash
-# 서버만
-curl $POLESTAR10_CURL_OPTS -X POST \
-  --cookie "$POLESTAR10_COOKIE_JAR" \
-  -H 'Content-Type: application/json' \
-  -d '{"page":0,"size":50,"resourceType":"SERVER"}' \
-  "$POLESTAR10_BASE_URL/api/cm/configuration/list"
+# 등록 전
+BEFORE=$(curl $POLESTAR10_CURL_OPTS -X POST --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' -d '{}' \
+  "$POLESTAR10_BASE_URL/api/weburl/count" | jq -r .data)
+
+# ... save + register 실행 ...
+
+AFTER=$(curl $POLESTAR10_CURL_OPTS -X POST --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' -d '{}' \
+  "$POLESTAR10_BASE_URL/api/weburl/count" | jq -r .data)
+
+if [ "$AFTER" -gt "$BEFORE" ]; then
+  echo "등록 확인됨 ($BEFORE → $AFTER)"
+fi
 ```
 
-지원 `resourceType` 값:
+---
 
-```
-SERVER          # 서버
-NMS             # 네트워크 (NMS)
-APM             # 애플리케이션
-KCM             # 쿠버네티스
-WEBURL          # 웹 URL
-ORACLE, CUBRID, POSTGRESQL, TIBERO, SQLSERVER, MYSQL, MARIADB  # DB 종별
-LINKAGE_SYSTEM  # 연계 시스템
-```
+## 세부 항목 리스트 (TBD)
 
-## 레시피 — id 필드만 추출 (jq)
+각 type 의 **목록 페이지** 를 열 때 브라우저가 쏘는 API 가 진짜 list 엔드포인트임. 캡처 절차:
 
-```bash
-curl $POLESTAR10_CURL_OPTS -X POST \
-  --cookie "$POLESTAR10_COOKIE_JAR" \
-  -H 'Content-Type: application/json' \
-  -d '{"page":0,"size":200}' \
-  "$POLESTAR10_BASE_URL/api/cm/configuration/list" \
-  | jq -r '.data.configItems[] | .id'
-```
+1. 크롬으로 `https://192.168.230.104/weburl` (Web URL 목록 페이지) 접속
+2. DevTools **Network** 탭 > `Fetch/XHR` 필터
+3. 페이지 로드 중에 뜨는 요청들 중 응답이 `configItems` 또는 `content` 배열을 포함하는 POST 식별
+4. 해당 요청의 URL + body 를 이 recipe 에 업데이트
 
-## 성공 응답 스키마
-
-```json
-{
-  "success": true,
-  "data": {
-    "configItems": [
-      {
-        "id": "<string>",
-        "name": "<string>",
-        "resourceType": "<string>",
-        "...": "..."
-      }
-    ],
-    "latestTimestamp": 1776929008123
-  },
-  "errorCode": null,
-  "errorMsgArgs": null,
-  "errorData": null
-}
-```
-
-`configItems` 가 빈 배열 `[]` 이면 해당 필터에 매칭되는 관리대상 없음 (또는 전체 시스템에 등록된 대상 없음).
-
-## 실패 응답
-
-| 증상 | 원인 | 대응 |
-|---|---|---|
-| HTML 응답 (로그인 페이지) | 세션 만료 | `recipes/login.md` 재실행 |
-| `success: false` + `errorCode: "PERMISSION_DENIED"` | 권한 부족 | 담당자 권한 확인 |
-| Connection refused | polestar10-itg 컨테이너 다운 | `docker ps | grep polestar-app-itg` |
-
-## 페이징
-
-```bash
-# page 는 0-based
-PAGE=0
-while true; do
-  R=$(curl $POLESTAR10_CURL_OPTS -X POST \
-    --cookie "$POLESTAR10_COOKIE_JAR" \
-    -H 'Content-Type: application/json' \
-    -d "$(jq -cn --argjson p $PAGE '{page:$p, size:50}')" \
-    "$POLESTAR10_BASE_URL/api/cm/configuration/list")
-  COUNT=$(echo "$R" | jq '.data.configItems | length')
-  [ "$COUNT" = "0" ] && break
-  echo "$R" | jq -r '.data.configItems[] | .id'
-  PAGE=$((PAGE + 1))
-done
-```
-
-## 참고 — 별칭 경로
-
-Spring 핸들러가 다음 경로들을 동일 기능으로 매핑. `list` 가 canonical:
-
-```
-POST /api/cm/configuration/list        ← canonical
-POST /api/cm/configuration/search
-POST /api/cm/configuration/find-all
-POST /api/cm/configuration/paging
-POST /api/cm/configuration/list-paging
-POST /api/cm/configuration/page
-POST /api/cm/configuration/find
-```
+다른 리소스타입(서버/DB/APM 등) 목록 페이지에서도 동일 절차 반복.
 
 ## UI Fallback
 
-API 조회 실패 시:
-
-> **전체구성 > 관리대상 > 전체** 메뉴에서 UI 로 목록 확인. 필요하면 우측 상단 검색·필터 사용.
+> **전체구성 > 관리대상 > [리소스타입]** 메뉴로 이동하여 UI 목록 확인. 필요 시 우측 상단 검색·필터 사용.

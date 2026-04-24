@@ -1,92 +1,160 @@
-# Recipe: 관리대상 추가 (TBD)
+# Recipe: 관리대상 추가 (2-step: save → register)
 
-관리대상(서버/DB/APM/NMS 등)을 polestar10 에 신규 등록.
+polestar10 의 모든 관리대상 등록은 **2단계 흐름**을 따른다:
 
-- **엔드포인트**: **TBD**
-- **인증 필요**: `recipes/login.md` 먼저 실행
-- **부작용**: polestar10 전역 상태 변경 (신규 레코드 생성)
-
-## ⚠️ 현재 상태: 미확정
-
-이 조작의 POST URL + payload 스키마는 **아직 확정되지 않음**.
-
-사유:
-- Spring `cm` 서비스가 `/api/cm/configuration/**` 하위에 catch-all 핸들러 걸어둠 → 경로 guessing 시 대부분 200 + 빈 응답 반환
-- React SPA 가 `/config/resource/all` 같은 URL 을 직접 라우팅하지 않아 Playwright 자동 녹화로 추가 다이얼로그 진입 불가
-- 관리대상 등록 다이얼로그는 리소스타입 선택 → 동적 폼 렌더링이라 스키마가 resourceType 별로 다를 가능성 높음
-
-## 확정 절차
-
-**담당자가 크롬 DevTools 로 직접 녹화해야 함.**
-
-### Step 1: DevTools 세션 시작
-
-1. 크롬 탭에서 `https://192.168.230.104/login` 접속 (self-signed 경고 무시)
-2. `F12` → **Network** 탭 선택
-3. 톱니바퀴 설정에서:
-   - ☑ Preserve log
-   - ☑ Disable cache
-4. 정상 로그인 (sjbang 등)
-
-### Step 2: 대상 조작 수행
-
-1. 좌측 사이드바: **전체구성 > 관리대상 > (SERVER 등 리소스타입)** 클릭
-2. 우측 상단 **+ 추가** 버튼
-3. 폼 채우기:
-   - 이름: `nkiaai539-probe-<random>`
-   - IP: `10.250.250.250` (또는 실제 테스트용 IP)
-   - 그룹: `Default`
-   - 기타 필드 기본값
-4. **저장** 버튼 클릭
-
-### Step 3: 네트워크 요청 캡처
-
-1. Network 패널에서 **Filter: Fetch/XHR** 로 좁히기
-2. 저장 직후 발생한 `POST` 요청 중 응답이 `{success:true}` + `data.id` 를 반환하는 엔드포인트 식별
-3. 해당 요청 **우클릭 > Copy > Copy as cURL (bash)** 로 복사
-4. Request Payload JSON 구조 확인 (특히 resourceType 별 required fields)
-
-### Step 4: 정리
-
-1. 방금 만든 테스트 관리대상 **삭제** (roundtrip 이므로 delete 요청도 같이 캡처 → `recipes/delete-target.md` 업데이트)
-2. 캡처한 URL + payload 를 이 파일의 **레시피** 섹션으로 옮기고 TBD 마커 제거
-3. PR 로 반영
-
-## 레시피 (확정 후 작성)
-
-```bash
-# TODO: DevTools 캡처 후 아래 블록 작성
-#
-# : "${POLESTAR10_BASE_URL:=https://192.168.230.104}"
-# : "${POLESTAR10_COOKIE_JAR:=/tmp/polestar10.cookies}"
-# : "${POLESTAR10_CURL_OPTS:=-sk}"
-#
-# curl $POLESTAR10_CURL_OPTS -X POST \
-#   --cookie "$POLESTAR10_COOKIE_JAR" \
-#   -H 'Content-Type: application/json' \
-#   -d '{"...": "..."}' \
-#   "$POLESTAR10_BASE_URL/api/cm/configuration/<TBD>"
+```
+Step 1: POST /api/<type>/save         → staging 리스트에 추가, id 반환, registered=false
+Step 2: POST /api/<type>/register     → 그룹/정책 바인딩 + 실제 관리대상으로 승격
 ```
 
-## 예상 응답 스키마 (확정 후 검증)
+이 흐름은 UI 의 "관리대상 추가" 대화상자 + "관리대상 등록" 버튼에 1:1 매핑됨.
+
+## 리소스 타입별 지원 현황
+
+| Type | prefix | save | register | 비고 |
+|---|---|---|---|---|
+| Web URL | `/api/weburl` | ✅ | ✅ | 에이전트 불필요, 순수 config. 아래 레시피 참조 |
+| 서버 | `/api/sms/hosts` (추정) | ⏳ TBD | ⏳ TBD | WPM 에이전트 설치 + heartbeat 필요 (Issue 4 선행) |
+| 데이터베이스 | `/api/dpm/*` (추정) | ⏳ TBD | ⏳ TBD | DPM 에이전트 + DB 접속 정보 필요 |
+| 애플리케이션 | `/api/apm/*` (추정) | ⏳ TBD | ⏳ TBD | APM 에이전트 필요 |
+| 쿠버네티스 | `/api/kcm/*` (추정) | ⏳ TBD | ⏳ TBD | KCM 에이전트 필요 |
+| NMS 네트워크 | `/api/nms/*` (추정) | ⏳ TBD | ⏳ TBD | SNMP 타겟 또는 NMS 에이전트 |
+
+→ agent 기반 리소스(서버/DB/APM/K8s/NMS) 는 먼저 타겟 호스트에 에이전트가 설치되어 heartbeat 를 쏘아야 staging 에 자동으로 뜨므로, 이 recipe 들은 Issue 4 (Ansible 플레이북) 이후 DevTools 캡처로 확정.
+
+---
+
+## 확정 레시피: Web URL 등록 (enduring example)
+
+### 전제 환경변수
+
+```bash
+: "${POLESTAR10_BASE_URL:=https://192.168.230.104}"
+: "${POLESTAR10_COOKIE_JAR:=/tmp/polestar10.cookies}"
+: "${POLESTAR10_CURL_OPTS:=-sk}"
+```
+
+### Step 1 — staging 추가 (`POST /api/weburl/save`)
+
+```bash
+TARGET_NAME="testbed-probe-$(date +%s)"
+TARGET_URL="https://192.168.230.104/"
+
+SAVE=$(curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d "$(jq -cn \
+      --arg name "$TARGET_NAME" \
+      --arg url "$TARGET_URL" \
+      '{
+        name: $name,
+        description: "",
+        method: "GET",
+        requestBodyType: "form_data",
+        url: $url,
+        connectTimeout: 10,
+        socketTimeout: 10,
+        useProxy: false,
+        useSni: false,
+        sslVerify: false,
+        successCode: 200
+      }')" \
+  "$POLESTAR10_BASE_URL/api/weburl/save")
+
+# 성공 확인 및 id 추출
+NEW_ID=$(echo "$SAVE" | jq -r '.data.id')
+echo "staging OK → id=$NEW_ID, registered=$(echo "$SAVE" | jq -r '.data.registered')"
+```
+
+응답 스키마:
 
 ```json
 {
   "success": true,
   "data": {
-    "id": "<string>",
-    "name": "<string>",
-    "resourceType": "<string>",
+    "id": "69eacdf93c0ebbe080eb9995",
+    "name": "testbed-probe-...",
+    "url": "...",
+    "method": "GET",
+    "connectTimeout": 10,
+    "socketTimeout": 10,
+    "successCode": 200,
+    "useProxy": false,
+    "useSni": false,
+    "sslVerify": false,
+    "requestBodyType": "form_data",
+    "registered": false,
+    "loginId": "...",
+    "ctime": 1776998056683,
+    "mtime": 1776998056683,
     "...": "..."
   },
   "errorCode": null
 }
 ```
 
-## UI Fallback (API 확정 전 유일한 경로)
+이 시점에서는 아직 관리대상 **아님**. `registered:false` 로 staging 에만 머무는 상태. UI 에서 "관리대상 추가" 대화상자의 체크리스트에 뜨는 상태.
 
-> **전체구성 > 관리대상 > [리소스타입] > + 추가** 로 UI 에서 수동 등록. 필수 필드:
-> - 이름 (중복 불가)
-> - IP (리소스타입에 따라 포트도 필요)
-> - 그룹 (기본 `Default`)
-> - 담당자 (선택)
+### Step 2 — 등록 (`POST /api/weburl/register`)
+
+```bash
+# body 는 배열 — 여러 staging 을 한 번에 등록 가능
+curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d "$(jq -cn --arg id "$NEW_ID" \
+      '[{
+        id: $id,
+        dataPolicy: "defaultPolicy",
+        tag: null,
+        anomalyPolicyTagValue: null,
+        groupId: 1
+      }]')" \
+  "$POLESTAR10_BASE_URL/api/weburl/register"
+# → {"success":true,"data":null,"errorCode":null,...}
+```
+
+**필드 의미**:
+| 필드 | 설명 | 값 예 |
+|---|---|---|
+| `id` | `save` 응답에서 받은 staging id | `"69eacd...995"` |
+| `dataPolicy` | 데이터 수집 정책명 | `"defaultPolicy"` (기본) |
+| `tag` | 사용자 정의 태그(선택) | `"RCA-Testbed"` 또는 `null` |
+| `anomalyPolicyTagValue` | 이상감지 정책 라벨 | `"성능 이상감지 기본 정책"` 또는 `null` |
+| `groupId` | 리소스 그룹 ID (from `list-groups.md`) | `1` = Default |
+
+### Step 3 — 검증 (`POST /api/weburl/count`)
+
+등록 성공 여부를 빠르게 확인:
+
+```bash
+curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d '{}' \
+  "$POLESTAR10_BASE_URL/api/weburl/count"
+# → {"success":true,"data":<현재 등록된 WebURL 수>,"errorCode":null,...}
+```
+
+정리는 [`delete-target.md`](./delete-target.md) 참조.
+
+---
+
+## 공통 패턴 (Issue 4 이후 다른 타입 확정 시 적용)
+
+다른 리소스 타입 녹화 시 확인할 것:
+
+1. **save endpoint**: `/api/<type>/save` 로 예상
+2. **save payload**: 타입별 필수 필드 다름 (서버는 hostname/IP/OS, DB 는 DBMS 종류/접속정보 등)
+3. **save response**: `data.id` 가 staging id
+4. **register endpoint**: `/api/<type>/register` 로 예상
+5. **register body**: array `[{id, dataPolicy, groupId, tag?, anomalyPolicyTagValue?}]`
+6. **delete prefix**: `<type>_<id>` 형식일 가능성 (e.g. `server_...`, `apm_...`)
+
+DevTools 캡처 절차는 [README.md 의 TBD 확정 절차](../README.md#tbd-엔드포인트-확정-절차) 참조.
+
+## UI Fallback
+
+2-step 플로우 중 어느 단계든 실패 시:
+
+> **전체구성 > 관리대상** → 우측 상단 **+ 추가** 버튼 → 리소스타입 선택 → 폼 입력 (Web URL 의 경우 URL) → 저장. 그 다음 **관리대상 추가 목록** 에서 항목 체크 → **관리대상 등록** 버튼 → 그룹/정책 선택 → 저장.
