@@ -51,7 +51,7 @@ polestar10 의 모든 관리대상 등록은 **staging → register** 2단계.
 
 ```bash
 TARGET_NAME="testbed-probe-$(date +%s)"
-TARGET_URL="https://192.168.230.104/"
+TARGET_URL="${POLESTAR10_BASE_URL}/"     # 또는 외부 URL
 
 SAVE=$(curl $POLESTAR10_CURL_OPTS -X POST \
   --cookie "$POLESTAR10_COOKIE_JAR" \
@@ -109,9 +109,9 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 ### Step 2 — 등록 (`POST /api/sms/standby-hosts/register`)
 
 ```bash
-AGENT_ID="MA_promaxgb10-554c"   # standby 응답에서 가져옴
-SVC_GROUP="RCA-Testbed"          # 서비스 그룹 tag value (사전 등록 또는 신규 — 자동 생성됨)
-GROUP_ID=1                       # 1 = Default 시스템 그룹
+AGENT_ID="MA_<agent-host>"       # standby 응답의 agentId 그대로
+SVC_GROUP="RCA-Testbed"          # tag 시스템의 serviceGroup value (없으면 자동 생성)
+GROUP_ID=1                       # 1 = Default 시스템 그룹 (list-groups.md 참조)
 
 curl $POLESTAR10_CURL_OPTS -X POST \
   --cookie "$POLESTAR10_COOKIE_JAR" \

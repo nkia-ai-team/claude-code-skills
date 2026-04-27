@@ -2,7 +2,7 @@
 
 DevTools HAR 캡처 + curl 검증으로 확인한 polestar10 내부 API 명세.
 
-- **Base URL**: `https://192.168.230.104/` (self-signed — curl `-k`)
+- **Base URL**: `$POLESTAR10_BASE_URL` 환경변수, 미지정 시 `https://192.168.230.104` (NKIA team dev). self-signed 인증서 → curl `-k`
 - **인증**: 쿠키 세션 (`accessToken`/`refreshToken` JWT). **CSRF 헤더 없음**
 - **Content-Type**: `application/json`
 - **응답 포맷**: `{success, data, errorCode, errorMsgArgs, errorData}`

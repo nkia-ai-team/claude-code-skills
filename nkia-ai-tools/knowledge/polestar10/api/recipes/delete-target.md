@@ -34,7 +34,7 @@ body: {"parameter": [<id1>, <id2>, ...]}
 ### Web URL 삭제
 
 ```bash
-TARGET_ID="weburl_69eaea2d3c0ebbe080eb999c"   # list-filter 의 content[].id 또는 weburl_<save-data-id>
+TARGET_ID="weburl_xxxxxxxxxxxxxxxxxxxxxxxx"   # list-filter 의 content[].id 또는 weburl_<save-data-id>
 
 curl $POLESTAR10_CURL_OPTS -X POST \
   --cookie "$POLESTAR10_COOKIE_JAR" \
@@ -47,7 +47,7 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 ### 서버 삭제
 
 ```bash
-RESOURCE_ID="MA_ubuntu2204-230-104_20240523075040"   # hosts-filter 의 content[].resourceId
+RESOURCE_ID="MA_<hostname>_<timestamp>"   # hosts-filter 의 content[].resourceId
 
 curl $POLESTAR10_CURL_OPTS -X POST \
   --cookie "$POLESTAR10_COOKIE_JAR" \
