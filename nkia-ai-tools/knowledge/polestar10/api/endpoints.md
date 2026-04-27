@@ -103,18 +103,71 @@ polestar10 의 모든 관리대상 등록은 **staging → register** 2-step. st
 
 > ⚠️ **주의**: 서버 삭제 후에도 SMS 에이전트가 살아있으면 다음 heartbeat 사이클에 자동 재출현 standby. 영구 제거하려면 **에이전트도 stop**.
 
+### SLO (config-only, 2-step 변형)
+| Method | URL | body 형태 | 결과 |
+|---|---|---|---|
+| POST | `/api/cm/slo/register/standby` | `{name, targetTags:["serviceGroup = ..."], setting:{sloTarget, evaluationCycle, startDate, weightFormula, excludeMaintenance}, sliConditions:[{type:"AVAILABILITY", rowKey:"A"}], ...}` | `{data:"ok"}` (id 안 반환) |
+| POST | `/api/cm/slo/list-filter` | `{pageNumber:1, sortFieldSets:[], gridFilters:[{field:"registered", operator:"Equals", values:[true|false]}]}` | `{data:{content:[{id, name, sli, target, evaluationCycle, ...}]}}` |
+| POST | `/api/cm/slo/register` | `{parameter:["<slo-id>"]}` | `{data:"ok"}` |
+| POST | `/api/cm/slo/delete` | `{parameter:["<slo-id>"]}` | `{data:"ok"}` |
+| POST | `/api/cm/slo/find-measurement` | `{resourceType:"<...>"}` | 사용 가능한 SLI 메트릭 |
+
+→ [`recipes/slo.md`](./recipes/slo.md)
+
+### 알람 정책 — 공통 정책 (Common Policy)
+| Method | URL | body 형태 | 결과 |
+|---|---|---|---|
+| POST | `/api/alarm/policys` | `{pageNumber, gridFilters, sortFieldSets, pagePerSize, arguments, tagFilters:null}` | `{data:{content:[{id, name, domain, tagKey:"alarmPolicy", default, ...}]}}` |
+| POST | `/api/alarm/policys/add/validate/name/duplicate` | `{name, domain}` | 이름 중복 검증 |
+| POST | `/api/alarm/policys/add` | `{name, description, enable, copyId:"<source-id>", tagValue, authorityInfos:[{roleId, permission:15}], domain}` | `{data:true}` (id 안 반환 — list 로 조회 필요) |
+| POST | `/api/alarm/policys/delete` | `{ids:["<id>"]}` | `{data:{deletedCount, notDeletedCount, notDeletedList}}` |
+| POST | `/api/alarm/policys/options` | `{}` | dropdown options |
+| POST | `/api/alarm/policy/definitions` | `{policyId}` | 정책 내 정의 목록 |
+| POST | `/api/alarm/policy/definitions/add` | `{...}` | 정책에 정의 추가 |
+| POST | `/api/alarm/policy/definitions/delete` | `{...}` | 정책 내 정의 삭제 |
+
+### 알람 정책 — 개별 알람 정의 (Individual Definition)
+| Method | URL | body 형태 | 결과 |
+|---|---|---|---|
+| POST | `/api/alarm/alarm-definitions` | `{pageNumber, gridFilters, sortFieldSets, pagePerSize, tagFilters}` | `{data:{content:[{id, name, type:"Individual", resourceId, conditions, ...}]}}` |
+| POST | `/api/alarm/alarm-definitions/count` | `{}` | 개수 |
+| POST | `/api/alarm/alarm-definition` | `{targetConfIds:["<conf-id>"], name, resourceType, alarmMessageTemplate, alarmTimeout, timeoutSeverity, measurementDefinitionId, conditions:[{type:"THRESHOLD", alarmSeverity:"LEVEL1..4", operator, numericThreshold, units, dampeningType:"NONE", byAi:false}], alarmNotifications:[], triggerActions:[]}` | `{data:<count>}` |
+| POST | `/api/alarm/alarm-definition/detail` | `{parameter:"<id>"}` | full detail |
+| POST | `/api/alarm/alarm-definition/delete` | `{parameter:["<id>"]}` | `{data:true}` |
+| POST | `/api/alarm/alarm-definition/update` | (TBD body) | 정의 수정 |
+
+→ [`recipes/add-alert-policy.md`](./recipes/add-alert-policy.md)
+
+### 이상감지 정책 (Anomaly Policy)
+| Method | URL | body 형태 | 결과 |
+|---|---|---|---|
+| POST | `/api/aiops/v1/anomaly-policies/names` | `{}` | `["성능 이상감지 기본 정책", ...]` |
+| POST | `/api/aiops/v1/anomaly-policies/list-filter` | `{pageNumber, gridFilters, sortFieldSets, pagePerSize, arguments, tagFilters}` | `{data:{content:[{id, name, systemCount, metricCount, isAuto, isDefault, ...}]}}` |
+| POST | `/api/aiops/v1/anomaly-policies/<id>` | (빈 body) | 정책 상세 |
+| POST | `/api/aiops/v1/anomaly-policies/<id>/authority` | (빈 body) | 권한 정보 |
+| POST | `/api/aiops/v1/anomaly-metric-models/list-filter` | `{...}` | 메트릭 모델 목록 |
+
+CRUD (생성/수정/삭제) 는 본 캡처에서 미확인. 시스템 default 만으로 테스트베드 운영 가능 → 후순위.
+
+→ [`recipes/anomaly-policy.md`](./recipes/anomaly-policy.md)
+
 ### 부가 메타 / 메트릭 (참고용)
 | Method | URL | 용도 |
 |---|---|---|
 | POST | `/api/account/menu/user-menus` | 사용자별 메뉴 트리 |
 | POST | `/api/account/function/user-functionIds` | 기능 권한 ID 목록 |
 | POST | `/api/account/user/self/detail` | 로그인 사용자 상세 |
-| POST | `/api/aiops/v1/anomaly-policies/names` | 이상감지 정책 이름 목록 (register 다이얼로그용) |
-| POST | `/api/alarm/severity/find-all` | 알람 severity 메타 |
+| POST | `/api/alarm/severity/list` | 알람 severity 메타 |
+| POST | `/api/alarm/options/measurementDefinition` | 메트릭 dropdown (정의 추가 시) |
+| POST | `/api/alarm/resource/domain/options` | 도메인 dropdown |
+| POST | `/api/alarm/resource/type/options` | resourceType dropdown |
 | POST | `/api/alarm/resource/alarm-policy-summary` | 리소스별 알람 정책 요약 |
+| POST | `/api/alarm/policy/authority` | 정책 권한 |
+| POST | `/api/alarm/message-template-preview` | 알람 메시지 템플릿 프리뷰 |
 | POST | `/api/measurement/availability/resource/latest` | 가용성 최신값 |
 | POST | `/api/measurement/metric/aggregation/latest` | 메트릭 집계 최신값 |
 | POST | `/api/measurement/metric/raw/single/time-period` | 단일 메트릭 시계열 |
+| POST | `/api/measurement/definitions` | 메트릭 정의 |
 | POST | `/api/measurement/policies/simple-list` | 측정 정책 목록 |
 
 ---
