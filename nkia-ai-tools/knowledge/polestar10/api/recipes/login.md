@@ -75,7 +75,7 @@ echo "login OK — userId=$(echo "$LOGIN" | jq -r .data.userId)"
 ## 성공 예시
 
 ```
-login OK — userId=697c543e7143b2f7dbe29963
+login OK — userId=xxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 이후 쿠키 파일 내용:
@@ -83,8 +83,8 @@ login OK — userId=697c543e7143b2f7dbe29963
 ```
 # Netscape HTTP Cookie File
 # https://curl.haxx.se/rfc/cookie_spec.html
-192.168.230.104  FALSE  /  TRUE  1776932608  accessToken  eyJ0eXAi...
-192.168.230.104  FALSE  /  TRUE  1777015408  refreshToken eyJ0eXAi...
+<POLESTAR_HOST>  FALSE  /  TRUE  <expiry>  accessToken  eyJ0eXAi...
+<POLESTAR_HOST>  FALSE  /  TRUE  <expiry>  refreshToken eyJ0eXAi...
 ```
 
 ## 검증 — 로그인 성공 후 인증 유효성 체크
@@ -109,4 +109,4 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 
 API 로그인이 실패 — 사용자에게 다음 가이드 제공:
 
-> 브라우저에서 `https://192.168.230.104/login` 접속 → 아이디/비밀번호 입력 → (MFA 활성 시 2차 인증) → 로그인. 이후 브라우저 DevTools `Application → Cookies` 에서 `accessToken` 값을 복사해 수동으로 `$POLESTAR10_COOKIE_JAR` 작성 가능하지만 권장하지 않음.
+> 브라우저에서 `$POLESTAR10_BASE_URL/login` 접속 → 아이디/비밀번호 입력 → (MFA 활성 시 2차 인증) → 로그인. 이후 브라우저 DevTools `Application → Cookies` 에서 `accessToken` 값을 복사해 수동으로 `$POLESTAR10_COOKIE_JAR` 작성 가능하지만 권장하지 않음.

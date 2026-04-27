@@ -43,7 +43,7 @@ curl $POLESTAR10_CURL_OPTS -X POST \
     "key": "serviceGroup",
     "tagDataType": "STRING",
     "tagType": "CUSTOM",
-    "values": ["defaultGroup", "RCA-Testbed", ...]   // 이미 사용 중인 값 목록
+    "values": ["<existing-value-1>", "<existing-value-2>", ...]   // 이미 사용 중인 값 목록
   },
   "errorCode": null
 }

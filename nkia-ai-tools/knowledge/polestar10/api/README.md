@@ -43,7 +43,7 @@ knowledge/polestar10/api/
 
 | 이름 | 설명 | 기본값 / 예 |
 |---|---|---|
-| `POLESTAR10_BASE_URL` | polestar10 진입 URL | `https://192.168.230.104` |
+| `POLESTAR10_BASE_URL` | polestar10 진입 URL | `https://192.168.230.104` (기본) |
 | `POLESTAR10_USER` | 로그인 계정 | (필수) |
 | `POLESTAR10_PASS` | 평문 비밀번호 | (필수) |
 | `POLESTAR10_COOKIE_JAR` | 세션 쿠키 저장 경로 | `/tmp/polestar10.cookies` |
@@ -64,8 +64,90 @@ polestar10 업그레이드 시 recipe 검증 방법:
 
 write 조작의 실제 POST URL + payload 는 **크롬 DevTools** 로 확정:
 
-1. 크롬에서 `https://192.168.230.104/login` 접속 후 로그인
+1. 크롬에서 `https://192.168.230.104/login` (또는 사용자별 인스턴스 URL) 접속 후 로그인
 2. `F12` → **Network** 탭, "Preserve log" 체크
 3. UI 에서 해당 조작 수행 (예: 관리대상 추가 → 폼 제출 → 저장)
 4. Network 패널에서 해당 `POST` 요청 선택 → Headers/Payload/Response 복사
 5. 해당 `recipes/<op>.md` 의 TBD 섹션을 실제 curl 블록으로 교체
+
+---
+
+## 알려진 polestar10 인스턴스
+
+오케스트레이터 스킬 (NKIAAI-542) 가 사용자에게 보여줄 dropdown 후보:
+
+| 라벨 | URL | 비고 |
+|---|---|---|
+| NKIA dev (104) | `https://192.168.230.104` | 기본 개발/통합 환경 (polestar-app-itg-1) |
+| (자유 입력) | (사용자 직접 입력) | 다른 고객사·스테이징 인스턴스 등 |
+
+자유 입력 시 검증 권장: `POST $url/api/account/pre-login` 으로 더미 자격증명 한 번 시도해서 200 응답 (또는 `success:false + errorCode:"INVALID_CREDENTIALS"`) 받으면 폴리스타10 인스턴스 맞음. 404 / 연결 거부 / HTML 응답이면 잘못된 URL.
+
+## 오케스트레이터 빌더용 핸드오프 노트 (NKIAAI-542)
+
+본 recipe 들을 소비할 오케스트레이터 스킬이 알아야 할 것:
+
+### 1. 세션 시작 시 환경 셋업
+
+오케스트레이터가 사용자에게 prompt → env 주입 → recipe 호출.
+
+```
+AI: Polestar10 Web 주소를 알려주세요.
+    1) https://192.168.230.104 (NKIA dev)
+    2) 자유 입력
+사용자: 1 (또는 2 + URL)
+AI: [URL 검증] → POST /api/account/pre-login 시도 → 200 응답 확인
+    [세션 env 주입] → export POLESTAR10_BASE_URL=...
+    [자격증명 prompt] → POLESTAR10_USER, POLESTAR10_PASS
+    이후 recipe 호출 시 환경 자동 주입됨
+```
+
+env 보관 정책 (오케스트레이터 결정):
+- 세션 한정 (현재 Claude Code 세션 종료 시 사라짐) — 보안상 권장
+- 또는 사용자 동의 시 `~/.polestar10rc` 같은 파일에 저장 + chmod 600
+
+### 2. recipe 실행 패턴
+
+각 작업마다 다음 구조:
+
+1. recipe md 파일 `Read` → bash 블록 추출
+2. 환경변수 주입 + `Bash` 툴로 실행
+3. 응답 JSON 의 `success` 필드 + `errorCode` 체크
+4. 실패 시 사용자에게 UI Fallback 안내 (recipe 의 `## UI Fallback` 섹션 표시)
+
+### 3. 동적 식별자 흐름
+
+오케스트레이터는 doc 의 placeholder 값을 사용하지 않고, 모두 **API 응답에서 동적 획득**:
+
+| 사용처 | 출처 |
+|---|---|
+| `AGENT_ID` (서버 register) | `sms/standby-hosts-filter-step1` 응답의 `content[].agentId` |
+| `WURL_ID` (Web URL 작업) | `weburl/save` 응답의 `data.id` 또는 `weburl/list-filter` 의 `content[].id` |
+| `groupId` (모든 register) | `cm/groups/list` 응답에서 사용자 선택 (보통 1=Default) |
+| `serviceGroupTagValue` | 사용자 입력 또는 `cm/tag/value/insert` 로 사전 생성 |
+
+### 4. 멱등성 패턴
+
+오케스트레이터가 같은 작업 두 번 호출돼도 안전하게 처리:
+
+- 등록 전: `count` 또는 `list-filter` 로 이미 존재하는지 체크
+- 삭제 전: `count` 비교 (전후) 로 실제 삭제 확인
+- agent-based 삭제 후: heartbeat 사이클 내 standby 재출현 가능 — 영구 제거 원하면 에이전트 stop 안내
+
+### 5. 캐시 가능한 메타
+
+매 호출마다 다시 받지 말 것 (세션 캐시):
+- `cm/groups/list` (그룹은 잘 안 변함)
+- `cm/tag/key/list` (스키마)
+- `aiops/v1/anomaly-policies/names` (정책 이름)
+- `alarm/severity/find-all` (severity 메타)
+
+### 6. 에러 처리 분류
+
+| 응답 패턴 | 의미 | 권장 처리 |
+|---|---|---|
+| `success:true` | 정상 | 다음 단계 |
+| `success:false, errorCode:"POLESTAR_xxxx"` | 비즈니스 에러 | errorMsgArgs 사용자에게 표시 + UI fallback 제안 |
+| HTTP 401/403 + HTML 본문 | 세션 만료 | login recipe 재실행 |
+| HTTP 404 | 잘못된 endpoint (recipe 가 outdated) | recipe 갱신 follow-up 이슈 등록 |
+| 연결 거부 / 타임아웃 | polestar10 다운 또는 URL 잘못 | 사용자에게 BASE_URL 재확인 prompt |

@@ -69,7 +69,7 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 응답 `content[]` 항목 예:
 ```json
 {
-  "id": "weburl_69eaea2d3c0ebbe080eb999c",
+  "id": "weburl_xxxxxxxxxxxxxxxxxxxxxxxx",
   "resourceName": "네이버",
   "totalTimeMs": 378,
   "successCode": 200,
@@ -82,7 +82,7 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 ### Web URL 상세
 
 ```bash
-WURL_ID="weburl_69eaea2d3c0ebbe080eb999c"  # list-filter 의 content[].id 값 그대로
+WURL_ID="weburl_xxxxxxxxxxxxxxxxxxxxxxxx"  # list-filter 의 content[].id 값 그대로
 curl $POLESTAR10_CURL_OPTS -X POST \
   --cookie "$POLESTAR10_COOKIE_JAR" \
   -H 'Content-Type: application/json' \
@@ -112,9 +112,9 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 응답 `content[]` 항목 예:
 ```json
 {
-  "resourceId": "MA_ubuntu2204-230-104_20240523075040",
-  "hostname": "ubuntu2204-230-104",
-  "ip": "127.0.0.1",
+  "resourceId": "MA_<hostname>_<timestamp>",
+  "hostname": "<hostname>",
+  "ip": "<host-ip>",
   "os": "LINUX",
   "groupPath": "Default",
   "availabilityStatus": "UP",
@@ -163,13 +163,13 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 {
   "data": {
     "content": [{
-      "agentId": "MA_promaxgb10-554c",
-      "hostname": "promaxgb10-554c",
-      "ipAddress": "192.168.200.109",
+      "agentId": "MA_<agent-host>",
+      "hostname": "<agent-host>",
+      "ipAddress": "<agent-host-ip>",
       "osType": "LINUX",
-      "osVersion": "Ubuntu 24.04.4 LTS",
-      "vendor": "Dell Inc.",
-      "agentVersion": "10.0.0_18",
+      "osVersion": "<os-version>",
+      "vendor": "<vendor>",
+      "agentVersion": "<agent-version>",
       "timestamp": 1777251718469,
       "hostStatus": "READY",                  // READY / ERROR
       "newHost": true,
@@ -191,7 +191,7 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 curl $POLESTAR10_CURL_OPTS -X POST \
   --cookie "$POLESTAR10_COOKIE_JAR" \
   -H 'Content-Type: application/json' \
-  -d '{"pageNumber":1,"pagePerSize":1000,"arguments":{"agentId":["MA_promaxgb10-554c"]}}' \
+  -d '{"pageNumber":1,"pagePerSize":1000,"arguments":{"agentId":["MA_<agent-host>"]}}' \
   "$POLESTAR10_BASE_URL/api/sms/standby-hosts-filter-step2"
 ```
 
