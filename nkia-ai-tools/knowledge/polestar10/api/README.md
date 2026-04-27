@@ -12,10 +12,11 @@ knowledge/polestar10/api/
 ├── endpoints.md        # 전체 엔드포인트 스펙 (AC1)
 └── recipes/            # 조작별 bash + curl 레시피 (AC2/AC3)
     ├── login.md                # 확정 ✅
-    ├── list-targets.md         # 확정 ✅
-    ├── list-groups.md          # 확정 ✅
-    ├── add-target.md           # TBD ⏳ DevTools 재녹화 필요
-    ├── delete-target.md        # TBD ⏳
+    ├── list-targets.md         # 확정 ✅ (weburl/list-filter, sms/hosts-filter, standby filters)
+    ├── list-groups.md          # 확정 ✅ (시스템 그룹)
+    ├── service-group-tag.md    # 확정 ✅ (서비스 그룹 = tag system)
+    ├── add-target.md           # 확정 ✅ Web URL + 서버 (다른 agent 타입 TBD)
+    ├── delete-target.md        # 확정 ✅ Web URL + 서버 (다른 타입 TBD)
     ├── assign-owner.md         # TBD ⏳
     ├── register-nms.md         # TBD ⏳
     ├── register-dpm.md         # TBD ⏳

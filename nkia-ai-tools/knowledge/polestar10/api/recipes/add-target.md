@@ -1,38 +1,51 @@
-# Recipe: 관리대상 추가 (2-step: save → register)
+# Recipe: 관리대상 추가 (2-step: staging → register)
 
-polestar10 의 모든 관리대상 등록은 **2단계 흐름**을 따른다:
+polestar10 의 모든 관리대상 등록은 **staging → register** 2단계.
+1단계에서 staging 에 항목이 들어가는 방식이 리소스 모델별로 다르고, 2단계 register 는 동일 패턴.
 
 ```
-Step 1: POST /api/<type>/save         → staging 리스트에 추가, id 반환, registered=false
-Step 2: POST /api/<type>/register     → 그룹/정책 바인딩 + 실제 관리대상으로 승격
+┌─ Config-only (Web URL, SLO, Syslog 등) ─┐
+│  Step 1: POST /api/<type>/save           │  사용자가 UI + 버튼으로 직접 추가
+│         → staging id 반환                │
+└──────────────────────────────────────────┘
+                                            ┌─ Step 2 (공통) ─────────────────────────┐
+                                            │  POST /api/<type-specific>/register     │
+                                            │  body = ARRAY [{ id_or_agentId, ... }]  │
+                                            │  group/policy/tag 바인딩 + 관리대상 승격 │
+                                            └─────────────────────────────────────────┘
+┌─ Agent-based (서버, DB, APM, KCM, NMS) ─┐
+│  Step 1: 에이전트 설치 + heartbeat       │  자동 — save 호출 없음
+│         → standby 자동 등록              │  /api/<type>/standby-* 로 조회 가능
+└──────────────────────────────────────────┘
 ```
-
-이 흐름은 UI 의 "관리대상 추가" 대화상자 + "관리대상 등록" 버튼에 1:1 매핑됨.
-
-## 리소스 타입별 지원 현황
-
-| Type | prefix | save | register | 비고 |
-|---|---|---|---|---|
-| Web URL | `/api/weburl` | ✅ | ✅ | 에이전트 불필요, 순수 config. 아래 레시피 참조 |
-| 서버 | `/api/sms/hosts` (추정) | ⏳ TBD | ⏳ TBD | WPM 에이전트 설치 + heartbeat 필요 (Issue 4 선행) |
-| 데이터베이스 | `/api/dpm/*` (추정) | ⏳ TBD | ⏳ TBD | DPM 에이전트 + DB 접속 정보 필요 |
-| 애플리케이션 | `/api/apm/*` (추정) | ⏳ TBD | ⏳ TBD | APM 에이전트 필요 |
-| 쿠버네티스 | `/api/kcm/*` (추정) | ⏳ TBD | ⏳ TBD | KCM 에이전트 필요 |
-| NMS 네트워크 | `/api/nms/*` (추정) | ⏳ TBD | ⏳ TBD | SNMP 타겟 또는 NMS 에이전트 |
-
-→ agent 기반 리소스(서버/DB/APM/K8s/NMS) 는 먼저 타겟 호스트에 에이전트가 설치되어 heartbeat 를 쏘아야 staging 에 자동으로 뜨므로, 이 recipe 들은 Issue 4 (Ansible 플레이북) 이후 DevTools 캡처로 확정.
 
 ---
 
-## 확정 레시피: Web URL 등록 (enduring example)
+## 리소스 타입별 레시피 현황
 
-### 전제 환경변수
+| Type | 모델 | save | register | 상태 |
+|---|---|---|---|---|
+| Web URL | config-only | `/api/weburl/save` | `/api/weburl/register` | ✅ 확정 |
+| **서버** | agent-based (SMS) | (heartbeat 자동) | `/api/sms/standby-hosts/register` | ✅ **확정** |
+| 데이터베이스 | agent-based (DPM) | (heartbeat) | `/api/dpm/preregister/*` 추정 | ⏳ TBD |
+| 애플리케이션 | agent-based (APM) | (heartbeat) | `/api/apm/standby-agent/*` 추정 | ⏳ TBD |
+| 쿠버네티스 | agent-based (KCM) | (heartbeat) | `/api/kcm/standby-clusters-*` 추정 | ⏳ TBD |
+| NMS 네트워크 | agent-based (NMS) | (heartbeat) | `/api/nms/v1/*` 추정 | ⏳ TBD |
+| 사용자정의 (SLO/Syslog/SQL/SNMP OID) | config-only | `/api/<type>/save` 추정 | `/api/<type>/register` 추정 | ⏳ TBD |
+
+---
+
+## 환경변수
 
 ```bash
 : "${POLESTAR10_BASE_URL:=https://192.168.230.104}"
 : "${POLESTAR10_COOKIE_JAR:=/tmp/polestar10.cookies}"
 : "${POLESTAR10_CURL_OPTS:=-sk}"
 ```
+
+---
+
+## 확정 레시피 1: Web URL 등록 (config-only)
 
 ### Step 1 — staging 추가 (`POST /api/weburl/save`)
 
@@ -43,118 +56,132 @@ TARGET_URL="https://192.168.230.104/"
 SAVE=$(curl $POLESTAR10_CURL_OPTS -X POST \
   --cookie "$POLESTAR10_COOKIE_JAR" \
   -H 'Content-Type: application/json' \
-  -d "$(jq -cn \
-      --arg name "$TARGET_NAME" \
-      --arg url "$TARGET_URL" \
-      '{
-        name: $name,
-        description: "",
-        method: "GET",
-        requestBodyType: "form_data",
-        url: $url,
-        connectTimeout: 10,
-        socketTimeout: 10,
-        useProxy: false,
-        useSni: false,
-        sslVerify: false,
-        successCode: 200
-      }')" \
+  -d "$(jq -cn --arg name "$TARGET_NAME" --arg url "$TARGET_URL" \
+      '{name:$name, description:"", method:"GET", requestBodyType:"form_data",
+        url:$url, connectTimeout:10, socketTimeout:10,
+        useProxy:false, useSni:false, sslVerify:false, successCode:200}')" \
   "$POLESTAR10_BASE_URL/api/weburl/save")
 
-# 성공 확인 및 id 추출
 NEW_ID=$(echo "$SAVE" | jq -r '.data.id')
 echo "staging OK → id=$NEW_ID, registered=$(echo "$SAVE" | jq -r '.data.registered')"
 ```
 
-응답 스키마:
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "69eacdf93c0ebbe080eb9995",
-    "name": "testbed-probe-...",
-    "url": "...",
-    "method": "GET",
-    "connectTimeout": 10,
-    "socketTimeout": 10,
-    "successCode": 200,
-    "useProxy": false,
-    "useSni": false,
-    "sslVerify": false,
-    "requestBodyType": "form_data",
-    "registered": false,
-    "loginId": "...",
-    "ctime": 1776998056683,
-    "mtime": 1776998056683,
-    "...": "..."
-  },
-  "errorCode": null
-}
-```
-
-이 시점에서는 아직 관리대상 **아님**. `registered:false` 로 staging 에만 머무는 상태. UI 에서 "관리대상 추가" 대화상자의 체크리스트에 뜨는 상태.
-
 ### Step 2 — 등록 (`POST /api/weburl/register`)
 
 ```bash
-# body 는 배열 — 여러 staging 을 한 번에 등록 가능
 curl $POLESTAR10_CURL_OPTS -X POST \
   --cookie "$POLESTAR10_COOKIE_JAR" \
   -H 'Content-Type: application/json' \
   -d "$(jq -cn --arg id "$NEW_ID" \
-      '[{
-        id: $id,
-        dataPolicy: "defaultPolicy",
-        tag: null,
-        anomalyPolicyTagValue: null,
-        groupId: 1
-      }]')" \
+      '[{id:$id, dataPolicy:"defaultPolicy", tag:null,
+         anomalyPolicyTagValue:null, groupId:1}]')" \
   "$POLESTAR10_BASE_URL/api/weburl/register"
-# → {"success":true,"data":null,"errorCode":null,...}
+# → {"success":true,"data":null}
 ```
 
-**필드 의미**:
-| 필드 | 설명 | 값 예 |
-|---|---|---|
-| `id` | `save` 응답에서 받은 staging id | `"69eacd...995"` |
-| `dataPolicy` | 데이터 수집 정책명 | `"defaultPolicy"` (기본) |
-| `tag` | 사용자 정의 태그(선택) | `"RCA-Testbed"` 또는 `null` |
-| `anomalyPolicyTagValue` | 이상감지 정책 라벨 | `"성능 이상감지 기본 정책"` 또는 `null` |
-| `groupId` | 리소스 그룹 ID (from `list-groups.md`) | `1` = Default |
+### Step 3 — 검증
 
-### Step 3 — 검증 (`POST /api/weburl/count`)
+```bash
+curl $POLESTAR10_CURL_OPTS -X POST --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' -d '{}' \
+  "$POLESTAR10_BASE_URL/api/weburl/count"
+```
 
-등록 성공 여부를 빠르게 확인:
+---
+
+## 확정 레시피 2: 서버 등록 (agent-based)
+
+**선행 조건**: 타겟 서버에 SMS 에이전트가 설치되어 polestar10-itg 의 collector 로 heartbeat 보내고 있어야 함. `hostStatus:"READY"` 가 standby 에 떠야 등록 가능.
+
+### Step 1 — standby 에 떠있는지 확인
 
 ```bash
 curl $POLESTAR10_CURL_OPTS -X POST \
   --cookie "$POLESTAR10_COOKIE_JAR" \
   -H 'Content-Type: application/json' \
-  -d '{}' \
-  "$POLESTAR10_BASE_URL/api/weburl/count"
-# → {"success":true,"data":<현재 등록된 WebURL 수>,"errorCode":null,...}
+  -d '{"pageNumber":1,"gridFilters":[],"sortFieldSets":[],"pagePerSize":30,"arguments":{}}' \
+  "$POLESTAR10_BASE_URL/api/sms/standby-hosts-filter-step1" \
+  | jq '.data.content[] | {agentId, hostname, ipAddress, hostStatus}'
 ```
 
-정리는 [`delete-target.md`](./delete-target.md) 참조.
+원하는 호스트가 보이고 `hostStatus:"READY"` 면 다음 단계로. 안 보이면 에이전트 heartbeat 대기 (5~10분).
+
+### Step 2 — 등록 (`POST /api/sms/standby-hosts/register`)
+
+```bash
+AGENT_ID="MA_promaxgb10-554c"   # standby 응답에서 가져옴
+SVC_GROUP="RCA-Testbed"          # 서비스 그룹 tag value (사전 등록 또는 신규 — 자동 생성됨)
+GROUP_ID=1                       # 1 = Default 시스템 그룹
+
+curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d "$(jq -cn \
+      --arg aid "$AGENT_ID" --arg sg "$SVC_GROUP" --argjson gid "$GROUP_ID" \
+      '[{
+        agentId: $aid,
+        managementStatus: "MANAGED",
+        collectorPolicyTagValue: "defaultPolicy",
+        serviceGroupTagValue: $sg,
+        anomalyPolicyTagValue: "성능 이상감지 기본 정책",
+        groupId: $gid
+      }]')" \
+  "$POLESTAR10_BASE_URL/api/sms/standby-hosts/register"
+# → {"success":true,"data":{"failedCount":0,"successCount":1}}
+```
+
+**body 필드 의미** (Web URL register 와 비교):
+
+| 필드 | Web URL register | 서버 register | 비고 |
+|---|---|---|---|
+| 식별자 | `id` (staging id) | `agentId` (SMS 에이전트 ID) | **필드명 다름** |
+| 데이터 정책 | `dataPolicy:"defaultPolicy"` | `collectorPolicyTagValue:"defaultPolicy"` | **필드명 다름**, 값 동일 |
+| 서비스 그룹 | `tag` | `serviceGroupTagValue` | **필드명 다름** |
+| 이상감지 정책 | `anomalyPolicyTagValue` | `anomalyPolicyTagValue` | 동일 |
+| 시스템 그룹 ID | `groupId` | `groupId` | 동일 |
+| 관리 상태 | (없음) | `managementStatus:"MANAGED"` | 서버 전용 |
+
+→ **register payload 가 type 별로 살짝 다름** — 통합 추상화 시 주의.
+
+### Step 3 — 검증
+
+```bash
+# 등록된 서버 목록에 떴는지 확인
+curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d '{"pageNumber":1,"gridFilters":[],"sortFieldSets":[],"pagePerSize":30,"tagFilters":["confType = server"],"arguments":{}}' \
+  "$POLESTAR10_BASE_URL/api/sms/hosts-filter" \
+  | jq --arg aid "$AGENT_ID" '.data.content[] | select(.resourceId == $aid)'
+```
 
 ---
 
-## 공통 패턴 (Issue 4 이후 다른 타입 확정 시 적용)
+## 다른 agent-based 타입 확정 절차 (DB/APM/KCM/NMS)
 
-다른 리소스 타입 녹화 시 확인할 것:
+지금 확정된 패턴 일반화 가능한 가설:
 
-1. **save endpoint**: `/api/<type>/save` 로 예상
-2. **save payload**: 타입별 필수 필드 다름 (서버는 hostname/IP/OS, DB 는 DBMS 종류/접속정보 등)
-3. **save response**: `data.id` 가 staging id
-4. **register endpoint**: `/api/<type>/register` 로 예상
-5. **register body**: array `[{id, dataPolicy, groupId, tag?, anomalyPolicyTagValue?}]`
-6. **delete prefix**: `<type>_<id>` 형식일 가능성 (e.g. `server_...`, `apm_...`)
+```
+POST /api/dpm/preregister/list   (이미 HAR 에 관찰됨)
+POST /api/dpm/preregister/<???>  (= register, 패턴 추정)
 
-DevTools 캡처 절차는 [README.md 의 TBD 확정 절차](../README.md#tbd-엔드포인트-확정-절차) 참조.
+POST /api/apm/standby-agent/count          (관찰됨)
+POST /api/apm/standby-agent/new/count      (관찰됨)
+POST /api/apm/standby-agent/<???>/register (= register, 패턴 추정)
+
+POST /api/kcm/standby-clusters-filter-step1  (관찰됨)
+POST /api/kcm/standby-clusters/<???>/register (= register, 패턴 추정)
+
+POST /api/nms/v1/pre/list   (관찰됨)
+POST /api/nms/v1/<???>      (= register, 패턴 추정)
+```
+
+각 타입의 register 본문 정확 확정은 해당 타입 에이전트 설치 후 DevTools 캡처 필요.
+
+---
 
 ## UI Fallback
 
-2-step 플로우 중 어느 단계든 실패 시:
+2-step 어느 단계든 실패 시:
 
-> **전체구성 > 관리대상** → 우측 상단 **+ 추가** 버튼 → 리소스타입 선택 → 폼 입력 (Web URL 의 경우 URL) → 저장. 그 다음 **관리대상 추가 목록** 에서 항목 체크 → **관리대상 등록** 버튼 → 그룹/정책 선택 → 저장.
+> **전체구성 > 관리대상** → 우측 상단 **+ 추가** → (리소스타입 선택) → 폼/standby 선택 → 저장. **관리대상 추가** 목록에서 항목 체크 → **관리대상 등록** 버튼 → 그룹/이상감지 정책/서비스그룹 지정 → 저장.
