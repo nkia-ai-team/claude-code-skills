@@ -15,12 +15,14 @@ knowledge/polestar10/api/
     ├── list-targets.md         # 확정 ✅ (weburl/list-filter, sms/hosts-filter, standby filters)
     ├── list-groups.md          # 확정 ✅ (시스템 그룹)
     ├── service-group-tag.md    # 확정 ✅ (서비스 그룹 = tag system)
-    ├── add-target.md           # 확정 ✅ Web URL + 서버 (다른 agent 타입 TBD)
+    ├── add-target.md           # 확정 ✅ Web URL + 서버 (DB/APM/KCM/NMS TBD)
     ├── delete-target.md        # 확정 ✅ Web URL + 서버 (다른 타입 TBD)
+    ├── slo.md                  # 확정 ✅ SLO 2-step (register/standby → register)
+    ├── add-alert-policy.md     # 확정 ✅ 공통 + 개별 알람 정의
+    ├── anomaly-policy.md       # 확정 ✅ 이상감지 정책 조회 (CRUD TBD)
     ├── assign-owner.md         # TBD ⏳
     ├── register-nms.md         # TBD ⏳
-    ├── register-dpm.md         # TBD ⏳
-    └── add-alert-policy.md     # TBD ⏳
+    └── register-dpm.md         # TBD ⏳
 ```
 
 ## 사용 대상
