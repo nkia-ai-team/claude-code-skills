@@ -116,6 +116,49 @@ polestar10 의 관리대상 등록 모델은 **3 가지** (검증 완료):
 
 > ⚠️ **주의**: 서버 삭제 후에도 SMS 에이전트가 살아있으면 다음 heartbeat 사이클에 자동 재출현 standby. 영구 제거하려면 **에이전트도 stop**.
 
+### KCM (Kubernetes Cluster Monitoring) — agent-based, cluster 단위
+| Method | URL | body 형태 | 결과 |
+|---|---|---|---|
+| POST | `/api/kcm/clusters/list-filter` | `{pageNumber, pagePerSize, sortFieldSets, gridFilters, tagFilters:["confType = kcm"]}` | 등록된 cluster list |
+| POST | `/api/kcm/standby-clusters-filter-step1` | `{pageNumber, gridFilters:[], sortFieldSets:[], pagePerSize:30}` | standby cluster list (`clusterId`, `clusterName`, `clusterVersion`, `agentVersion`) |
+| POST | `/api/kcm/standby-clusters/count` | `{}` | standby 개수 |
+| POST | `/api/kcm/standby-clusters/register` | `[{clusterId, managementStatus:"MANAGED", collectorPolicyTagValue, serviceGroupTagValue, anomalyPolicyTagValue, groupId}]` | 등록. 응답에 `registrationSucceedClusters` / `registrationFailedClusters` |
+| POST | `/api/kcm/standby-clusters/unregister` | `{clusterId:"..."}` (단일 객체) | unregister |
+| POST | `/api/kcm/measurement/definitions/resourcetype/<type>/metric` | `{}` | KCM 전용 메트릭 |
+| POST | `/api/kcm/resource-explore/cluster/<id>/pods/list-filter` | `{...}` | 클러스터 내 Pod list |
+| POST | `/api/kcm/resource-explore/cluster/<id>/status` | `{}` | 클러스터 상태 |
+
+### APM (Application Performance Monitoring) — agent-based, service+agent 2-level
+| Method | URL | body 형태 | 결과 |
+|---|---|---|---|
+| POST | `/api/apm/services/list-filter` | `{pageNumber, pagePerSize, sortFieldSets:[{fieldName:"serviceName"}], tagFilters:[], startTime, endTime, gridFilters:[]}` | service list (`serviceId`, `serviceName`, `agentCount`, `category:"APM"|"WPM"`) |
+| POST | `/api/apm/standby-agents-filter-step1` | `{pageNumber, gridFilters:[], sortFieldSets:[], pagePerSize:30, arguments:{}}` | standby agent list (`serviceName`, `agentId`, `resourceId`, `confId`, `category`) |
+| POST | `/api/apm/standby-agent/count` / `/api/apm/standby-agent/new/count` | `{}` | standby 개수 |
+| POST | `/api/apm/standby-agent/register` | `[{serviceName, agentId, resourceId, category, managementStatus, collectorPolicyTagValue, anomalyPolicyTagValue, serviceGroupTagValue, groupId}, ...]` | agent 단위 일괄 등록 |
+| POST | `/api/apm/unregisterservice` | `[{serviceId, category}]` (array) | **service 단위 unregister — 그 service 의 모든 agent 함께 제거** |
+
+> APM 의 특이점: **register 는 agent 단위 array, unregister 는 service 단위**. URL 명명도 일관성 없음 (`standby-agent/register` 단수 vs `unregisterservice` 한 단어).
+
+### NMS (Network Monitoring System) — SNMP-polling 모델 (heartbeat 없음)
+| Method | URL | body 형태 | 결과 |
+|---|---|---|---|
+| POST | `/api/nms/v1/list` | `{pageNumber, pagePerSize, sortFieldSets, tagFilters:["confType = network"], gridFilters, timeFilter:{mode:"LIVE",...}, arguments:null}` | 등록된 NMS network list |
+| POST | `/api/nms/v1/pre/list` | `{pageNumber, gridFilters:[], sortFieldSets:[], pagePerSize:30}` | pre-list staging (`pre/addResource` 호출 후 채워짐) |
+| POST | `/api/nms/v1/pre/addResource` | `{collectType:"snmp", snmpVersion, host, port, community, ...}` | **SNMP 검증 staging** — polestar10 가 SNMP 쿼리로 systemName/description 채움 |
+| POST | `/api/nms/v1/addResource` | pre 결과 + `{systemName, description, resourceId, resourceType:"network.Network", groupId, serviceGroupTagValue, anomalyPolicyTagValue, ...}` | 정식 등록 |
+| POST | `/api/nms/v1/deleteResource/<resourceId>` | (none, path 에 ID) | 삭제 (POST + body 없음) |
+| POST | `/api/nms/v1/measurement/definitions/resourcetype/<type>/metric` | `{}` | NMS 전용 메트릭 (`network.Network`/`network.Cpus`/`network.Memorys`/`network.Interface` 등) |
+| POST | `/api/nms/v1/system/<id>` | `{}` | 시스템 상세 |
+| POST | `/api/nms/v1/system/interface/<id>` | `{}` | 인터페이스 list |
+
+> **NMS 등록 모델**: agent heartbeat 가 없음 (SNMP polling). DPM 과 비슷한 **사용자 입력 모델**:
+> - Step 1: `pre/addResource` 로 SNMP 검증 (polestar10 가 장비에 SNMP 쿼리)
+> - Step 2: `pre/list` 로 staging 의 resourceId/systemName 추출
+> - Step 3: `addResource` 로 정식 등록
+> - 명명 비일관성: pre 의 `collectType:"snmp"` (소문자) ↔ addResource 의 `"SNMP"` (대문자)
+
+→ [`recipes/nms-lifecycle.md`](./recipes/nms-lifecycle.md)
+
 ### DPM (DB Performance Monitoring) — 별도 패턴
 | Method | URL | body 형태 | 결과 |
 |---|---|---|---|

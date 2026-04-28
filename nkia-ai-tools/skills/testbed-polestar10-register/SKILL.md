@@ -43,10 +43,10 @@ recipe 가 아니라 **dispatcher** — 직접 API 를 호출하지 않고, `Rea
 | # | 라벨 | 모델 | register endpoint | 식별자 | recipe 상태 |
 |---|---|---|---|---|---|
 | 1 | 서버 (Linux/Windows) | agent-based (SMS) | `/api/sms/standby-hosts/register` | `agentId` (`MA_<host>_<ts>`) | ✅ 확정 |
-| 2 | 데이터베이스 (PG/MySQL/Oracle/Tibero/Cubrid) | agent-based (DPM) | `/api/dpm/<???>/register` | TBD | ⏳ TBD → UI fallback |
-| 3 | APM / WPM (애플리케이션) | agent-based (APM) | `/api/apm/<???>/register` | TBD | ⏳ TBD → UI fallback |
-| 4 | 쿠버네티스 (KCM) | agent-based (KCM) | `/api/kcm/<???>/register` | TBD | ⏳ TBD → UI fallback |
-| 5 | NMS 네트워크 | agent-based (NMS) | `/api/nms/v1/<???>` | TBD | ⏳ TBD → UI fallback |
+| 2 | 데이터베이스 (PG/MySQL/Oracle/Tibero/Cubrid/MariaDB/SQL Server) | **DB-direct** (별도 패턴) | **`/api/dpm/preregister` → `/api/dpm/register`** (단일 호출) | `resourceId` (numeric) | ✅ **확정 — [dpm-lifecycle.md](../../knowledge/polestar10/api/recipes/dpm-lifecycle.md)** |
+| 3 | APM / WPM (애플리케이션) | agent-based (service+agent 2-level) | `/api/apm/standby-agent/register` (array) | `serviceName` + `agentId` + `resourceId` | ✅ 확정 |
+| 4 | 쿠버네티스 (KCM) | agent-based (cluster 단위) | `/api/kcm/standby-clusters/register` (array) | `clusterId` (`cluster-<uuid>`) | ✅ 확정 |
+| 5 | NMS 네트워크 | **SNMP-polling** (사용자 입력 + 3-step) | `/api/nms/v1/pre/addResource` → `/api/nms/v1/addResource` | `resourceId` (24-hex) | ✅ 확정 — [nms-lifecycle.md](../../knowledge/polestar10/api/recipes/nms-lifecycle.md) |
 | 6 | Web URL | config-only | `/api/weburl/save` → `/api/weburl/register` | `weburl_<id>` | ✅ 확정 |
 | 7 | 사용자정의 (SLO/Syslog/SQL/SNMP OID) | config-only | `/api/cm/slo/register/standby` 등 | type 별 | SLO ✅ / 나머지 ⏳ TBD |
 
@@ -63,7 +63,7 @@ recipe 가 아니라 **dispatcher** — 직접 API 를 호출하지 않고, `Rea
 "알람" 키워드   → 시나리오 2 (알람 정책 추가, 공통/개별 분기)
 "그룹"/"분류"    → 시나리오 3 (서비스 그룹)
 "삭제"/"정리"    → 시나리오 4 (자원 삭제 + 재출현 가드)
-"권한"/"담당자"  → 시나리오 5 (assign-owner, TBD fallback)
+"권한"/"담당자"  → "What This Skill Does NOT Do" 안내 + UI fallback (자원 단위 owner API 미확정)
 ```
 
 각 시나리오의 dispatch flow 는 [references/](references/) 참조:
@@ -71,7 +71,6 @@ recipe 가 아니라 **dispatcher** — 직접 API 를 호출하지 않고, `Rea
 - [scenario_2_alarm_policy.md](references/scenario_2_alarm_policy.md) — 알람 정책 추가 (공통 정책 / 개별 알람 정의)
 - [scenario_3_service_group.md](references/scenario_3_service_group.md) — 서비스 그룹 신규 생성 + 자원 이동
 - [scenario_4_resource_cleanup.md](references/scenario_4_resource_cleanup.md) — 자원 삭제 + agent 재출현 가드
-- [scenario_5_assign_owner.md](references/scenario_5_assign_owner.md) — 담당자 권한 부여 (TBD fallback)
 
 ### Common interview slots
 
@@ -141,6 +140,7 @@ recipe 응답 패턴별 처리는 핸드오프 노트 §6 표를 그대로 사�
 - **메트릭 카탈로그 / severity / 도메인 dropdown 정적 보유** — 런타임에 동적 조회 (`measurement/definitions/resource-type` 등)
 - **MFA TOTP 자동화** — MFA 활성 계정은 recipe 가 중단하고 UI fallback 안내
 - **에이전트 설치/제거** — 이 스킬은 polestar10 web API 만. 에이전트 라이프사이클은 별도 sub-skill (NKIAAI-542 후속) 영역
+- **자원 단위 담당자 부여** — API 미확정 (TBD). UI 에서 진행: `전체구성 > 관리대상 > 행 선택 > 권한 패널 > 사용자/역할 추가`. 캡처 절차는 [knowledge/polestar10/api/README.md "TBD 엔드포인트 확정 절차"](../../knowledge/polestar10/api/README.md) 참조
 
 ---
 
@@ -151,6 +151,5 @@ recipe 응답 패턴별 처리는 핸드오프 노트 §6 표를 그대로 사�
 - [scenario_2_alarm_policy.md](references/scenario_2_alarm_policy.md) — 알람 정책 추가 (공통/개별)
 - [scenario_3_service_group.md](references/scenario_3_service_group.md) — 서비스 그룹 생성 + 자원 이동
 - [scenario_4_resource_cleanup.md](references/scenario_4_resource_cleanup.md) — 자원 삭제 + 재출현 가드
-- [scenario_5_assign_owner.md](references/scenario_5_assign_owner.md) — 담당자 권한 부여 (TBD fallback)
 - [knowledge/polestar10/api/README.md](../../knowledge/polestar10/api/README.md) — recipe 사용 정책, 인스턴스 목록, 핸드오프 노트
 - [knowledge/polestar10/api/endpoints.md](../../knowledge/polestar10/api/endpoints.md) — 전체 endpoint 표
