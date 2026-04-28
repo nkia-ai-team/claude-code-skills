@@ -21,7 +21,7 @@ body: {"parameter": [<id1>, <id2>, ...]}
 
 → **type 별 패턴 다름** — generic prefix rule 없음. recipe 별로 각자 확인.
 
-> **알람 cascade rule** (NKIAAI-539 Phase B 검증):
+> **알람 cascade rule**:
 > - DPM `unregister` 후 알람 정의는 **삭제되지 않고 orphan 으로 남음** (resourceId 만 끊김)
 > - 같은 `resourceId` 로 재등록 시 알람 자동 reattach
 > - 다른 `resourceId` 로 등록 시 alarm 영구 orphan
@@ -108,7 +108,7 @@ curl $POLESTAR10_CURL_OPTS -X POST --cookie "$POLESTAR10_COOKIE_JAR" \
 # → 0 이면 삭제 확인
 ```
 
-> ⚠️ **에이전트 기반 리소스 삭제 부작용**: SMS 에이전트가 여전히 살아있으면 다음 heartbeat 사이클에 자동으로 standby 에 다시 떠올라옴. 영구 제거하려면 **에이전트 자체를 stop / 제거** 도 같이 해야 함. 이 동작은 NKIAAI-539 검증 세션에서 직접 관찰됨 (109 server 삭제 → 5분 후 standby 재출현).
+> ⚠️ **에이전트 기반 리소스 삭제 부작용**: SMS 에이전트가 여전히 살아있으면 다음 heartbeat 사이클에 자동으로 standby 에 다시 떠올라옴. 영구 제거하려면 **에이전트 자체를 stop / 제거** 도 같이 해야 함. 에이전트가 살아있는 한 unregister 후에도 다음 heartbeat 사이클에 standby 로 자동 재진입.
 
 ---
 

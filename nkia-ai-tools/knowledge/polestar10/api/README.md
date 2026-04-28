@@ -2,8 +2,6 @@
 
 polestar10 내부 HTTP API 를 Bash + curl 로 호출하기 위한 지식 자산.
 
-**Linear**: [NKIAAI-539](https://linear.app/nkia/issue/NKIAAI-539)
-
 ## 구조
 
 ```
@@ -11,18 +9,18 @@ knowledge/polestar10/api/
 ├── README.md           # 이 문서
 ├── endpoints.md        # 전체 엔드포인트 스펙 (AC1)
 └── recipes/            # 조작별 bash + curl 레시피 (AC2/AC3)
-    ├── login.md                # 확정 ✅
-    ├── list-targets.md         # 확정 ✅ (weburl/list-filter, sms/hosts-filter, standby filters)
-    ├── list-groups.md          # 확정 ✅ (시스템 그룹)
-    ├── service-group-tag.md    # 확정 ✅ (서비스 그룹 = tag system)
-    ├── add-target.md           # 확정 ✅ Web URL + 서버 (DB/APM/KCM/NMS TBD)
-    ├── delete-target.md        # 확정 ✅ Web URL + 서버 (다른 타입 TBD)
-    ├── slo.md                  # 확정 ✅ SLO 2-step (register/standby → register)
-    ├── dpm-lifecycle.md        # 확정 ✅ DPM (DB) 풀 라이프사이클 + cascade rule
-    ├── nms-lifecycle.md        # 확정 ✅ NMS (SNMP) 풀 라이프사이클
-    ├── add-alert-policy.md     # 확정 ✅ 공통 + 개별 알람 정의 + 메트릭 카탈로그
-    ├── anomaly-policy.md       # 확정 ✅ 이상감지 정책 조회 (CRUD TBD)
-    └── assign-owner.md         # TBD ⏳ (담당자 권한 부여)
+    ├── login.md                # 확정
+    ├── list-targets.md         # 확정 (weburl/list-filter, sms/hosts-filter, standby filters)
+    ├── list-groups.md          # 확정 (시스템 그룹)
+    ├── service-group-tag.md    # 확정 (서비스 그룹 = tag system)
+    ├── add-target.md           # 확정 Web URL + 서버 (DB/APM/KCM/NMS TBD)
+    ├── delete-target.md        # 확정 Web URL + 서버 (다른 타입 TBD)
+    ├── slo.md                  # 확정 SLO 2-step (register/standby → register)
+    ├── dpm-lifecycle.md        # 확정 DPM (DB) 풀 라이프사이클 + cascade rule
+    ├── nms-lifecycle.md        # 확정 NMS (SNMP) 풀 라이프사이클
+    ├── add-alert-policy.md     # 확정 공통 + 개별 알람 정의 + 메트릭 카탈로그
+    ├── anomaly-policy.md       # 확정 이상감지 정책 조회 (CRUD TBD)
+    └── assign-owner.md         # TBD (담당자 권한 부여)
 ```
 
 agent-based register/unregister 풀 라이프사이클 (서버/APM/KCM) 은 [add-target.md](recipes/add-target.md), [delete-target.md](recipes/delete-target.md) 참조.
@@ -55,15 +53,6 @@ agent-based register/unregister 풀 라이프사이클 (서버/APM/KCM) 은 [add
 
 `login.md` 를 먼저 실행하면 `$POLESTAR10_COOKIE_JAR` 에 accessToken/refreshToken JWT 가 심어짐. 이후 다른 recipe 는 `--cookie` 로 이 파일을 참조해서 인증된 상태로 호출.
 
-## 탐색 도구 (마켓플레이스 외부)
-
-본 지식은 일회성 탐색 도구(Python + Playwright)를 사용해 HAR 녹화 후 분석으로 확보됨. 탐색 도구는 **이 플러그인 밖** 개인 작업 영역 `/home/sjbang/dev/polestar10-api-explore/` 에 보관 (NKIAAI-539 재설계 결정).
-
-polestar10 업그레이드 시 recipe 검증 방법:
-1. `/home/sjbang/dev/polestar10-api-explore/.venv/bin/python scripts/01_login.py` 로 재녹화
-2. HAR 에서 URL/payload 변동 확인
-3. 변동된 recipe 파일 업데이트 + PR
-
 ## TBD 엔드포인트 확정 절차
 
 write 조작의 실제 POST URL + payload 는 **크롬 DevTools** 로 확정:
@@ -78,7 +67,7 @@ write 조작의 실제 POST URL + payload 는 **크롬 DevTools** 로 확정:
 
 ## 알려진 polestar10 인스턴스
 
-오케스트레이터 스킬 (NKIAAI-542) 가 사용자에게 보여줄 dropdown 후보:
+오케스트레이터 스킬이 사용자에게 보여줄 dropdown 후보:
 
 | 라벨 | URL | 비고 |
 |---|---|---|
@@ -87,7 +76,7 @@ write 조작의 실제 POST URL + payload 는 **크롬 DevTools** 로 확정:
 
 자유 입력 시 검증 권장: `POST $url/api/account/pre-login` 으로 더미 자격증명 한 번 시도해서 200 응답 (또는 `success:false + errorCode:"INVALID_CREDENTIALS"`) 받으면 폴리스타10 인스턴스 맞음. 404 / 연결 거부 / HTML 응답이면 잘못된 URL.
 
-## 오케스트레이터 빌더용 핸드오프 노트 (NKIAAI-542)
+## 오케스트레이터 빌더용 핸드오프 노트
 
 본 recipe 들을 소비할 오케스트레이터 스킬이 알아야 할 것:
 

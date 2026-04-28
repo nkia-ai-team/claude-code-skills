@@ -168,7 +168,7 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 
 **메트릭 prefix 규칙**: `id` 는 항상 `<resourceType>_<metric>` 형식. 알람 정의의 `resourceType` 필드와 prefix 가 **반드시 일치** 해야 함. 불일치 시 detail 호출에서 NPE — UI 의 상세 drawer 안 열림.
 
-**`targetConfIds` 형식 — type 별 표** (NKIAAI-539 Phase B + APM 검증):
+**`targetConfIds` 형식 — type 별 표**:
 
 | resourceType | targetConfIds 형식 | 추출 endpoint | 비고 |
 |---|---|---|---|

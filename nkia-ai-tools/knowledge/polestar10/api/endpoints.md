@@ -179,7 +179,7 @@ polestar10 의 관리대상 등록 모델은 **3 가지** (검증 완료):
 
 > **DPM 등록 모델**: agent heartbeat 모델이 아니라 polestar10 가 DB 에 직접 접속해서 SQL 쿼리. 사용자가 등록 시점에 DB 접속 정보 입력 필요. 따라서 staging step (`save`) 없이 **`preregister` (DB 접속 검증) → `register` (활성화)** 흐름.
 
-> **알람 cascade rule (검증 완료 — Phase B)**: DPM `unregister` 후 알람 정의는 **삭제되지 않고 orphan 으로 남음**. 같은 `resourceId` 로 재등록하면 알람 자동 reattach. 다른 resourceId 로 등록 시 알람은 영구 orphan.
+> **알람 cascade rule**: DPM `unregister` 후 알람 정의는 **삭제되지 않고 orphan 으로 남음**. 같은 `resourceId` 로 재등록하면 알람 자동 reattach. 다른 resourceId 로 등록 시 알람은 영구 orphan.
 
 → [`recipes/dpm-lifecycle.md`](./recipes/dpm-lifecycle.md)
 

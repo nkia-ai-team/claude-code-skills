@@ -1,6 +1,6 @@
 ---
 name: testbed-polestar10-register
-description: polestar10 (NKIA APM/AIOps 통합 모니터링) 인스턴스에 RCA 테스트베드용 관리대상을 등록·정리·알람 설정하는 오케스트레이터. 사용자가 "polestar10에 <리소스> 등록해줘", "테스트베드 자원 묶어 올려줘", "polestar10 자원 삭제", "알람 정책 추가" 같은 요청을 하면 적절한 recipe 들을 dispatch. 세션 처음에는 ~/.polestar10rc 셋업 + 로그인을 자동 처리하고, 이후 리소스 타입(서버/DB/APM/WPM/K8s/NMS/Web URL/사용자정의)별로 register·delete·service-group·alert·anomaly recipe 를 조합해 인터뷰 흐름으로 진행. 이 스킬은 NKIAAI-542 RCA 테스트베드 자동화 오케스트레이터의 첫 sub-skill 이며, 실제 API 호출은 knowledge/polestar10/api/recipes/ 의 9개 recipe 가 담당.
+description: polestar10 (NKIA APM/AIOps 통합 모니터링) 인스턴스에 RCA 테스트베드용 관리대상을 등록·정리·알람 설정하는 오케스트레이터. 사용자가 "polestar10에 <리소스> 등록해줘", "테스트베드 자원 묶어 올려줘", "polestar10 자원 삭제", "알람 정책 추가" 같은 요청을 하면 적절한 recipe 들을 dispatch. 세션 처음에는 ~/.polestar10rc 셋업 + 로그인을 자동 처리하고, 이후 리소스 타입(서버/DB/APM/WPM/K8s/NMS/Web URL/사용자정의)별로 register·delete·service-group·alert·anomaly recipe 를 조합해 인터뷰 흐름으로 진행. 실제 API 호출은 knowledge/polestar10/api/recipes/ 의 9개 recipe 가 담당.
 ---
 
 # testbed-polestar10-register
@@ -42,13 +42,13 @@ recipe 가 아니라 **dispatcher** — 직접 API 를 호출하지 않고, `Rea
 
 | # | 라벨 | 모델 | register endpoint | 식별자 | recipe 상태 |
 |---|---|---|---|---|---|
-| 1 | 서버 (Linux/Windows) | agent-based (SMS) | `/api/sms/standby-hosts/register` | `agentId` (`MA_<host>_<ts>`) | ✅ 확정 |
-| 2 | 데이터베이스 (PG/MySQL/Oracle/Tibero/Cubrid/MariaDB/SQL Server) | **DB-direct** (별도 패턴) | **`/api/dpm/preregister` → `/api/dpm/register`** (단일 호출) | `resourceId` (numeric) | ✅ **확정 — [dpm-lifecycle.md](../../knowledge/polestar10/api/recipes/dpm-lifecycle.md)** |
-| 3 | APM / WPM (애플리케이션) | agent-based (service+agent 2-level) | `/api/apm/standby-agent/register` (array) | `serviceName` + `agentId` + `resourceId` | ✅ 확정 |
-| 4 | 쿠버네티스 (KCM) | agent-based (cluster 단위) | `/api/kcm/standby-clusters/register` (array) | `clusterId` (`cluster-<uuid>`) | ✅ 확정 |
-| 5 | NMS 네트워크 | **SNMP-polling** (사용자 입력 + 3-step) | `/api/nms/v1/pre/addResource` → `/api/nms/v1/addResource` | `resourceId` (24-hex) | ✅ 확정 — [nms-lifecycle.md](../../knowledge/polestar10/api/recipes/nms-lifecycle.md) |
-| 6 | Web URL | config-only | `/api/weburl/save` → `/api/weburl/register` | `weburl_<id>` | ✅ 확정 |
-| 7 | 사용자정의 (SLO/Syslog/SQL/SNMP OID) | config-only | `/api/cm/slo/register/standby` 등 | type 별 | SLO ✅ / 나머지 ⏳ TBD |
+| 1 | 서버 (Linux/Windows) | agent-based (SMS) | `/api/sms/standby-hosts/register` | `agentId` (`MA_<host>_<ts>`) | |
+| 2 | 데이터베이스 (PG/MySQL/Oracle/Tibero/Cubrid/MariaDB/SQL Server) | **DB-direct** (별도 패턴) | **`/api/dpm/preregister` → `/api/dpm/register`** (단일 호출) | `resourceId` (numeric) | **확정 — [dpm-lifecycle.md](../../knowledge/polestar10/api/recipes/dpm-lifecycle.md)** |
+| 3 | APM / WPM (애플리케이션) | agent-based (service+agent 2-level) | `/api/apm/standby-agent/register` (array) | `serviceName` + `agentId` + `resourceId` | |
+| 4 | 쿠버네티스 (KCM) | agent-based (cluster 단위) | `/api/kcm/standby-clusters/register` (array) | `clusterId` (`cluster-<uuid>`) | |
+| 5 | NMS 네트워크 | **SNMP-polling** (사용자 입력 + 3-step) | `/api/nms/v1/pre/addResource` → `/api/nms/v1/addResource` | `resourceId` (24-hex) | — [nms-lifecycle.md](../../knowledge/polestar10/api/recipes/nms-lifecycle.md) |
+| 6 | Web URL | config-only | `/api/weburl/save` → `/api/weburl/register` | `weburl_<id>` | |
+| 7 | 사용자정의 (SLO/Syslog/SQL/SNMP OID) | config-only | `/api/cm/slo/register/standby` 등 | type 별 | SLO / 나머지 |
 
 **TBD 타입 처리**: recipe 가 미확정인 경우 [add-target.md "다른 agent-based 타입 확정 절차"](../../knowledge/polestar10/api/recipes/add-target.md) 와 UI fallback 안내를 그대로 사용자에게 표시.
 
