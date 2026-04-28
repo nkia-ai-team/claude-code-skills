@@ -157,7 +157,7 @@ curl $POLESTAR10_CURL_OPTS -X GET \
 
 ## 알람 cascade 동작 (검증 결과)
 
-NKIAAI-539 Phase B 에서 검증:
+검증된 동작:
 
 ```
 T1: PostgreSQL 알람 4개 묶여있음 (resourceId=954854831)

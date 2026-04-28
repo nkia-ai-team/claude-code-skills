@@ -25,13 +25,13 @@ polestar10 의 모든 관리대상 등록은 **staging → register** 2단계.
 
 | Type | 모델 | staging 진입 | register | 상태 |
 |---|---|---|---|---|
-| Web URL | config-only | `/api/weburl/save` | `/api/weburl/register` | ✅ 확정 |
-| 서버 (SMS) | agent-based | heartbeat 자동 → standby | `/api/sms/standby-hosts/register` | ✅ 확정 |
-| **데이터베이스 (DPM)** | **DB-direct** | `/api/dpm/preregister` | `/api/dpm/register` 단일 호출 | ✅ [dpm-lifecycle.md](dpm-lifecycle.md) |
-| **애플리케이션 (APM/WPM)** | agent-based | heartbeat → `/api/apm/standby-agents-filter-step1` | `/api/apm/standby-agent/register` | ✅ 확정 |
-| **쿠버네티스 (KCM)** | agent-based | heartbeat → `/api/kcm/standby-clusters-filter-step1` | `/api/kcm/standby-clusters/register` | ✅ 확정 |
-| **NMS 네트워크** | **SNMP-polling** (사용자 입력 모델) | `/api/nms/v1/pre/addResource` (SNMP 검증) | `/api/nms/v1/addResource` (단일 객체) | ✅ [nms-lifecycle.md](nms-lifecycle.md) |
-| 사용자정의 (SLO/Syslog/SQL/SNMP OID) | config-only | `/api/<type>/save` 추정 | `/api/<type>/register` 추정 | SLO ✅ [slo.md](slo.md), 나머지 TBD |
+| Web URL | config-only | `/api/weburl/save` | `/api/weburl/register` | |
+| 서버 (SMS) | agent-based | heartbeat 자동 → standby | `/api/sms/standby-hosts/register` | |
+| **데이터베이스 (DPM)** | **DB-direct** | `/api/dpm/preregister` | `/api/dpm/register` 단일 호출 | [dpm-lifecycle.md](dpm-lifecycle.md) |
+| **애플리케이션 (APM/WPM)** | agent-based | heartbeat → `/api/apm/standby-agents-filter-step1` | `/api/apm/standby-agent/register` | |
+| **쿠버네티스 (KCM)** | agent-based | heartbeat → `/api/kcm/standby-clusters-filter-step1` | `/api/kcm/standby-clusters/register` | |
+| **NMS 네트워크** | **SNMP-polling** (사용자 입력 모델) | `/api/nms/v1/pre/addResource` (SNMP 검증) | `/api/nms/v1/addResource` (단일 객체) | [nms-lifecycle.md](nms-lifecycle.md) |
+| 사용자정의 (SLO/Syslog/SQL/SNMP OID) | config-only | `/api/<type>/save` 추정 | `/api/<type>/register` 추정 | SLO [slo.md](slo.md), 나머지 TBD |
 
 ### 모델 별 register body 비교
 
@@ -286,7 +286,7 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 # → {"success":true,"data":{"failedList":[]}}
 ```
 
-> APM unregister 는 service ID 로 하나의 호출 — 그 service 의 모든 agent 가 함께 제거됨. unregister 후 같은 service 가 standby 에 다시 떠올라옴 (PostgreSQL Phase B 와 동일한 orphan + auto-reattach 패턴 추정).
+> APM unregister 는 service ID 로 하나의 호출 — 그 service 의 모든 agent 가 함께 제거됨. unregister 후 같은 service 가 standby 에 다시 떠올라옴 (PostgreSQL 과 동일한 orphan + auto-reattach 패턴 추정).
 
 > URL 명명이 일관성 없음: register 는 `standby-agent/register` (단수), unregister 는 `unregisterservice` (단어 전체 한 단어).
 

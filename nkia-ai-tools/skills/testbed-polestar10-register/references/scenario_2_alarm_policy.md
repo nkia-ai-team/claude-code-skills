@@ -121,7 +121,7 @@ UI: **알람 > 정책 관리 > 개별 정책** 탭. 자원 1개에 메트릭별 
 
 1. **카탈로그 조회 먼저, 추측 금지** — metric ID·alias·units 는 절대 추론/추측해서 만들어내지 않는다. **반드시 `/api/measurement/definitions/resource-type` 응답 안에 있는 값만 사용**. 응답 객체의 `id` / `alias` / `units` / `measurementType` 4 필드를 알람 POST 본문에 **그대로 복사**.
 2. **resourceType 과 metric prefix 일치 필수** — `id` 의 prefix (`<resourceType>_<metric>`) 가 알람의 `resourceType` 과 **반드시 동일**. 불일치 시 detail 호출에서 `MeasurementDefinition.getMeasurementType()` NPE → UI drawer 안 열림.
-   - 예: `resourceType="postgresql.Database"` ↔ metric `"postgresql.Database_xxx"` ✅
+   - 예: `resourceType="postgresql.Database"` ↔ metric `"postgresql.Database_xxx"`
    - 예: `resourceType="postgresql.Database"` + metric `"postgresql.PostgreSQL_xxx"` ❌ NPE
 3. **기존 알람 metric 과 중복 회피** — `/api/alarm/alarm-definitions` 로 대상 resourceId 의 기존 알람 list 받아 사용 중 metric 제외하고 신규 metric 만 후보로.
 4. **이름 ↔ metric 일치** — 알람 이름은 metric 의 의미를 반영해야. `description` 또는 `alias` 로부터 도출. (예: metric=`Database_deadLocks` → 이름 "DeadLock 알람", "CPU 사용률 알람" 같은 mismatch 명명 금지)

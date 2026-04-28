@@ -35,7 +35,7 @@
 | **NMS** | `/api/nms/v1/deleteResource/<id>` | POST | (none, path 에 ID) | 안 함 (polling) | 추정: orphan |
 | SLO | `/api/cm/slo/delete` | POST | `{parameter:[<id>]}` | 안 함 | 즉시 같이 사라짐 |
 
-> **DPM cascade rule (NKIAAI-539 Phase B 검증)**:
+> **DPM cascade rule**:
 > - unregister 후 알람 정의는 **즉시 삭제 안 됨** — orphan 으로 남음
 > - 같은 `resourceId` 로 재등록 → 알람 자동 reattach (의도적 패턴)
 > - 다른 `resourceId` 로 등록 → alarm 영구 orphan (수동 정리 필요)
@@ -88,7 +88,7 @@
 6. agent 재출현 가드 (SMS/APM/KCM 만 해당)
    ⚠️ SMS 에이전트 / APM 에이전트 / KCM 클러스터-에이전트가 살아있으면
        다음 heartbeat 사이클 (5~10분) 안에 standby 재출현.
-       NKIAAI-539 검증 세션에서 109 server (SMS) 삭제 → 5분 후 standby 재진입 직접 관찰됨.
+       에이전트가 살아있으면 5~10분 후 자동 재진입.
    사용자에게 안내:
      a. 일시적 정리 (다시 등록할 거면) → 가드 불필요, 그대로 종료
      b. 영구 제거 (재출현 막아야 함) → 다음 중 선택:
