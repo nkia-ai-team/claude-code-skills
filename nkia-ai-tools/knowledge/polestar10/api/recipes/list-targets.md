@@ -99,6 +99,35 @@ collectorPolicyTag, tags, alarmDefCount, measurementDefCount,
 authorityInfos[], measurementLastUpdatedTime
 ```
 
+### APM/WPM agent 목록 (등록된 service 의 모든 agent + confId)
+
+```bash
+curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d '{"pageNumber":1,"pagePerSize":50,"sortFieldSets":[],"tagFilters":[]}' \
+  "$POLESTAR10_BASE_URL/api/apm/agents/list-filter"
+```
+
+응답 `content[]` 핵심 필드:
+- `agentId` (예: `"testbed-inventory-5d646bbfdf-7zbpn"`)
+- `serviceName` (소속 service, 예: `"plopvape-inventory"`)
+- **`confId`** (예: `"-516817680_apm.Agent"`) ← **알람 정의의 `targetConfIds` 에 그대로 사용**
+- `resourceId` (numeric 문자열 — service 단위)
+- `category` (`"APM"` / `"WPM"`)
+- `hostName`, `ipAddress`, `agentVersion`, `langVersion`
+- `availabilityStatus`, `managementStatus`
+- `collectorPolicyTagValue`, `serviceGroupTagValue`, `anomalyPolicyTagValue`
+
+> ⚠️ **중요**: APM/WPM 알람의 `targetConfIds` 는 **service resourceId 가 아닌 agent 별 confId** (`<hash>_apm.Agent`). 이 endpoint 가 등록된 service 의 모든 agent 의 정확한 confId 를 제공. **알람 추가 전 반드시 호출**해서 대상 agent 의 confId 를 추출.
+
+```bash
+# serviceName 별로 agent confId 모으기
+curl ... | jq '.data.content | group_by(.serviceName) | map({serviceName: .[0].serviceName, agents: map({agentId, confId, hostName})})'
+```
+
+서비스 단위 알람을 매기려면 그 service 의 모든 agent 에 각각 알람 정의 추가하거나, 가장 대표 agent 1개에 만 추가.
+
 ### 서버 목록
 
 ```bash

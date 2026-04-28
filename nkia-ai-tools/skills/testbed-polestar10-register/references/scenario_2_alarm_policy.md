@@ -129,10 +129,27 @@ UI: **알람 > 정책 관리 > 개별 정책** 탭. 자원 1개에 메트릭별 
 ### Dispatch flow
 
 ```
-1. 대상 자원 식별
-   - 사용자가 이름으로 지목 → recipes/list-targets.md 의 type 별 list-filter 로
-     resourceName / hostname 매칭해 confId 추출 + resourceId 별도 보관
-   - 매칭 실패: dropdown (top 30) 보여주고 선택받기
+1. 대상 자원 식별 + targetConfIds 추출 (type 별 dispatch)
+
+   1-A. resourceType 결정 (사용자 의도 / 기본값):
+        weburl.Weburl / server.Server / postgresql.Database / apm.Agent
+        / kcm.Pod / nms.Network / ...
+
+   1-B. type 별 confId 추출 endpoint (recipes/add-alert-policy.md "type 별 표"):
+        weburl    → /api/weburl/list-filter           content[].id (이미 prefix)
+        server    → /api/sms/hosts-filter             content[].resourceId + "_server.Server"
+        postgresql.Database → /api/dpm/postgresql/list content[].resourceId + "_postgresql.Database_" + dbName
+        apm.Agent → /api/apm/agents/list-filter       content[].confId (그대로)  ⭐ 핵심
+        kcm.Pod   → KCM Pod list                     content[].id (단순 UUID)
+        nms       → /api/nms/v1/list                  content[].resourceId
+
+   1-C. 사용자가 이름으로 지목한 경우 매칭:
+        - 위 list endpoint 결과에서 serviceName / resourceName / hostName 중 일치하는 것 선택
+        - 매칭 실패 시 dropdown (top 30) 으로 사용자 선택받기
+
+   ⚠️ APM/WPM 주의: confId 의 prefix hash 는 service resourceId 와 별개.
+      반드시 /api/apm/agents/list-filter 의 응답값을 그대로 복사.
+      추측해서 "<service-resourceId>_apm.Agent" 만들면 NPE.
 
 2. 기존 알람 metric 목록 확보 (중복 회피용)
    POST /api/alarm/alarm-definitions  (pagePerSize: 200, tagFilters: [])

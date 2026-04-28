@@ -168,19 +168,29 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 
 **메트릭 prefix 규칙**: `id` 는 항상 `<resourceType>_<metric>` 형식. 알람 정의의 `resourceType` 필드와 prefix 가 **반드시 일치** 해야 함. 불일치 시 detail 호출에서 NPE — UI 의 상세 drawer 안 열림.
 
-**`targetConfIds` 형식 — type 별 표** (NKIAAI-539 Phase B 검증):
+**`targetConfIds` 형식 — type 별 표** (NKIAAI-539 Phase B + APM 검증):
 
-| resourceType | targetConfIds 형식 | 출처 |
-|---|---|---|
-| `weburl.Weburl` | `weburl_<24-hex-id>` | weburl/list-filter 의 `content[].id` (이미 prefix 됨) |
-| `server.Server` | `<resourceId>_server.Server` | sms/hosts-filter 의 `content[].resourceId` + suffix |
-| `postgresql.Database` | `<resourceId>_postgresql.Database_<dbName>` | DPM list 의 numeric resourceId + DB 이름 |
-| `apm.Agent` | `<resourceId>_apm.Agent` | apm/services/list-filter 의 numeric resourceId |
-| `kcm.Pod` | `<pod-uuid>` (단순 UUID, prefix 없음) | KCM list 의 Pod UUID |
-| `kcm.Cluster` | `<resourceId>_kcm.Cluster` (추정) | TBD — Cluster 단위 알람 미캡처 |
-| `nms.Network` | TBD | NMS list-filter `resourceId` 추정 |
+| resourceType | targetConfIds 형식 | 추출 endpoint | 비고 |
+|---|---|---|---|
+| `weburl.Weburl` | `weburl_<24-hex-id>` | `POST /api/weburl/list-filter` `content[].id` | 이미 prefix 된 형태로 응답 |
+| `server.Server` | `<resourceId>_server.Server` | `POST /api/sms/hosts-filter` `content[].resourceId` + 뒤에 `_server.Server` 붙임 | resourceId 형식 `MA_<host>_<ts>` |
+| `postgresql.Database` | `<resourceId>_postgresql.Database_<dbName>` | DPM list `content[].resourceId` + DB 이름 (수동 조합) | numeric resourceId |
+| `postgresql.PostgreSQL` | `<resourceId>_postgresql.PostgreSQL` | 위 + `_postgresql.PostgreSQL` | 인스턴스 단위 알람 |
+| **`apm.Agent`** | **`<agent-hash>_apm.Agent`** | ⚠️ **service resourceId 아님!** 다음 endpoint 의 `confId` 필드 그대로 사용:<br>**`POST /api/apm/agents/list-filter`** `content[].confId` (등록된 agent 들)<br>또는 `POST /api/apm/standby-agents-filter-step1` `content[].confId` (등록 전) | agent 별로 hash 다름. service 안에 multiple agent 면 각 agent 마다 별도 confId |
+| `kcm.Pod` | `<pod-uuid>` (prefix 없음) | KCM list 의 Pod UUID | 단순 UUID, 다른 type 과 명명 다름 |
+| `kcm.Cluster` | `<resourceId>_kcm.Cluster` (추정) | TBD | Cluster 단위 알람 미캡처 |
+| `nms.Network` | TBD | NMS list-filter `resourceId` 추정 | TBD |
 
 → **각 type 별로 추출 규칙 다름**. 오케스트레이터가 target type 에 따라 dispatch 필요.
+
+### APM/WPM 의 confId 추출 — 시나리오별
+
+| 상황 | 추출 방법 |
+|---|---|
+| 등록된 service 의 agent | `POST /api/apm/agents/list-filter` 응답의 `content[].confId` (recipe `list-targets.md` 참조) |
+| Standby 상태 agent (등록 직전) | `POST /api/apm/standby-agents-filter-step1` 응답의 `content[].confId` |
+| 이미 알람 있는 service 의 confId | `POST /api/alarm/alarm-definitions` 응답의 `content[].confId` (해당 resourceId 필터) |
+| 추측해서 만들기 | ❌ **금지** — service resourceId × `_apm.Agent` 형식이 아님. NPE 발생 |
 
 > **참고**: 응답 필드 이름이 endpoint 별로 약간 다름. `/api/measurement/definitions/resource-type` 은 `id` 필드, `/api/alarm/options/measurementDefinition` 은 `measurementDefinitionId` 필드 — 같은 값이지만 키 이름 차이. 위 카탈로그 endpoint 사용 권장 (스키마 풍부).
 
