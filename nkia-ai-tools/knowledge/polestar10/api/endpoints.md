@@ -131,11 +131,14 @@ polestar10 의 관리대상 등록 모델은 **3 가지** (검증 완료):
 ### APM (Application Performance Monitoring) — agent-based, service+agent 2-level
 | Method | URL | body 형태 | 결과 |
 |---|---|---|---|
-| POST | `/api/apm/services/list-filter` | `{pageNumber, pagePerSize, sortFieldSets:[{fieldName:"serviceName"}], tagFilters:[], startTime, endTime, gridFilters:[]}` | service list (`serviceId`, `serviceName`, `agentCount`, `category:"APM"|"WPM"`) |
+| POST | `/api/apm/services/list-filter` | `{pageNumber, pagePerSize, sortFieldSets:[{fieldName:"serviceName"}], tagFilters:[], startTime, endTime, gridFilters:[]}` | service list (`serviceId`, `serviceName`, `agentCount`, `category:"APM"|"WPM"`, `resourceId`) — **`confId` 없음** |
+| POST | **`/api/apm/agents/list-filter`** | `{pageNumber, pagePerSize, sortFieldSets:[], tagFilters:[]}` | **등록된 agent list — `confId` 포함** (예: `"-516817680_apm.Agent"`). 알람 등록 시 `targetConfIds` 추출용 ⭐ |
 | POST | `/api/apm/standby-agents-filter-step1` | `{pageNumber, gridFilters:[], sortFieldSets:[], pagePerSize:30, arguments:{}}` | standby agent list (`serviceName`, `agentId`, `resourceId`, `confId`, `category`) |
 | POST | `/api/apm/standby-agent/count` / `/api/apm/standby-agent/new/count` | `{}` | standby 개수 |
 | POST | `/api/apm/standby-agent/register` | `[{serviceName, agentId, resourceId, category, managementStatus, collectorPolicyTagValue, anomalyPolicyTagValue, serviceGroupTagValue, groupId}, ...]` | agent 단위 일괄 등록 |
 | POST | `/api/apm/unregisterservice` | `[{serviceId, category}]` (array) | **service 단위 unregister — 그 service 의 모든 agent 함께 제거** |
+
+> **APM 알람 confId 의 진짜 정체**: agent 별 unique hash (`<hash>_apm.Agent`). service resourceId 와 다름. 추측 금지. 위 `agents/list-filter` (등록 후) 또는 `standby-agents-filter-step1` (등록 전) 응답의 `confId` 필드를 **그대로 복사**.
 
 > APM 의 특이점: **register 는 agent 단위 array, unregister 는 service 단위**. URL 명명도 일관성 없음 (`standby-agent/register` 단수 vs `unregisterservice` 한 단어).
 
