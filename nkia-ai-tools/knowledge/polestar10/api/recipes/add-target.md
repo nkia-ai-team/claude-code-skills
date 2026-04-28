@@ -23,15 +23,17 @@ polestar10 의 모든 관리대상 등록은 **staging → register** 2단계.
 
 ## 리소스 타입별 레시피 현황
 
-| Type | 모델 | save | register | 상태 |
+| Type | 모델 | save / staging 진입 | register | 상태 |
 |---|---|---|---|---|
 | Web URL | config-only | `/api/weburl/save` | `/api/weburl/register` | ✅ 확정 |
-| **서버** | agent-based (SMS) | (heartbeat 자동) | `/api/sms/standby-hosts/register` | ✅ **확정** |
-| 데이터베이스 | agent-based (DPM) | (heartbeat) | `/api/dpm/preregister/*` 추정 | ⏳ TBD |
+| **서버** | agent-based (SMS) | (heartbeat 자동) | `/api/sms/standby-hosts/register` | ✅ 확정 |
+| **데이터베이스 (DPM)** | **DB-direct** (별도 패턴) | `/api/dpm/preregister` (DB 접속 입력) | **`/api/dpm/register` 단일 호출** | ✅ **확정 — [dpm-lifecycle.md](dpm-lifecycle.md) 참조** |
 | 애플리케이션 | agent-based (APM) | (heartbeat) | `/api/apm/standby-agent/*` 추정 | ⏳ TBD |
 | 쿠버네티스 | agent-based (KCM) | (heartbeat) | `/api/kcm/standby-clusters-*` 추정 | ⏳ TBD |
 | NMS 네트워크 | agent-based (NMS) | (heartbeat) | `/api/nms/v1/*` 추정 | ⏳ TBD |
-| 사용자정의 (SLO/Syslog/SQL/SNMP OID) | config-only | `/api/<type>/save` 추정 | `/api/<type>/register` 추정 | ⏳ TBD |
+| 사용자정의 (SLO/Syslog/SQL/SNMP OID) | config-only | `/api/<type>/save` 추정 | `/api/<type>/register` 추정 | ⏳ TBD (SLO 만 [slo.md](slo.md) 확정) |
+
+> **DPM 은 다른 type 들과 다른 모델 (DB-direct)**: agent heartbeat 가 아닌 polestar10 가 직접 DB 에 SQL 쿼리. 따라서 staging 단계에 사용자가 DB 접속 정보 입력 필요. 라이프사이클 전체는 [dpm-lifecycle.md](dpm-lifecycle.md) 별도 recipe 참조.
 
 ---
 

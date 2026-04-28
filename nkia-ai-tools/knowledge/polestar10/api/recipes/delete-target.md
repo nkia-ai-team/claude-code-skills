@@ -9,13 +9,22 @@ body: {"parameter": [<id1>, <id2>, ...]}
 
 식별자 형식:
 
-| Type | identifier 형식 | 출처 |
-|---|---|---|
-| Web URL | `weburl_<bare-mongo-id>` | save 응답 `data.id` 에 prefix 붙여 사용. list-filter `content[].id` 도 이미 prefix 붙은 형태 |
-| **서버** | **`MA_<hostname>_<timestamp>`** (그대로) | hosts-filter `content[].resourceId` 또는 SMS 에이전트 자체의 agent ID. **추가 prefix 없음** |
-| (다른 타입) | TBD | 캡처 후 확정 |
+| Type | URL | Method | identifier 형식 / body | 비고 |
+|---|---|---|---|---|
+| Web URL | `/api/weburl/delete` | POST | `{parameter:["weburl_<id>"]}` | save 응답 `data.id` 에 prefix |
+| 서버 (SMS) | `/api/sms/hosts/delete` | POST | `{parameter:["MA_<hostname>_<timestamp>"]}` | hosts-filter `content[].resourceId` 그대로 |
+| **DPM (DB)** | **`/api/dpm/unregister/<resourceId>`** | **GET** | path 에 ID, body 없음 | 별도 패턴 — [dpm-lifecycle.md](dpm-lifecycle.md) |
+| APM | `/api/apm/<???>/delete` | TBD | TBD | 추후 캡처 |
+| KCM | `/api/kcm/<???>/delete` | TBD | TBD | 추후 캡처 |
+| NMS | `/api/nms/<???>/delete` | TBD | TBD | 추후 캡처 |
 
-→ **모든 type 이 `<type>_<id>` 패턴은 아님** — agent-based 는 agent ID 자체를 사용.
+→ **type 별 패턴 다름** — generic prefix rule 없음. recipe 별로 각자 확인.
+
+> **알람 cascade rule** (NKIAAI-539 Phase B 검증):
+> - DPM `unregister` 후 알람 정의는 **삭제되지 않고 orphan 으로 남음** (resourceId 만 끊김)
+> - 같은 `resourceId` 로 재등록 시 알람 자동 reattach
+> - 다른 `resourceId` 로 등록 시 alarm 영구 orphan
+> - 다른 type 의 cascade 동작은 미검증 (TBD)
 
 ---
 

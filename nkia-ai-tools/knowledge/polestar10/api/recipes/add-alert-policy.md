@@ -168,6 +168,20 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 
 **메트릭 prefix 규칙**: `id` 는 항상 `<resourceType>_<metric>` 형식. 알람 정의의 `resourceType` 필드와 prefix 가 **반드시 일치** 해야 함. 불일치 시 detail 호출에서 NPE — UI 의 상세 drawer 안 열림.
 
+**`targetConfIds` 형식 — type 별 표** (NKIAAI-539 Phase B 검증):
+
+| resourceType | targetConfIds 형식 | 출처 |
+|---|---|---|
+| `weburl.Weburl` | `weburl_<24-hex-id>` | weburl/list-filter 의 `content[].id` (이미 prefix 됨) |
+| `server.Server` | `<resourceId>_server.Server` | sms/hosts-filter 의 `content[].resourceId` + suffix |
+| `postgresql.Database` | `<resourceId>_postgresql.Database_<dbName>` | DPM list 의 numeric resourceId + DB 이름 |
+| `apm.Agent` | `<resourceId>_apm.Agent` | apm/services/list-filter 의 numeric resourceId |
+| `kcm.Pod` | `<pod-uuid>` (단순 UUID, prefix 없음) | KCM list 의 Pod UUID |
+| `kcm.Cluster` | `<resourceId>_kcm.Cluster` (추정) | TBD — Cluster 단위 알람 미캡처 |
+| `nms.Network` | TBD | NMS list-filter `resourceId` 추정 |
+
+→ **각 type 별로 추출 규칙 다름**. 오케스트레이터가 target type 에 따라 dispatch 필요.
+
 > **참고**: 응답 필드 이름이 endpoint 별로 약간 다름. `/api/measurement/definitions/resource-type` 은 `id` 필드, `/api/alarm/options/measurementDefinition` 은 `measurementDefinitionId` 필드 — 같은 값이지만 키 이름 차이. 위 카탈로그 endpoint 사용 권장 (스키마 풍부).
 
 자주 쓰일 resourceType 별 메트릭 카운트 참고:
