@@ -1,0 +1,21 @@
+---
+- name: Apply firewall rules (no-op if disabled)
+  ansible.builtin.include_tasks: firewall.yml
+  tags: [firewall]
+
+- name: Install / configure Docker
+  ansible.builtin.include_tasks: docker.yml
+  tags: [docker]
+
+- name: Install K3s (single-node)
+  ansible.builtin.include_tasks: k3s.yml
+  tags: [k3s]
+
+- name: Install metrics-server with --kubelet-insecure-tls
+  ansible.builtin.include_tasks: metrics-server.yml
+  tags: [metrics-server]
+
+- name: Install Go toolchain (ARM only — needed for KCM source build)
+  ansible.builtin.include_tasks: go-toolchain.yml
+  when: target_arch == 'arm64'
+  tags: [go]

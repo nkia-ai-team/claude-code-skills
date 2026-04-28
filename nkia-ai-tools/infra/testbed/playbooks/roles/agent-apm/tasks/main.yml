@@ -1,0 +1,29 @@
+---
+- name: Install APM agent (URL configured)
+  when:
+    - apm_enabled | default(true)
+    - apm_agent_url | length > 0
+  block:
+    - name: Ensure APM install dir
+      ansible.builtin.file:
+        path: "{{ agent_install_root }}/apm"
+        state: directory
+        mode: '0755'
+
+    - name: Download APM agent jar
+      ansible.builtin.get_url:
+        url: "{{ apm_agent_url }}"
+        dest: "{{ agent_install_root }}/apm/agent.jar"
+        mode: '0644'
+
+- name: APM skip notice (URL empty)
+  ansible.builtin.debug:
+    msg: "APM agent skipped — apm_agent_url is empty. Set in group_vars/all.yml once polestar-agents-binaries asset is published."
+  when:
+    - apm_enabled | default(true)
+    - apm_agent_url | length == 0
+
+- name: APM disabled notice
+  ansible.builtin.debug:
+    msg: "APM agent disabled (apm_enabled=false)"
+  when: not (apm_enabled | default(true))

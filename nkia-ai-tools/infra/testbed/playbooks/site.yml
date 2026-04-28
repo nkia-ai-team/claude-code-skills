@@ -1,0 +1,31 @@
+---
+- name: RCA Testbed bootstrap — common stack + agents + service
+  hosts: testbed
+  become: true
+  gather_facts: true
+  vars:
+    target_arch: "{{ 'arm64' if ansible_architecture in ['aarch64', 'arm64'] else 'amd64' }}"
+  pre_tasks:
+    - name: Echo target architecture
+      ansible.builtin.debug:
+        msg: "Target arch: {{ target_arch }} (ansible_architecture={{ ansible_architecture }}, os={{ ansible_distribution }} {{ ansible_distribution_version }})"
+  # Role order rationale:
+  #   1. common — Docker / K3s / metrics-server / firewall / Go (ARM)
+  #   2. agent-wpm, agent-apm — JVM agent jars must exist on host BEFORE service-k8s mounts them
+  #   3. service-k8s — Spring boot + DB; mounts wpm/apm jars via hostPath
+  #   4. agent-kcm — DaemonSet over the running K3s cluster
+  #   5. agent-sms — host-level systemd; independent of K3s
+  # SoT 10-step view orders agents AFTER service deploy. Implementation order differs for technical reasons (mount sequencing).
+  roles:
+    - role: common
+      tags: [common]
+    - role: agent-wpm
+      tags: [agents, wpm]
+    - role: agent-apm
+      tags: [agents, apm]
+    - role: service-k8s
+      tags: [service]
+    - role: agent-kcm
+      tags: [agents, kcm]
+    - role: agent-sms
+      tags: [agents, sms]

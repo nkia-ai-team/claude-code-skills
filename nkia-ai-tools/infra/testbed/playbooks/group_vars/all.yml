@@ -1,0 +1,66 @@
+---
+# Polestar10 collector endpoints — 테스트베드는 104 collector 사용
+polestar10_collector_host: "192.168.230.104"
+polestar10_wpm_collector_port: 20070
+polestar10_apm_collector_port: 20060
+polestar10_kcm_collector_port: 20040
+polestar10_sms_collector_port: 20020
+
+# K3s 설치 옵션
+k3s_version: "v1.32.5+k3s1"
+k3s_install_args: "--disable=traefik --kubelet-arg=anonymous-auth=false --write-kubeconfig-mode=644"
+metrics_server_version: "v0.7.2"
+
+# Go toolchain (ARM KCM 소스 빌드 시에만 설치)
+go_version: "1.22.5"
+go_install_dir: "/usr/local/go"
+
+# 서비스 배포 기본값 (사용자가 inventory 에서 override 가능)
+app_namespace: "testbed-app"
+db_engine: "postgres"
+db_version: "16"
+db_storage: "5Gi"
+db_name: "appdb"
+db_user: "appuser"
+db_password: "apppass"
+app_repo: ""
+app_version: "main"
+app_image_tag: "testbed-app:latest"
+app_nodeport: 30080
+app_health_path: "/actuator/health"
+
+# 에이전트 활성화 플래그 (테스트베드는 6종 고정 스택이라 모두 true 가 기본)
+wpm_enabled: true
+apm_enabled: true
+kcm_enabled: true
+sms_enabled: true
+
+# 에이전트 버전 (polestar-agents-binaries Releases 자산 확정 후 override)
+wpm_agent_version: "TBD"
+apm_agent_version: "TBD"
+kcm_agent_version: "TBD"
+sms_agent_version: "TBD"
+
+# WPM/APM 자산 URL — polestar-agents-binaries Releases 에서 받음
+wpm_agent_url: ""
+apm_agent_url: ""
+
+# KCM AMD64 자산 URL (이미지 tar). ARM 은 source build 라 URL 불필요
+kcm_image_url_amd64: ""
+
+# SMS 자산 URL (AMD64 tarball — ARM 은 동일 AMD 바이너리를 qemu-user-static 으로 실행)
+sms_agent_url: ""
+# SMS 는 호스트 systemd 에 이미 깔려 있을 가능성이 높아 사전 감지 후 skip 이 기본.
+# 강제 재설치하려면 inventory 또는 --extra-vars 로 sms_force_reinstall=true.
+sms_force_reinstall: false
+
+# 에이전트 호스트 설치 경로
+agent_install_root: "/opt/polestar10"
+
+# KCM ARM 소스 빌드 (target-source-build 방식)
+kcm_source_repo: "https://cims2.nkia.net:8443/gitlab/lucida-kcmagent"
+kcm_source_branch: "main"
+kcm_image_name: "polestar10-kcm"
+
+# SMS 설치 경로
+sms_install_dir: "/opt/polestar10/sms"

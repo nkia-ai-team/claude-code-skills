@@ -1,0 +1,14 @@
+[Unit]
+Description=Polestar10 SMS Agent
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory={{ sms_install_dir }}
+ExecStart={{ sms_install_dir }}/sms-agent --config {{ sms_install_dir }}/agent-config.yaml
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

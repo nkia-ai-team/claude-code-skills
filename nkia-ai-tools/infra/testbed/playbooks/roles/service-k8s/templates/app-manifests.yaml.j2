@@ -1,0 +1,109 @@
+---
+{# Mount + javaagent only when agent jar URL is also configured (jar exists on host). #}
+{% set wpm_active = (wpm_enabled | default(false)) and ((wpm_agent_url | default('')) | length > 0) %}
+{% set apm_active = (apm_enabled | default(false)) and ((apm_agent_url | default('')) | length > 0) %}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  namespace: {{ app_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: app
+          image: {{ app_image_tag }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://db.{{ app_namespace }}.svc.cluster.local:5432/{{ db_name }}"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: POSTGRES_PASSWORD
+{% set _java_opts = [] %}
+{% if wpm_active %}{% set _ = _java_opts.append('-javaagent:/agents/wpm/agent.jar') %}{% endif %}
+{% if apm_active %}{% set _ = _java_opts.append('-javaagent:/agents/apm/agent.jar') %}{% endif %}
+            - name: JAVA_TOOL_OPTIONS
+              value: "{{ _java_opts | join(' ') }}"
+{% if wpm_active %}
+            - name: WPM_COLLECTOR_HOST
+              value: "{{ polestar10_collector_host }}"
+            - name: WPM_COLLECTOR_PORT
+              value: "{{ polestar10_wpm_collector_port }}"
+{% endif %}
+{% if apm_active %}
+            - name: APM_COLLECTOR_HOST
+              value: "{{ polestar10_collector_host }}"
+            - name: APM_COLLECTOR_PORT
+              value: "{{ polestar10_apm_collector_port }}"
+{% endif %}
+{% if wpm_active or apm_active %}
+          volumeMounts:
+{% if wpm_active %}
+            - name: wpm-agent
+              mountPath: /agents/wpm
+              readOnly: true
+{% endif %}
+{% if apm_active %}
+            - name: apm-agent
+              mountPath: /agents/apm
+              readOnly: true
+{% endif %}
+{% endif %}
+          readinessProbe:
+            httpGet:
+              path: {{ app_health_path }}
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: {{ app_health_path }}
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+{% if wpm_active or apm_active %}
+      volumes:
+{% if wpm_active %}
+        - name: wpm-agent
+          hostPath:
+            path: {{ agent_install_root }}/wpm
+            type: Directory
+{% endif %}
+{% if apm_active %}
+        - name: apm-agent
+          hostPath:
+            path: {{ agent_install_root }}/apm
+            type: Directory
+{% endif %}
+{% endif %}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+  namespace: {{ app_namespace }}
+spec:
+  type: NodePort
+  selector:
+    app: app
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: {{ app_nodeport }}

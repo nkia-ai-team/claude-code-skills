@@ -1,0 +1,108 @@
+---
+- name: KCM disabled notice
+  ansible.builtin.debug:
+    msg: "KCM agent disabled (kcm_enabled=false)"
+  when: not (kcm_enabled | default(true))
+
+- name: AMD64 — load prebuilt KCM image
+  when:
+    - kcm_enabled | default(true)
+    - target_arch == 'amd64'
+    - kcm_image_url_amd64 | length > 0
+  block:
+    - name: Download KCM image tarball
+      ansible.builtin.get_url:
+        url: "{{ kcm_image_url_amd64 }}"
+        dest: /tmp/kcm-amd64.tar
+        mode: '0644'
+
+    - name: Import KCM image into K3s containerd
+      ansible.builtin.command: /usr/local/bin/k3s ctr -n k8s.io images import /tmp/kcm-amd64.tar
+      register: kcm_import_amd
+      changed_when: "'unpacked' in kcm_import_amd.stderr or 'unpacked' in kcm_import_amd.stdout"
+
+- name: ARM64 — build KCM from source (lucida-kcmagent)
+  when:
+    - kcm_enabled | default(true)
+    - target_arch == 'arm64'
+  block:
+    - name: Ensure source dir
+      ansible.builtin.file:
+        path: /opt/lucida-kcmagent
+        state: directory
+        mode: '0755'
+
+    - name: Clone lucida-kcmagent (사내 GitLab — credentials may be required)
+      ansible.builtin.git:
+        repo: "{{ kcm_source_repo }}"
+        dest: /opt/lucida-kcmagent
+        version: "{{ kcm_source_branch }}"
+        force: false
+      register: kcm_clone
+
+    - name: Build kcm-agent binary (Go) on target
+      ansible.builtin.command: /usr/local/bin/go build -o build/kcm-agent ./cmd/agent
+      args:
+        chdir: /opt/lucida-kcmagent
+        creates: /opt/lucida-kcmagent/build/kcm-agent
+
+    - name: Build container image
+      ansible.builtin.command: docker build -t {{ kcm_image_name }}:{{ kcm_agent_version }}-arm64 .
+      args:
+        chdir: /opt/lucida-kcmagent
+      register: kcm_build_arm
+      changed_when: "'writing image' in kcm_build_arm.stderr or 'Successfully built' in kcm_build_arm.stdout"
+      when: kcm_clone.changed or (force_rebuild | default(false))
+
+    - name: Import KCM ARM image into K3s containerd
+      ansible.builtin.shell: |
+        set -o pipefail
+        docker save {{ kcm_image_name }}:{{ kcm_agent_version }}-arm64 \
+          | /usr/local/bin/k3s ctr -n k8s.io images import -
+      args:
+        executable: /bin/bash
+      register: kcm_import_arm
+      changed_when: "'unpacked' in kcm_import_arm.stderr or 'unpacked' in kcm_import_arm.stdout"
+      when: kcm_clone.changed or (force_rebuild | default(false))
+
+- name: AMD64 KCM URL not configured — skip apply
+  ansible.builtin.debug:
+    msg: "kcm_image_url_amd64 empty — KCM AMD apply skipped. Set in group_vars/all.yml once polestar-agents-binaries asset is published."
+  when:
+    - kcm_enabled | default(true)
+    - target_arch == 'amd64'
+    - kcm_image_url_amd64 | length == 0
+
+- name: Check KCM image present in containerd
+  ansible.builtin.shell: |
+    /usr/local/bin/k3s ctr -n k8s.io images ls -q | grep -q "{{ kcm_image_name }}"
+  register: kcm_image_present
+  changed_when: false
+  failed_when: false
+
+- name: Apply KCM RBAC + DaemonSet
+  when:
+    - kcm_enabled | default(true)
+    - kcm_image_present.rc == 0
+  block:
+    - name: Render KCM RBAC manifest
+      ansible.builtin.template:
+        src: kcm-rbac.yaml.j2
+        dest: /tmp/kcm-rbac.yaml
+        mode: '0644'
+
+    - name: Render KCM DaemonSet manifest
+      ansible.builtin.template:
+        src: kcm-daemonset.yaml.j2
+        dest: /tmp/kcm-daemonset.yaml
+        mode: '0644'
+
+    - name: Apply KCM manifests
+      ansible.builtin.command: >
+        /usr/local/bin/k3s kubectl apply -f /tmp/kcm-rbac.yaml -f /tmp/kcm-daemonset.yaml
+      register: kcm_apply
+      changed_when: "'configured' in kcm_apply.stdout or 'created' in kcm_apply.stdout"
+
+    - name: Wait for KCM DaemonSet rollout
+      ansible.builtin.command: /usr/local/bin/k3s kubectl -n kcm rollout status ds/kcm-agent --timeout=300s
+      changed_when: false

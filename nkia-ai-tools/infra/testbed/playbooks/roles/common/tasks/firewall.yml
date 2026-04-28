@@ -1,0 +1,49 @@
+---
+# 방화벽이 비활성 상태면 그대로 둠 (사용자 환경 존중). 활성 상태일 때만 K3s 포트 추가.
+
+- name: Detect ufw status (Debian family)
+  ansible.builtin.command: ufw status
+  register: ufw_status
+  changed_when: false
+  failed_when: false
+  when: ansible_os_family == 'Debian'
+
+- name: Open K3s ports via ufw
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+  loop:
+    - { port: '6443', proto: tcp }            # K3s API
+    - { port: '10250', proto: tcp }           # kubelet
+    - { port: '8472', proto: udp }            # Flannel VXLAN
+    - { port: '51820', proto: udp }           # WireGuard (옵션)
+    - { port: '51821', proto: udp }
+    - { port: '30000:32767', proto: tcp }     # NodePort range
+  when:
+    - ansible_os_family == 'Debian'
+    - "'Status: active' in (ufw_status.stdout | default(''))"
+
+- name: Detect firewalld status (RHEL family)
+  ansible.builtin.command: systemctl is-active firewalld
+  register: firewalld_status
+  changed_when: false
+  failed_when: false
+  when: ansible_os_family in ['RedHat', 'Rocky']
+
+- name: Open K3s ports via firewalld
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - "6443/tcp"
+    - "10250/tcp"
+    - "8472/udp"
+    - "51820/udp"
+    - "51821/udp"
+    - "30000-32767/tcp"
+  when:
+    - ansible_os_family in ['RedHat', 'Rocky']
+    - firewalld_status.rc == 0

@@ -1,0 +1,18 @@
+---
+- name: Render DB manifest ({{ db_engine }})
+  ansible.builtin.template:
+    src: "{{ db_engine }}-manifests.yaml.j2"
+    dest: "/tmp/db-{{ db_engine }}.yaml"
+    mode: '0644'
+
+- name: Apply DB manifest
+  ansible.builtin.command: >
+    /usr/local/bin/k3s kubectl apply -f /tmp/db-{{ db_engine }}.yaml
+  register: db_apply
+  changed_when: "'configured' in db_apply.stdout or 'created' in db_apply.stdout"
+
+- name: Wait for DB pod readiness
+  ansible.builtin.command: >
+    /usr/local/bin/k3s kubectl wait --for=condition=Ready
+    pod -l app=db -n {{ app_namespace }} --timeout=300s
+  changed_when: false

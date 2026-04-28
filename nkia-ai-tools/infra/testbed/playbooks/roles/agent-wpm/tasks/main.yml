@@ -1,0 +1,29 @@
+---
+- name: Install WPM agent (URL configured)
+  when:
+    - wpm_enabled | default(true)
+    - wpm_agent_url | length > 0
+  block:
+    - name: Ensure WPM install dir
+      ansible.builtin.file:
+        path: "{{ agent_install_root }}/wpm"
+        state: directory
+        mode: '0755'
+
+    - name: Download WPM agent jar
+      ansible.builtin.get_url:
+        url: "{{ wpm_agent_url }}"
+        dest: "{{ agent_install_root }}/wpm/agent.jar"
+        mode: '0644'
+
+- name: WPM skip notice (URL empty)
+  ansible.builtin.debug:
+    msg: "WPM agent skipped — wpm_agent_url is empty. Set in group_vars/all.yml once polestar-agents-binaries asset is published."
+  when:
+    - wpm_enabled | default(true)
+    - wpm_agent_url | length == 0
+
+- name: WPM disabled notice
+  ansible.builtin.debug:
+    msg: "WPM agent disabled (wpm_enabled=false)"
+  when: not (wpm_enabled | default(true))

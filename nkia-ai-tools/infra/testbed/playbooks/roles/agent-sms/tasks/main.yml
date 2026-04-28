@@ -1,0 +1,112 @@
+---
+- name: SMS disabled notice
+  ansible.builtin.debug:
+    msg: "SMS agent disabled (sms_enabled=false)"
+  when: not (sms_enabled | default(true))
+
+# install-spec.yaml 의 detection_command 와 동등.
+# 호스트 모니터링용 SMS 는 다른 모니터링 시스템 또는 이전 자동화로 이미 깔려 있을 가능성 높음.
+# 다른 3 에이전트 (WPM/APM/KCM) 는 본 playbook 이 만든 새 namespace 안에서만 동작하므로 격리됨.
+- name: Detect existing SMS agent (host-level systemd / process)
+  ansible.builtin.shell: |
+    set +e
+    PROC=$(pgrep -af sms-agent | grep -v grep | head -1)
+    SVC=$(systemctl is-active sms-agent 2>/dev/null)
+    if [ -n "$PROC" ] || [ "$SVC" = "active" ]; then
+      echo "FOUND proc='$PROC' service='$SVC'"
+      exit 0
+    fi
+    exit 1
+  register: sms_existing
+  changed_when: false
+  failed_when: false
+
+- name: SMS already installed — skip install (set sms_force_reinstall=true to override)
+  ansible.builtin.debug:
+    msg: >
+      SMS agent already present on host — install skipped (멱등성 보장).
+      Detection: {{ (sms_existing.stdout | default('')) | trim }}
+  when:
+    - sms_enabled | default(true)
+    - sms_existing.rc == 0
+    - not (sms_force_reinstall | default(false))
+
+- name: ARM only — install qemu-user-static + binfmt-support
+  ansible.builtin.apt:
+    name: [qemu-user-static, binfmt-support]
+    state: present
+    update_cache: true
+  when:
+    - sms_enabled | default(true)
+    - target_arch == 'arm64'
+    - ansible_os_family == 'Debian'
+    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
+
+- name: ARM only — verify binfmt registration
+  ansible.builtin.command: ls /proc/sys/fs/binfmt_misc/
+  register: binfmt_ls
+  changed_when: false
+  when:
+    - sms_enabled | default(true)
+    - target_arch == 'arm64'
+    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
+  failed_when:
+    - sms_enabled | default(true)
+    - target_arch == 'arm64'
+    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
+    - "'qemu-x86_64' not in (binfmt_ls.stdout | default(''))"
+    - "'qemu-amd64' not in (binfmt_ls.stdout | default(''))"
+
+- name: Install SMS agent (URL configured + not already present, or force_reinstall)
+  when:
+    - sms_enabled | default(true)
+    - sms_agent_url | length > 0
+    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
+  block:
+    - name: Ensure SMS install dir
+      ansible.builtin.file:
+        path: "{{ sms_install_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Download SMS tarball
+      ansible.builtin.get_url:
+        url: "{{ sms_agent_url }}"
+        dest: /tmp/sms-agent.tar.gz
+        mode: '0644'
+
+    - name: Extract SMS tarball
+      ansible.builtin.unarchive:
+        src: /tmp/sms-agent.tar.gz
+        dest: "{{ sms_install_dir }}"
+        remote_src: true
+        creates: "{{ sms_install_dir }}/sms-agent"
+
+    - name: Render SMS config
+      ansible.builtin.template:
+        src: sms-config.yaml.j2
+        dest: "{{ sms_install_dir }}/agent-config.yaml"
+        mode: '0644'
+      notify: restart sms-agent
+
+    - name: Render SMS systemd unit
+      ansible.builtin.template:
+        src: sms-agent.service.j2
+        dest: /etc/systemd/system/sms-agent.service
+        mode: '0644'
+      notify: restart sms-agent
+
+    - name: Enable + start SMS agent
+      ansible.builtin.systemd:
+        name: sms-agent
+        enabled: true
+        state: started
+        daemon_reload: true
+
+- name: SMS skip notice (URL empty + not installed)
+  ansible.builtin.debug:
+    msg: "SMS agent skipped — sms_agent_url is empty. Set in group_vars/all.yml once polestar-agents-binaries asset is published."
+  when:
+    - sms_enabled | default(true)
+    - sms_agent_url | length == 0
+    - sms_existing.rc != 0

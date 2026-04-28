@@ -7,11 +7,13 @@ arch_support:
     method: native
     asset_url: "TBD"
   arm64:
-    method: cross-build
-    asset_url: "TBD (cross-built on amd64 host via docker buildx --platform=linux/arm64)"
+    method: target-source-build
+    source_repo: "https://cims2.nkia.net:8443/gitlab/lucida-kcmagent"
+    asset_url: "N/A (built from source on the target host — no prebuilt binary)"
 detection_command: "kubectl get ds -A -o name 2>/dev/null | grep -i kcm || echo 'no kcm DaemonSet'"
 prerequisites:
   - "Kubernetes cluster with kubectl access"
   - "metrics-server installed (K3s ships without it; add --kubelet-insecure-tls)"
-  - "Container image available for target arch (AMD64 native, ARM64 cross-build)"
+  - "Container image available for target arch (AMD64: native; ARM64: built on target from lucida-kcmagent source)"
+  - "ARM64 only: gcc and Go 1.22+ on the target host (source build adds ~10–15 min)"
   - "RBAC for nodes/proxy, pods, services (get/list/watch)"

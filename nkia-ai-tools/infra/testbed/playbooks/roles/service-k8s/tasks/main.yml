@@ -1,0 +1,28 @@
+---
+- name: Validate db_engine
+  ansible.builtin.assert:
+    that:
+      - db_engine in ['postgres', 'mysql', 'mariadb', 'cubrid', 'tibero']
+    fail_msg: "db_engine must be one of postgres, mysql, mariadb, cubrid, tibero (got: {{ db_engine }})"
+
+- name: Validate db_engine implementation status (Phase 1 = postgres only)
+  ansible.builtin.assert:
+    that:
+      - db_engine in implemented_db_engines
+    fail_msg: "db_engine '{{ db_engine }}' declared but not yet implemented. Implemented: {{ implemented_db_engines | join(', ') }}. Other engines tracked under NKIAAI-540 Phase 2/3."
+  vars:
+    implemented_db_engines: ['postgres']
+
+- name: Ensure app namespace exists
+  ansible.builtin.shell: |
+    /usr/local/bin/k3s kubectl create namespace {{ app_namespace }} \
+      --dry-run=client -o yaml | /usr/local/bin/k3s kubectl apply -f -
+  register: ns_apply
+  changed_when: "'created' in ns_apply.stdout"
+
+- name: Deploy DB
+  ansible.builtin.include_tasks: db.yml
+
+- name: Deploy application (skip if app_repo empty)
+  ansible.builtin.include_tasks: app.yml
+  when: app_repo | length > 0
