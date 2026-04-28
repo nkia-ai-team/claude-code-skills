@@ -29,17 +29,21 @@ DevTools HAR 캡처 + curl 검증으로 확인한 polestar10 내부 API 명세.
 
 ## 관리대상 등록 모델
 
-polestar10 의 관리대상 등록 모델은 **3 가지** (검증 완료):
+polestar10 의 관리대상 등록 모델은 **4 가지** (검증 완료):
 
 | 모델 | 적용 type | staging 진입 | register | 식별자 필드 (register body) |
 |---|---|---|---|---|
 | **Config-only** | Web URL, SLO, Syslog, SQL, SNMP OID, 연계 시스템 등 | `POST /api/<type>/save` (사용자 UI 폼) | `POST /api/<type>/register` (array body) | `id` (save 응답의 mongo id) |
-| **Agent-based** | 서버 (SMS), APM, KCM, NMS | 에이전트 heartbeat 자동 → standby 자동 출현 | `POST /api/<service>/standby-*/register` (array body) | `agentId` (에이전트 자체 ID) |
+| **Agent-based** | 서버 (SMS), APM, KCM | 에이전트 heartbeat 자동 → standby 자동 출현 | `POST /api/<service>/standby-*/register` (array body) | `agentId` / `clusterId` (에이전트 자체 ID) |
 | **DB-direct** | DPM (postgresql/oracle/mysql/mariadb/sqlserver/cubrid/tibero) | `POST /api/dpm/preregister` (DB 접속 정보 입력 + 검증) | `POST /api/dpm/register` (단일 객체 body) | `resourceId` (numeric 문자열, polestar10 자동 부여) |
+| **SNMP-polling** | NMS (network 장비) | `POST /api/nms/v1/pre/addResource` (SNMP 검증 + 자동 staging) | `POST /api/nms/v1/addResource` (단일 객체 body) | `resourceId` (24-hex Mongo ID) |
+
+> NMS 는 agent heartbeat 모델이 **아니라** polestar10 가 SNMP 로 직접 polling. 사용자가 IP/community/version 입력 → polestar10 가 SNMP 쿼리로 systemName/description 자동 채움.
 
 **delete 패턴도 모델 별로 다름**:
 - Config-only / Agent-based: `POST /api/<service>/<entity>/delete` body `{parameter:[...]}`
 - **DPM**: **`GET /api/dpm/unregister/<resourceId>`** (GET method, body 없음)
+- **NMS**: `POST /api/nms/v1/deleteResource/<resourceId>` (path 에 ID, body 없음)
 
 **식별자 (delete body / 알람 confId) 형식 — type 별 표**:
 
@@ -272,42 +276,30 @@ CRUD (생성/수정/삭제) 는 본 캡처에서 미확인. 시스템 default �
 
 ## TBD — 후속 캡처 필요
 
-### Agent-based 다른 타입 (Issue 4 진행 후)
+DPM/APM/KCM/NMS 의 register/list 는 위 섹션에서 모두 확정 완료. 아래 항목만 미캡처.
+
+### NMS 확장 (Trap / Custom SNMP OID / Custom Script)
 
 ```
-POST /api/dpm/preregister/list                ← HAR 에 관찰됨 (GET? POST?)
-POST /api/dpm/preregister/dbtypes             ← 관찰됨
-POST /api/dpm/preregister/error-count         ← 관찰됨
-POST /api/dpm/<???>/register                  ← TBD
-
-POST /api/apm/standby-agent/count             ← 관찰됨
-POST /api/apm/standby-agent/new/count         ← 관찰됨
-POST /api/apm/<???>/register                  ← TBD
-
-POST /api/kcm/standby-clusters-filter-step1   ← 관찰됨
-POST /api/kcm/<???>/register                  ← TBD
-
-POST /api/nms/v1/pre/list                     ← 관찰됨
-POST /api/nms/v1/<???>                        ← TBD register
-POST /api/nms/trap/v1/pre/list                ← 관찰됨
-POST /api/nms/v1/custom/snmpoid/pre/list      ← 관찰됨
-POST /api/nms/v1/custom/script/pre/list       ← 관찰됨
+POST /api/nms/trap/v1/pre/list                ← 관찰됨, full lifecycle TBD
+POST /api/nms/v1/custom/snmpoid/pre/list      ← 관찰됨, full lifecycle TBD
+POST /api/nms/v1/custom/script/pre/list       ← 관찰됨, full lifecycle TBD
 ```
 
-### Config-only 다른 타입
+### Config-only 사용자 정의 타입
 
 ```
-POST /api/syslog/v1/pre/list                  ← 관찰됨
-POST /api/sms/custom-script/pre-list-filter   ← 관찰됨
-POST /api/dpm/custom/sql/prelist              ← 관찰됨
-POST /api/cm/slo/list-filter                  ← 관찰됨
-POST /api/rulechain/integration-systems/count ← 관찰됨
+POST /api/syslog/v1/pre/list                  ← 관찰됨, save+register TBD
+POST /api/sms/custom-script/pre-list-filter   ← 관찰됨, save+register TBD
+POST /api/dpm/custom/sql/prelist              ← 관찰됨, save+register TBD
+POST /api/rulechain/integration-systems/count ← 관찰됨, full lifecycle TBD
 ```
 
-### 그 외
+### 그 외 미확정
 
-- 알람 정책 등록 (개별 정책 + 정책 그룹)
-- 사용자 정의 항목 (Trap/Syslog/SQL/SNMP OID/Script/SLO) save+register
+- `alarm-definition/update` body 형태 (POST URL 만 관찰)
+- anomaly-policies CRUD (조회만 확정, 생성/수정/삭제 TBD)
+- alarm 정책 그룹 / 권한 부여 endpoint
 
 ---
 
@@ -322,3 +314,7 @@ POST /api/rulechain/integration-systems/count ← 관찰됨
 5. **register 필드 이름 type 별 차이**: WebURL `dataPolicy`/`tag` ↔ 서버 `collectorPolicyTagValue`/`serviceGroupTagValue` (값은 같은 의미).
 6. **시스템 그룹 vs 서비스 그룹은 별개 entity**: `groupId` (정수) vs `serviceGroupTagValue` (문자열 tag).
 7. **Agent-based 삭제는 영구적이지 않음**: 에이전트 살아있으면 다음 heartbeat 에 standby 재진입.
+8. **시간 단위 endpoint 별 혼재** — sec(epoch) vs ms(epoch) 가 섞여있어 cross-recipe 응용 시 주의:
+   - **sec** (epoch sec): SLO `setting.startDate` (`$(date +%s)`)
+   - **ms** (epoch ms): NMS addResource `searchTime` (`(now | floor * 1000)`), DPM `searchTime`, list 응답의 `ctime`/`createdAt`/`updatedAt`/`timestamp`
+   - 단위 변환: ms → sec 는 `/ 1000`, 반대는 `* 1000`. recipe 안에서는 일관됐으나 다른 endpoint 로 응용 시 변환 필요.

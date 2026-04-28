@@ -55,27 +55,37 @@ curl -sk -X POST \
 
 ## Step 3 — 자격증명 인터뷰 + rc 작성
 
-```
-POLESTAR10_USER (계정):
-POLESTAR10_PASS (비밀번호, 화면에 표시되지 않음):
+사용자에게 다음 prompt 표시 (비밀번호는 `read -rs` 로 화면 노출 방지):
+
+```bash
+read -rp "POLESTAR10_USER (계정): " USER_VAR
+read -rsp "POLESTAR10_PASS (비밀번호, 화면에 표시되지 않음): " PASS
+echo
 ```
 
 > 비밀번호는 **평문** 으로 받음. recipe 의 login 단계에서 sha512 해싱.
-> 입력 시 가능하면 stty -echo 또는 read -s 로 화면 노출 방지.
+> `read -rs` 가 echo 차단해서 화면에 안 보임. `-r` 로 backslash 도 literal 처리.
 
-`~/.polestar10rc` 작성 (Bash 툴):
+`~/.polestar10rc` 작성 — **placeholder 치환 패턴** (Bash 툴):
+
+> ⚠️ heredoc 안의 `__URL__` / `__USER__` / `__PASS__` 는 **placeholder**. quoted heredoc (`<<'EOF'`) 으로 안전하게 작성한 뒤 `sed` 로 치환. 비밀번호에 `$` / backtick 같은 셸 메타문자가 있어도 안전.
 
 ```bash
 umask 077
 cat > ~/.polestar10rc <<'EOF'
 # polestar10 session env — managed by testbed-polestar10-register skill
-export POLESTAR10_BASE_URL="<URL>"
-export POLESTAR10_USER="<USER>"
-export POLESTAR10_PASS="<PASS>"
+export POLESTAR10_BASE_URL="__URL__"
+export POLESTAR10_USER="__USER__"
+export POLESTAR10_PASS="__PASS__"
 export POLESTAR10_COOKIE_JAR="$HOME/.polestar10.cookies"
 export POLESTAR10_CURL_OPTS="-sk"
 EOF
+
+# placeholder 치환 — 구분자에 % 사용 (URL 의 / 와 충돌 회피)
+sed -i "s%__URL__%${URL}%; s%__USER__%${USER_VAR}%; s%__PASS__%${PASS}%" ~/.polestar10rc
+
 chmod 600 ~/.polestar10rc
+unset PASS  # 메모리에서 비밀번호 즉시 제거
 ```
 
 > 보안 정책: rc 파일 권장하지만 사용자가 거부하면 세션 한정 env 만으로 진행 가능. 재로그인 때마다 자격증명 재입력 trade-off (handoff note §1).
