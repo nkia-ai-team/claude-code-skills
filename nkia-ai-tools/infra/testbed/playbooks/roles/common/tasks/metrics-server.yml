@@ -7,6 +7,10 @@
     url: "https://github.com/kubernetes-sigs/metrics-server/releases/download/{{ metrics_server_version }}/components.yaml"
     dest: /tmp/metrics-server-upstream.yaml
     mode: '0644'
+  register: ms_dl
+  retries: 5
+  delay: 10
+  until: ms_dl is succeeded
 
 - name: Check whether metrics-server YAML already patched
   ansible.builtin.command: grep -q -- '--kubelet-insecure-tls' /tmp/metrics-server-upstream.yaml

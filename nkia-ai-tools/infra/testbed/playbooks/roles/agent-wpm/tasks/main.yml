@@ -15,6 +15,10 @@
         url: "{{ wpm_agent_url }}"
         dest: "{{ agent_install_root }}/wpm/agent.jar"
         mode: '0644'
+      register: wpm_dl
+      retries: 5
+      delay: 10
+      until: wpm_dl is succeeded
 
 - name: WPM skip notice (URL empty)
   ansible.builtin.debug:

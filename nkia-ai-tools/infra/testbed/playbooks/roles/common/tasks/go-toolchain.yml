@@ -17,6 +17,10 @@
     url: "https://go.dev/dl/go{{ go_version }}.linux-arm64.tar.gz"
     dest: /tmp/go-{{ go_version }}-arm64.tar.gz
     mode: '0644'
+  register: go_dl
+  retries: 5
+  delay: 10
+  until: go_dl is succeeded
   when: go_install_needed
 
 - name: Remove previous Go install dir

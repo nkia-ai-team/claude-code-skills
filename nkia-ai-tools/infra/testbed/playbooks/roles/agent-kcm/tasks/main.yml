@@ -15,6 +15,10 @@
         url: "{{ kcm_image_url_amd64 }}"
         dest: /tmp/kcm-amd64.tar
         mode: '0644'
+      register: kcm_dl
+      retries: 5
+      delay: 10
+      until: kcm_dl is succeeded
 
     - name: Import KCM image into K3s containerd
       ansible.builtin.command: /usr/local/bin/k3s ctr -n k8s.io images import /tmp/kcm-amd64.tar

@@ -10,6 +10,10 @@
     url: https://get.k3s.io
     dest: /tmp/k3s-install.sh
     mode: '0755'
+  register: k3s_dl
+  retries: 5
+  delay: 10
+  until: k3s_dl is succeeded
   when: k3s_status.stdout != 'active'
 
 - name: Install K3s

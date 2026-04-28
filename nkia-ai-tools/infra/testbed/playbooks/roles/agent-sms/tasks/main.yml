@@ -74,6 +74,10 @@
         url: "{{ sms_agent_url }}"
         dest: /tmp/sms-agent.tar.gz
         mode: '0644'
+      register: sms_dl
+      retries: 5
+      delay: 10
+      until: sms_dl is succeeded
 
     - name: Extract SMS tarball
       ansible.builtin.unarchive:

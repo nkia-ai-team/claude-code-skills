@@ -15,6 +15,10 @@
         url: "{{ apm_agent_url }}"
         dest: "{{ agent_install_root }}/apm/agent.jar"
         mode: '0644'
+      register: apm_dl
+      retries: 5
+      delay: 10
+      until: apm_dl is succeeded
 
 - name: APM skip notice (URL empty)
   ansible.builtin.debug:
