@@ -27,7 +27,7 @@ agent-based register/unregister 풀 라이프사이클 (서버/APM/KCM) 은 [add
 
 ## 사용 대상
 
-- **Claude Code 스킬** (예: NKIAAI-542 오케스트레이터의 `testbed-polestar10-register`) 이 `Read` 툴로 recipe 파일을 읽고 `Bash` 툴로 그대로 실행
+- **Claude Code 스킬** (예: `testbed-polestar10-register` 등 오케스트레이터 스킬) 이 `Read` 툴로 recipe 파일을 읽고 `Bash` 툴로 그대로 실행
 - **팀원이 수동으로** polestar10 API 를 호출하고 싶을 때 복사-붙여넣기
 
 ## 런타임 의존성
