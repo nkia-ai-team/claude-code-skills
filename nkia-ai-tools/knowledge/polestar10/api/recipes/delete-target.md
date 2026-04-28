@@ -13,10 +13,11 @@ body: {"parameter": [<id1>, <id2>, ...]}
 |---|---|---|---|---|
 | Web URL | `/api/weburl/delete` | POST | `{parameter:["weburl_<id>"]}` | save 응답 `data.id` 에 prefix |
 | 서버 (SMS) | `/api/sms/hosts/delete` | POST | `{parameter:["MA_<hostname>_<timestamp>"]}` | hosts-filter `content[].resourceId` 그대로 |
-| **DPM (DB)** | **`/api/dpm/unregister/<resourceId>`** | **GET** | path 에 ID, body 없음 | 별도 패턴 — [dpm-lifecycle.md](dpm-lifecycle.md) |
-| APM | `/api/apm/<???>/delete` | TBD | TBD | 추후 캡처 |
-| KCM | `/api/kcm/<???>/delete` | TBD | TBD | 추후 캡처 |
-| NMS | `/api/nms/<???>/delete` | TBD | TBD | 추후 캡처 |
+| **DPM (DB)** | **`/api/dpm/unregister/<resourceId>`** | **GET** | path 에 ID, body 없음 | [dpm-lifecycle.md](dpm-lifecycle.md) |
+| **APM** | `/api/apm/unregisterservice` | POST | `[{serviceId:"...", category:"APM"|"WPM"}]` (array) | service 단위 (모든 agent 동시 제거) |
+| **KCM** | `/api/kcm/standby-clusters/unregister` | POST | `{clusterId:"..."}` (단일 객체) | clusterId 사용 |
+| **NMS** | `/api/nms/v1/deleteResource/<resourceId>` | POST | (none, path 에 ID) | DPM 비슷 — body 없음 |
+| (다른 사용자정의 타입) | TBD | TBD | TBD | 추후 캡처 |
 
 → **type 별 패턴 다름** — generic prefix rule 없음. recipe 별로 각자 확인.
 

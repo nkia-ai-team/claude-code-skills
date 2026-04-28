@@ -23,17 +23,34 @@ polestar10 의 모든 관리대상 등록은 **staging → register** 2단계.
 
 ## 리소스 타입별 레시피 현황
 
-| Type | 모델 | save / staging 진입 | register | 상태 |
+| Type | 모델 | staging 진입 | register | 상태 |
 |---|---|---|---|---|
 | Web URL | config-only | `/api/weburl/save` | `/api/weburl/register` | ✅ 확정 |
-| **서버** | agent-based (SMS) | (heartbeat 자동) | `/api/sms/standby-hosts/register` | ✅ 확정 |
-| **데이터베이스 (DPM)** | **DB-direct** (별도 패턴) | `/api/dpm/preregister` (DB 접속 입력) | **`/api/dpm/register` 단일 호출** | ✅ **확정 — [dpm-lifecycle.md](dpm-lifecycle.md) 참조** |
-| 애플리케이션 | agent-based (APM) | (heartbeat) | `/api/apm/standby-agent/*` 추정 | ⏳ TBD |
-| 쿠버네티스 | agent-based (KCM) | (heartbeat) | `/api/kcm/standby-clusters-*` 추정 | ⏳ TBD |
-| NMS 네트워크 | agent-based (NMS) | (heartbeat) | `/api/nms/v1/*` 추정 | ⏳ TBD |
-| 사용자정의 (SLO/Syslog/SQL/SNMP OID) | config-only | `/api/<type>/save` 추정 | `/api/<type>/register` 추정 | ⏳ TBD (SLO 만 [slo.md](slo.md) 확정) |
+| 서버 (SMS) | agent-based | heartbeat 자동 → standby | `/api/sms/standby-hosts/register` | ✅ 확정 |
+| **데이터베이스 (DPM)** | **DB-direct** | `/api/dpm/preregister` | `/api/dpm/register` 단일 호출 | ✅ [dpm-lifecycle.md](dpm-lifecycle.md) |
+| **애플리케이션 (APM/WPM)** | agent-based | heartbeat → `/api/apm/standby-agents-filter-step1` | `/api/apm/standby-agent/register` | ✅ 확정 |
+| **쿠버네티스 (KCM)** | agent-based | heartbeat → `/api/kcm/standby-clusters-filter-step1` | `/api/kcm/standby-clusters/register` | ✅ 확정 |
+| **NMS 네트워크** | **SNMP-polling** (사용자 입력 모델) | `/api/nms/v1/pre/addResource` (SNMP 검증) | `/api/nms/v1/addResource` (단일 객체) | ✅ [nms-lifecycle.md](nms-lifecycle.md) |
+| 사용자정의 (SLO/Syslog/SQL/SNMP OID) | config-only | `/api/<type>/save` 추정 | `/api/<type>/register` 추정 | SLO ✅ [slo.md](slo.md), 나머지 TBD |
 
-> **DPM 은 다른 type 들과 다른 모델 (DB-direct)**: agent heartbeat 가 아닌 polestar10 가 직접 DB 에 SQL 쿼리. 따라서 staging 단계에 사용자가 DB 접속 정보 입력 필요. 라이프사이클 전체는 [dpm-lifecycle.md](dpm-lifecycle.md) 별도 recipe 참조.
+### 모델 별 register body 비교
+
+```bash
+# Web URL (config-only)
+[{ id, dataPolicy, tag, anomalyPolicyTagValue, groupId }]
+
+# SMS server (agent-based)
+[{ agentId, managementStatus, collectorPolicyTagValue, serviceGroupTagValue, anomalyPolicyTagValue, groupId }]
+
+# DPM (DB-direct, 단일 객체)
+{ resourceType, hostName, port, dbName, userName, passwd, resourceId, managementStatus, ... }
+
+# APM (agent-based, agent 단위 array)
+[{ serviceName, agentId, resourceId, collectorPolicyTagValue, anomalyPolicyTagValue, serviceGroupTagValue, managementStatus, category:"APM"|"WPM", groupId }]
+
+# KCM (agent-based, cluster 단위)
+[{ clusterId, collectorPolicyTagValue, serviceGroupTagValue, managementStatus, anomalyPolicyTagValue, groupId }]
+```
 
 ---
 
@@ -159,26 +176,125 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 
 ---
 
-## 다른 agent-based 타입 확정 절차 (DB/APM/KCM/NMS)
+## 확정 레시피 3: KCM 클러스터 등록 (agent-based)
 
-지금 확정된 패턴 일반화 가능한 가설:
+### Step 1 — standby 확인
 
-```
-POST /api/dpm/preregister/list   (이미 HAR 에 관찰됨)
-POST /api/dpm/preregister/<???>  (= register, 패턴 추정)
-
-POST /api/apm/standby-agent/count          (관찰됨)
-POST /api/apm/standby-agent/new/count      (관찰됨)
-POST /api/apm/standby-agent/<???>/register (= register, 패턴 추정)
-
-POST /api/kcm/standby-clusters-filter-step1  (관찰됨)
-POST /api/kcm/standby-clusters/<???>/register (= register, 패턴 추정)
-
-POST /api/nms/v1/pre/list   (관찰됨)
-POST /api/nms/v1/<???>      (= register, 패턴 추정)
+```bash
+curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d '{"pageNumber":1,"gridFilters":[],"sortFieldSets":[],"pagePerSize":30}' \
+  "$POLESTAR10_BASE_URL/api/kcm/standby-clusters-filter-step1"
 ```
 
-각 타입의 register 본문 정확 확정은 해당 타입 에이전트 설치 후 DevTools 캡처 필요.
+응답 `content[]`: `clusterId` (= resourceId), `clusterName`, `clusterVersion`, `agentVersion`, `registeredStatus:"READY"`
+
+### Step 2 — 등록
+
+```bash
+CLUSTER_ID="cluster-<uuid>"   # standby 응답에서 추출
+
+curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d "$(jq -cn --arg cid "$CLUSTER_ID" \
+      '[{
+        clusterId: $cid,
+        managementStatus: "MANAGED",
+        collectorPolicyTagValue: "defaultPolicy",
+        serviceGroupTagValue: "RCA-Testbed",
+        anomalyPolicyTagValue: "성능 이상감지 기본 정책",
+        groupId: 1
+      }]')" \
+  "$POLESTAR10_BASE_URL/api/kcm/standby-clusters/register"
+# → {"success":true,"data":{"registrationSucceedClusters":["..."],"registrationFailedClusters":[]}}
+```
+
+### Unregister
+
+```bash
+curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d "$(jq -cn --arg cid "$CLUSTER_ID" '{clusterId:$cid}')" \
+  "$POLESTAR10_BASE_URL/api/kcm/standby-clusters/unregister"
+# → {"success":true,"data":{"clusterName":"...","ipAddress":null,"agentVersion":"..."}}
+```
+
+> KCM unregister 는 SMS hosts/delete 와 다른 패턴: body 가 `{clusterId:"..."}` 단일 객체.
+
+---
+
+## 확정 레시피 4: APM 애플리케이션 등록 (agent-based, service+agent 2-level)
+
+> APM 은 다른 type 과 한 가지 다름: **service 단위로 다수 agent 가 묶여 등록**.
+> 한 service (예: plopvape-shop) 안에 여러 agent (각 인스턴스/Pod) 가 있고, register 시 array body 로 모든 agent 동시 등록.
+
+### Step 1 — standby 확인
+
+```bash
+curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d '{"pageNumber":1,"gridFilters":[],"sortFieldSets":[],"pagePerSize":30,"arguments":{}}' \
+  "$POLESTAR10_BASE_URL/api/apm/standby-agents-filter-step1"
+```
+
+응답 `content[]` 핵심:
+- `serviceName` (예: `"plopvape-shop"`)
+- `agentId` (예: `"plopvape-inventory"`)
+- `resourceId` (numeric 문자열)
+- `confId` (예: `"261692996_apm.Agent"`)
+- `category` (`"APM"` 또는 `"WPM"`)
+- `agentTarget`, `agentVersion`, `langVersion` 등
+
+### Step 2 — 등록 (한 service 의 모든 agent 일괄)
+
+```bash
+# standby 응답에서 같은 serviceName 의 agent 들을 모은 array 로 register
+curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d '[
+    {
+      "serviceName": "plopvape-shop",
+      "agentId": "plopvape-inventory",
+      "resourceId": "<resourceId from standby>",
+      "category": "APM",
+      "managementStatus": "MANAGED",
+      "collectorPolicyTagValue": "defaultPolicy",
+      "anomalyPolicyTagValue": "성능 이상감지 기본 정책",
+      "serviceGroupTagValue": "RCA-Testbed",
+      "groupId": 1
+    },
+    { "serviceName": "plopvape-shop", "agentId": "plopvape-order", ... },
+    { "serviceName": "plopvape-shop", "agentId": "plopvape-payment", ... }
+  ]' \
+  "$POLESTAR10_BASE_URL/api/apm/standby-agent/register"
+# → {"success":true,"data":{"failedList":[]}}
+```
+
+### Unregister (service 단위)
+
+```bash
+curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d '[{"serviceId":"plopvape-shop","category":"APM"}]' \
+  "$POLESTAR10_BASE_URL/api/apm/unregisterservice"
+# → {"success":true,"data":{"failedList":[]}}
+```
+
+> APM unregister 는 service ID 로 하나의 호출 — 그 service 의 모든 agent 가 함께 제거됨. unregister 후 같은 service 가 standby 에 다시 떠올라옴 (PostgreSQL Phase B 와 동일한 orphan + auto-reattach 패턴 추정).
+
+> URL 명명이 일관성 없음: register 는 `standby-agent/register` (단수), unregister 는 `unregisterservice` (단어 전체 한 단어).
+
+---
+
+## 다른 agent-based 타입 (남은 — NMS)
+
+NMS 는 **SNMP polling 모델 — agent heartbeat 가 없음**. 따라서 standby 가 자동으로 채워지지 않음. 사용자가 SNMP 정보 (IP, community, version) 를 직접 입력해서 등록. register endpoint 는 캡처 진행 중 (별도 캡처 세션 필요).
 
 ---
 

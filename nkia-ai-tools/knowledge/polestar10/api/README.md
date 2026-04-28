@@ -19,12 +19,13 @@ knowledge/polestar10/api/
     ├── delete-target.md        # 확정 ✅ Web URL + 서버 (다른 타입 TBD)
     ├── slo.md                  # 확정 ✅ SLO 2-step (register/standby → register)
     ├── dpm-lifecycle.md        # 확정 ✅ DPM (DB) 풀 라이프사이클 + cascade rule
+    ├── nms-lifecycle.md        # 확정 ✅ NMS (SNMP) 풀 라이프사이클
     ├── add-alert-policy.md     # 확정 ✅ 공통 + 개별 알람 정의 + 메트릭 카탈로그
     ├── anomaly-policy.md       # 확정 ✅ 이상감지 정책 조회 (CRUD TBD)
-    ├── assign-owner.md         # TBD ⏳
-    ├── register-nms.md         # TBD ⏳ (NMS register endpoint)
-    └── register-apm-kcm.md     # TBD ⏳ (APM/KCM register endpoints)
+    └── assign-owner.md         # TBD ⏳ (담당자 권한 부여)
 ```
+
+agent-based register/unregister 풀 라이프사이클 (서버/APM/KCM) 은 [add-target.md](recipes/add-target.md), [delete-target.md](recipes/delete-target.md) 참조.
 
 ## 사용 대상
 
