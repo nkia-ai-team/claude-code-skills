@@ -1,0 +1,17 @@
+agent: sms
+versions:
+  - version: "TBD"
+    release_date: "TBD"
+arch_support:
+  amd64:
+    method: native
+    asset_url: "TBD"
+  arm64:
+    method: qemu-emulation
+    asset_url: "TBD (amd64 binary run under qemu-user-static on arm64 host)"
+detection_command: "pgrep -af sms-agent || systemctl status sms-agent --no-pager 2>/dev/null | head -n 5"
+prerequisites:
+  - "Linux host with systemd (or Windows with Services Manager)"
+  - "Outbound TCP connectivity to the SMS collector"
+  - "For ARM64: apt install qemu-user-static binfmt-support"
+  - "Write access to /opt/polestar10/sms/ and a systemd unit directory"
