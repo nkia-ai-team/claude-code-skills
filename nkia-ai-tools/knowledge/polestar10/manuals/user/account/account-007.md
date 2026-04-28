@@ -5,6 +5,7 @@ admin_required: false
 original_title: "로그인"
 category: account
 menu_path_verified: false
+is_menu: false
 ---
 로그인
 

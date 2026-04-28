@@ -5,6 +5,7 @@ admin_required: false
 original_title: "AskLucida"
 category: alert
 menu_path_verified: false
+is_menu: false
 ---
 Ask Lucida
 

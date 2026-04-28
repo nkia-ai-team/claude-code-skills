@@ -5,6 +5,7 @@ admin_required: true
 original_title: "부록"
 category: agent-install
 menu_path_verified: false
+is_menu: false
 ---
 부록
 
