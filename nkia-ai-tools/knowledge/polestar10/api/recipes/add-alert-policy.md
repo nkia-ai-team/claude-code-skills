@@ -126,72 +126,136 @@ curl $POLESTAR10_CURL_OPTS -X POST \
   "$POLESTAR10_BASE_URL/api/alarm/alarm-definitions"
 ```
 
+### 메트릭 카탈로그 조회 (필수 — 알람 추가 전 선행)
+
+알람 정의를 추가하려면 정확한 `measurementDefinitionId` 와 `units` 가 필요. **반드시 먼저 카탈로그 조회**:
+
+```bash
+RES_TYPE="postgresql.Database"   # 알람 대상 resourceType (정확히 일치해야 함)
+
+curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d "$(jq -cn --arg rt "$RES_TYPE" '{parameter:{resourceType:$rt}}')" \
+  "$POLESTAR10_BASE_URL/api/measurement/definitions/resource-type"
+```
+
+응답 (예: postgresql.Database 30개):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "postgresql.Database_LockCount",
+      "name": "LockCount",
+      "displayKey": "dpm.lock_count",
+      "alias": "LC",
+      "description": "데이터베이스 Lock 수",
+      "resourceType": "postgresql.Database",
+      "category": "postgresql.Database",
+      "units": "COUNT",
+      "measurementType": "METRIC",
+      "numericType": "DYNAMIC",
+      "osType": "ALL"
+    },
+    { "id": "postgresql.Database_sessionCount", "alias": "SC", "units": "COUNT", ... },
+    { "id": "postgresql.Database_bufferHitRatio", "alias": "BR", "units": "PERCENTAGE", ... }
+  ]
+}
+```
+
+> **알람 추가 시 활용**: 메트릭 응답의 `id`, `alias`, `units`, `measurementType` 4개 필드가 그대로 알람 정의의 `measurementDefinitionId`, `measurementAlias`, condition.`units`, `measurementType` 로 들어감. 즉 **메트릭 정의 1개 조회로 알람 정의 필수 메타 자동 채울 수 있음**.
+
+**메트릭 prefix 규칙**: `id` 는 항상 `<resourceType>_<metric>` 형식. 알람 정의의 `resourceType` 필드와 prefix 가 **반드시 일치** 해야 함. 불일치 시 detail 호출에서 NPE — UI 의 상세 drawer 안 열림.
+
+> **참고**: 응답 필드 이름이 endpoint 별로 약간 다름. `/api/measurement/definitions/resource-type` 은 `id` 필드, `/api/alarm/options/measurementDefinition` 은 `measurementDefinitionId` 필드 — 같은 값이지만 키 이름 차이. 위 카탈로그 endpoint 사용 권장 (스키마 풍부).
+
+자주 쓰일 resourceType 별 메트릭 카운트 참고:
+
+| resourceType | 메트릭 수 | 단위 예 |
+|---|---|---|
+| `postgresql.Database` | 30 | COUNT, PERCENTAGE |
+| `postgresql.PostgreSQL` | 28 | (DB 자체) |
+| `weburl.Weburl` | 9 | MILLISECONDS, BOOLEAN |
+| `server.Server` | 15 | PERCENTAGE, COUNT, BYTES |
+| `server.LogMonitor` | 8 | (사용자 정의 LOG) |
+| `server.ProcessMonitor` | 15 | (사용자 정의 프로세스) |
+| `apm.Agent` | 48 | MILLISECONDS, COUNT, ... |
+| `kcm.Pod` | 39 | (Pod 단위) |
+| `kcm.Cluster` | 39 | (Cluster 전체) |
+| `kcm.Container` | 15 | |
+| `kcm.Node` | 32 | |
+| `mysql.MySQL` | 30 | |
+| `oracle.Oracle` | 26 | |
+| `tibero.Tibero` | 26 | |
+
+→ DB 류는 `<vendor>.<Vendor>` (인스턴스) vs `<vendor>.Database` (DB 단위) 두 layer 가 존재. 알람은 **Database 단위에 거는 게 일반적**.
+
 ### 추가 (`POST /api/alarm/alarm-definition`)
 
 > ⚠️ URL 이 단수 `alarm-definition` (POST 자체가 add). list 는 복수 `alarm-definitions`. 헷갈리지 말 것.
 
-```bash
-TARGET_CONF_ID="weburl_xxxxxxxxxxxxxxxxxxxxxxxx"   # weburl/list-filter 등에서 가져옴
-METRIC_ID="weburl.Weburl_Total"                     # measurement/definitions 에서 조회
+> ⚠️ **POST body 에 누락하면 detail 호출 시 NPE 발생 (UI drawer 안 열림)**:
+> - top-level: `measurementType`, `measurementAlias`, `activeAlarmPolicy`, `maxAlarmsPerMin`
+> - 각 condition: `measurementType`, `conditionText`, `units` (메트릭의 units 와 일치)
+> - 메트릭 prefix 가 `resourceType` prefix 와 일치해야 함
 
+기존 polestar10 알람을 그대로 본떠 만든 검증된 payload (PostgreSQL Lock 수 알람):
+
+```bash
+# 1) 메트릭 카탈로그에서 단위(units) + displayKey 조회 (위 절차)
+METRIC_ID="postgresql.Database_LockCount"
+METRIC_UNITS="COUNT"
+RES_TYPE="postgresql.Database"
+
+# 2) 대상 conf id (alarm-definitions list 의 기존 항목 confId 와 동일 형식)
+TARGET_CONF_ID="954854831_postgresql.Database_plopvape"
+
+# 3) POST body 풀 스키마
 curl $POLESTAR10_CURL_OPTS -X POST \
   --cookie "$POLESTAR10_COOKIE_JAR" \
   -H 'Content-Type: application/json' \
   -d "$(jq -cn \
       --arg conf "$TARGET_CONF_ID" \
       --arg metric "$METRIC_ID" \
+      --arg units "$METRIC_UNITS" \
+      --arg rt "$RES_TYPE" \
       '{
+        # target
         targetConfIds: [$conf],
-        name: "네이버 응답시간 임계치",
-        description: "네이버 HTTP 응답시간 4-step 임계치",
+        # 메타
+        name: "plopvape DB Lock 수 알람",
+        description: "DB lock 건수 4-step 임계치",
         enabled: true,
-        resourceType: "weburl.Weburl",
-        alarmMessageTemplate: "${resourceId} 응답시간 알람",
-        alarmTimeout: 10,
+        resourceType: $rt,
+        # 메시지 + 타임아웃
+        alarmMessageTemplate: "${resourceName} ${defaultConditionLog}",
+        alarmTimeout: 3,
         timeoutSeverity: "LEVEL1",
+        # 메트릭 — 누락하면 NPE
         measurementDefinitionId: $metric,
-        maxAlarmsPerMin: null,
+        measurementType: "METRIC",
+        measurementAlias: "LC",
+        activeAlarmPolicy: "LAST_ONE",
+        maxAlarmsPerMin: 10,
+        # 4-step conditions
         conditions: [
-          {
-            type: "THRESHOLD",
-            alarmSeverity: "LEVEL1",
-            measurementDefinitionId: $metric,
-            operator: "LESS_THAN",
-            numericThreshold: 500,
-            units: "MILLISECONDS",
-            dampeningType: "NONE",
-            byAi: false
-          },
-          {
-            type: "THRESHOLD",
-            alarmSeverity: "LEVEL2",
-            measurementDefinitionId: $metric,
-            operator: "GREATER_THAN_OR_EQUAL",
-            numericThreshold: 500,
-            units: "MILLISECONDS",
-            dampeningType: "NONE",
-            byAi: false
-          },
-          {
-            type: "THRESHOLD",
-            alarmSeverity: "LEVEL3",
-            measurementDefinitionId: $metric,
-            operator: "GREATER_THAN_OR_EQUAL",
-            numericThreshold: 1000,
-            units: "MILLISECONDS",
-            dampeningType: "NONE",
-            byAi: false
-          },
-          {
-            type: "THRESHOLD",
-            alarmSeverity: "LEVEL4",
-            measurementDefinitionId: $metric,
-            operator: "GREATER_THAN_OR_EQUAL",
-            numericThreshold: 1100,
-            units: "MILLISECONDS",
-            dampeningType: "NONE",
-            byAi: false
-          }
+          { type:"THRESHOLD", alarmSeverity:"LEVEL1", measurementDefinitionId:$metric,
+            measurementType:"METRIC", operator:"LESS_THAN", numericThreshold:12,
+            conditionText:"Lock 수 < 12", units:$units,
+            dampeningType:"NONE", byAi:false },
+          { type:"THRESHOLD", alarmSeverity:"LEVEL2", measurementDefinitionId:$metric,
+            measurementType:"METRIC", operator:"GREATER_THAN_OR_EQUAL", numericThreshold:12,
+            conditionText:"Lock 수 >= 12", units:$units,
+            dampeningType:"NONE", byAi:false },
+          { type:"THRESHOLD", alarmSeverity:"LEVEL3", measurementDefinitionId:$metric,
+            measurementType:"METRIC", operator:"GREATER_THAN_OR_EQUAL", numericThreshold:20,
+            conditionText:"Lock 수 >= 20", units:$units,
+            dampeningType:"NONE", byAi:false },
+          { type:"THRESHOLD", alarmSeverity:"LEVEL4", measurementDefinitionId:$metric,
+            measurementType:"METRIC", operator:"GREATER_THAN_OR_EQUAL", numericThreshold:40,
+            conditionText:"Lock 수 >= 40", units:$units,
+            dampeningType:"NONE", byAi:false }
         ],
         alarmNotifications: [],
         triggerActions: []
@@ -200,18 +264,41 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 # → {"success":true,"data":<numeric-affected-count>}
 ```
 
-**조건 (`conditions[]`) 필드**:
+**Top-level 필드** (모두 누락 시 NPE 위험):
 | 필드 | 설명 | 값 예 |
 |---|---|---|
-| `type` | 조건 타입 | `"THRESHOLD"` (다른 값: AI 기반 등) |
-| `alarmSeverity` | 심각도 | `"LEVEL1"` (정상/낮음) ~ `"LEVEL4"` (위험) |
-| `operator` | 비교 연산자 | `"GREATER_THAN_OR_EQUAL"`, `"LESS_THAN"`, `"EQUALS"` 등 |
-| `numericThreshold` | 임계값 | 메트릭에 따라 ms / % / count |
-| `numericThreshold2` | 두번째 임계값 (range 비교 시) | 보통 null |
-| `units` | 단위 | `"MILLISECONDS"`, `"PERCENTAGE"`, `"COUNT"` 등 |
+| `targetConfIds` | 대상 conf ID 배열 | `["954854831_postgresql.Database_plopvape"]` |
+| `name`, `description` | 알람 이름·설명 | |
+| `enabled` | 활성화 | `true` |
+| `resourceType` | 대상 리소스 타입. metric prefix 와 일치 필수 | `"postgresql.Database"` |
+| `alarmMessageTemplate` | 알람 메시지 템플릿 (`${resourceName}`, `${defaultConditionLog}` 등) | `"${resourceName} ${defaultConditionLog}"` |
+| `alarmTimeout` | 타임아웃 (초) | `3` |
+| `timeoutSeverity` | 타임아웃 심각도 | `"LEVEL1"` |
+| **`measurementDefinitionId`** | 정확한 메트릭 ID (카탈로그 조회 결과) | `"postgresql.Database_LockCount"` |
+| **`measurementType`** | 메트릭 타입 | `"METRIC"` (`"EVENT"`, `"LOG"` 등도 가능) |
+| **`measurementAlias`** | 짧은 별칭 (메시지 템플릿용) | `"LC"`, `"CPU"` 등 |
+| **`activeAlarmPolicy`** | 동시 알람 처리 정책 | `"LAST_ONE"` (최근 발생 1건만 활성) |
+| `maxAlarmsPerMin` | 분당 알람 발생 한도 | `10` (null 도 가능하지만 명시 권장) |
+| `conditions[]` | 조건 배열 (보통 4-step) | 아래 표 |
+| `alarmNotifications` | 알림 채널 | `[]` (없으면) |
+| `triggerActions` | 트리거 액션 | `[]` |
+
+**조건 (`conditions[]`) 필드** — 각 step 에 모두 채워야 함:
+| 필드 | 설명 | 값 예 |
+|---|---|---|
+| `type` | 조건 타입 | `"THRESHOLD"`, `"BASELINE"`, AI 기반 등 |
+| `alarmSeverity` | 심각도 | `"LEVEL1"` (정상) ~ `"LEVEL4"` (위험) |
+| `measurementDefinitionId` | top-level 과 동일 메트릭 | (반복) |
+| **`measurementType`** | top-level 과 동일 (보통 `"METRIC"`) | `"METRIC"` |
+| `operator` | 비교 연산자 | `"GREATER_THAN_OR_EQUAL"`, `"LESS_THAN"`, `"EQUALS"`, ... |
+| `numericThreshold` | 임계값 | 메트릭 단위 따라 |
+| `numericThreshold2` | 두번째 임계값 (range 비교) | 보통 `null` |
+| `stringThreshold` | 문자열 비교용 | 보통 `null` |
+| **`conditionText`** | UI 표시용 텍스트 (예: `"Lock 수 < 12"`) | 직접 채워야 함 |
+| `units` | 단위. **메트릭 카탈로그의 `units` 와 일치 필수** | `"COUNT"`, `"PERCENTAGE"`, `"MILLISECONDS"`, `"BYTES"` |
 | `dampeningType` | 노이즈 억제 | `"NONE"`, `"OCCURRENCES"`, `"EVALUATIONS"` |
-| `occurrences`, `evaluations` | dampening 파라미터 | dampeningType 별로 사용 |
-| `byAi` | AI 자동 임계치 여부 | `false` (수동), `true` (AI 학습) |
+| `occurrences`, `evaluations` | dampening 파라미터 | dampeningType 별 |
+| `byAi` | AI 자동 임계치 여부 | `false` (수동) |
 
 ### 상세 조회
 
@@ -248,24 +335,24 @@ curl $POLESTAR10_CURL_OPTS -X POST \
 
 ---
 
-## 부가: 메트릭 / Severity 메타 (정책 정의 시 필요)
+## 부가: Severity / 도메인 / 전체 메트릭 (정책 정의 시 부가 정보)
 
 ```bash
-# 1) measurementDefinitionId 후보 조회 (resourceType 별)
-curl $POLESTAR10_CURL_OPTS -X POST --cookie "$POLESTAR10_COOKIE_JAR" \
-  -H 'Content-Type: application/json' \
-  -d '{"resourceType":"weburl.Weburl"}' \
-  "$POLESTAR10_BASE_URL/api/alarm/options/measurementDefinition"
-
-# 2) Severity 메타
+# 1) Severity 메타 (LEVEL1~4 의 표시 이름·색상 등)
 curl $POLESTAR10_CURL_OPTS -X POST --cookie "$POLESTAR10_COOKIE_JAR" \
   -H 'Content-Type: application/json' -d '{}' \
   "$POLESTAR10_BASE_URL/api/alarm/severity/list"
 
-# 3) 도메인 옵션 (정책 추가 시)
+# 2) 도메인 옵션 (공통 정책 추가 시 도메인 선택지)
 curl $POLESTAR10_CURL_OPTS -X POST --cookie "$POLESTAR10_COOKIE_JAR" \
   -H 'Content-Type: application/json' -d '{}' \
   "$POLESTAR10_BASE_URL/api/alarm/resource/domain/options"
+
+# 3) 전체 메트릭 catalog (모든 type 통합, 1400+ 항목 — 클라이언트 필터링 필요)
+curl $POLESTAR10_CURL_OPTS -X POST --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' -d '{}' \
+  "$POLESTAR10_BASE_URL/api/alarm/options/measurementDefinition"
+# → type 별 필터된 list 가 필요하면 위 "메트릭 카탈로그 조회" 섹션의 resource-type endpoint 사용
 ```
 
 ---
