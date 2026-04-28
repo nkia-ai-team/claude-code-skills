@@ -8,18 +8,24 @@
     dest: /tmp/metrics-server-upstream.yaml
     mode: '0644'
 
-- name: Patch metrics-server — inject --kubelet-insecure-tls
+- name: Check whether metrics-server YAML already patched
+  ansible.builtin.command: grep -q -- '--kubelet-insecure-tls' /tmp/metrics-server-upstream.yaml
+  register: ms_already_patched
+  changed_when: false
+  failed_when: false
+
+- name: Patch metrics-server — inject --kubelet-insecure-tls (only when missing)
   ansible.builtin.replace:
     path: /tmp/metrics-server-upstream.yaml
     regexp: '^(\s+)- --metric-resolution=15s\s*$'
     replace: '\1- --metric-resolution=15s\n\1- --kubelet-insecure-tls'
-  register: ms_patch
+  when: ms_already_patched.rc != 0
 
 - name: Apply patched metrics-server manifest
   ansible.builtin.command: >
     /usr/local/bin/k3s kubectl apply -f /tmp/metrics-server-upstream.yaml
   register: ms_apply
-  changed_when: "'configured' in ms_apply.stdout or 'created' in ms_apply.stdout"
+  changed_when: ms_apply.stdout_lines | reject('search', 'unchanged$') | list | length > 0
 
 - name: Wait for metrics-server deployment to become Available
   ansible.builtin.command: >

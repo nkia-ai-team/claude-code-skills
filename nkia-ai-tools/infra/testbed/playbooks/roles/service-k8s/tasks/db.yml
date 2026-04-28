@@ -9,7 +9,7 @@
   ansible.builtin.command: >
     /usr/local/bin/k3s kubectl apply -f /tmp/db-{{ db_engine }}.yaml
   register: db_apply
-  changed_when: "'configured' in db_apply.stdout or 'created' in db_apply.stdout"
+  changed_when: db_apply.stdout_lines | reject('search', 'unchanged$') | list | length > 0
 
 - name: Wait for DB pod readiness
   ansible.builtin.command: >

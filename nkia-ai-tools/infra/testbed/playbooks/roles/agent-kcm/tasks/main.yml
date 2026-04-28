@@ -101,7 +101,7 @@
       ansible.builtin.command: >
         /usr/local/bin/k3s kubectl apply -f /tmp/kcm-rbac.yaml -f /tmp/kcm-daemonset.yaml
       register: kcm_apply
-      changed_when: "'configured' in kcm_apply.stdout or 'created' in kcm_apply.stdout"
+      changed_when: kcm_apply.stdout_lines | reject('search', 'unchanged$') | list | length > 0
 
     - name: Wait for KCM DaemonSet rollout
       ansible.builtin.command: /usr/local/bin/k3s kubectl -n kcm rollout status ds/kcm-agent --timeout=300s
