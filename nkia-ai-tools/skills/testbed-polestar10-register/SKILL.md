@@ -63,7 +63,6 @@ recipe 가 아니라 **dispatcher** — 직접 API 를 호출하지 않고, `Rea
 "알람" 키워드   → 시나리오 2 (알람 정책 추가, 공통/개별 분기)
 "그룹"/"분류"    → 시나리오 3 (서비스 그룹)
 "삭제"/"정리"    → 시나리오 4 (자원 삭제 + 재출현 가드)
-"권한"/"담당자"  → "What This Skill Does NOT Do" 안내 + UI fallback (자원 단위 owner API 미확정)
 ```
 
 각 시나리오의 dispatch flow 는 [references/](references/) 참조:
@@ -140,7 +139,7 @@ recipe 응답 패턴별 처리는 핸드오프 노트 §6 표를 그대로 사�
 - **메트릭 카탈로그 / severity / 도메인 dropdown 정적 보유** — 런타임에 동적 조회 (`measurement/definitions/resource-type` 등)
 - **MFA TOTP 자동화** — MFA 활성 계정은 recipe 가 중단하고 UI fallback 안내
 - **에이전트 설치/제거** — 이 스킬은 polestar10 web API 만. 에이전트 라이프사이클은 별도 sub-skill 영역
-- **자원 단위 담당자 부여** — API 미확정 (TBD). UI 에서 진행: `전체구성 > 관리대상 > 행 선택 > 권한 패널 > 사용자/역할 추가`. 캡처 절차는 [knowledge/polestar10/api/README.md "TBD 엔드포인트 확정 절차"](../../knowledge/polestar10/api/README.md) 참조
+- **자원 단위 담당자/권한 부여** — 테스트베드 구축 자동화 범위 밖. 필요 시 UI 에서 직접 (`전체구성 > 관리대상 > 행 선택 > 권한 패널`)
 
 ---
 

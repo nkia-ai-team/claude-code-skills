@@ -7,20 +7,19 @@ polestar10 내부 HTTP API 를 Bash + curl 로 호출하기 위한 지식 자산
 ```
 knowledge/polestar10/api/
 ├── README.md           # 이 문서
-├── endpoints.md        # 전체 엔드포인트 스펙 (AC1)
-└── recipes/            # 조작별 bash + curl 레시피 (AC2/AC3)
-    ├── login.md                # 확정
-    ├── list-targets.md         # 확정 (weburl/list-filter, sms/hosts-filter, standby filters)
-    ├── list-groups.md          # 확정 (시스템 그룹)
-    ├── service-group-tag.md    # 확정 (서비스 그룹 = tag system)
-    ├── add-target.md           # 확정 Web URL + 서버 (DB/APM/KCM/NMS TBD)
-    ├── delete-target.md        # 확정 Web URL + 서버 (다른 타입 TBD)
-    ├── slo.md                  # 확정 SLO 2-step (register/standby → register)
-    ├── dpm-lifecycle.md        # 확정 DPM (DB) 풀 라이프사이클 + cascade rule
-    ├── nms-lifecycle.md        # 확정 NMS (SNMP) 풀 라이프사이클
-    ├── add-alert-policy.md     # 확정 공통 + 개별 알람 정의 + 메트릭 카탈로그
-    ├── anomaly-policy.md       # 확정 이상감지 정책 조회 (CRUD TBD)
-    └── assign-owner.md         # TBD (담당자 권한 부여)
+├── endpoints.md        # 전체 엔드포인트 스펙
+└── recipes/            # 조작별 bash + curl 레시피
+    ├── login.md                # 3-step challenge-response 로그인 + 세션 쿠키
+    ├── list-targets.md         # weburl/list-filter, sms/hosts-filter, standby filters, apm/agents/list-filter
+    ├── list-groups.md          # 시스템 그룹 조회
+    ├── service-group-tag.md    # 서비스 그룹 (tag system) CRUD
+    ├── add-target.md           # Web URL + 서버 등록
+    ├── delete-target.md        # Web URL + 서버 등록 해제
+    ├── slo.md                  # SLO 2-step (register/standby → register)
+    ├── dpm-lifecycle.md        # DPM (DB) 풀 라이프사이클 + cascade rule
+    ├── nms-lifecycle.md        # NMS (SNMP) 풀 라이프사이클
+    ├── add-alert-policy.md     # 공통 + 개별 알람 정의 + 메트릭 카탈로그
+    └── anomaly-policy.md       # 이상감지 정책 조회
 ```
 
 agent-based register/unregister 풀 라이프사이클 (서버/APM/KCM) 은 [add-target.md](recipes/add-target.md), [delete-target.md](recipes/delete-target.md) 참조.
