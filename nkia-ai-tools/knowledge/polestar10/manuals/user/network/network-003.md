@@ -4,7 +4,8 @@ feature: "네트워크 상세"
 admin_required: false
 original_title: "네트워크상세"
 category: network
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "전체구성 > 관리대상 > 네트워크"
 ---
 네트워크 상세
 

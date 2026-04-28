@@ -4,7 +4,8 @@ feature: "위젯 대시보드 목록"
 admin_required: false
 original_title: "위젯대시보드목록"
 category: account
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "대시보드 > 대시보드 > 위젯 대시보드"
 ---
 위젯 대시보드 목록
 

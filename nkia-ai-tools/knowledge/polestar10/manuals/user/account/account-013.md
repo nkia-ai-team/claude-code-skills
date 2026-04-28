@@ -4,7 +4,8 @@ feature: "사용자 관리"
 admin_required: false
 original_title: "사용자관리"
 category: account
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "운영관리 > 기본 설정 > 사용자 관리"
 ---
 사용자 관리
 

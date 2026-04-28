@@ -4,7 +4,8 @@ feature: "소프트웨어 수집"
 admin_required: false
 original_title: "소프트웨어수집"
 category: system
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "운영자동화 > 소프트웨어 관리 > 소프트웨어 수집"
 ---
 소프트웨어 수집
 

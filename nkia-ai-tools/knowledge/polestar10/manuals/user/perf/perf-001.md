@@ -4,7 +4,8 @@ feature: "PMS – 사업관리"
 admin_required: false
 original_title: "PMS"
 category: perf
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "PMS"
 ---
 PMS – 사업관리
 

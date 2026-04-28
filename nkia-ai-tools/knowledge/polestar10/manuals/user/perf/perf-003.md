@@ -4,7 +4,8 @@ feature: "SNMP OID 템플릿"
 admin_required: false
 original_title: "SNMPOID템플릿"
 category: perf
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "전체구성 > 사용자 정의 항목 > SNMP OID"
 ---
 SNMP OID 템플릿
 

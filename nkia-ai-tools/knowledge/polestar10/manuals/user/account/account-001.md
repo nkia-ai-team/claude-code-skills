@@ -4,7 +4,8 @@ feature: "MyPage"
 admin_required: false
 original_title: "MYPAGE"
 category: account
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "MyPage"
 ---
 MyPage
 
