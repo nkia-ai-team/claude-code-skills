@@ -5,11 +5,13 @@
     dest: "/tmp/db-{{ db_engine }}.yaml"
     mode: '0644'
 
-- name: Apply DB manifest
+- name: Apply DB manifest (server-side)
   ansible.builtin.command: >
-    /usr/local/bin/k3s kubectl apply -f /tmp/db-{{ db_engine }}.yaml
+    /usr/local/bin/k3s kubectl apply --server-side
+    --field-manager=ansible-testbed --force-conflicts
+    -f /tmp/db-{{ db_engine }}.yaml
   register: db_apply
-  changed_when: db_apply.stdout_lines | reject('search', 'unchanged$') | list | length > 0
+  changed_when: db_apply.stdout_lines | select | reject('search', 'unchanged') | list | length > 0
 
 - name: Wait for DB pod readiness
   ansible.builtin.command: >

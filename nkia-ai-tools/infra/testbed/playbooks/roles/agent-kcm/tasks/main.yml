@@ -97,11 +97,13 @@
         dest: /tmp/kcm-daemonset.yaml
         mode: '0644'
 
-    - name: Apply KCM manifests
+    - name: Apply KCM manifests (server-side)
       ansible.builtin.command: >
-        /usr/local/bin/k3s kubectl apply -f /tmp/kcm-rbac.yaml -f /tmp/kcm-daemonset.yaml
+        /usr/local/bin/k3s kubectl apply --server-side
+        --field-manager=ansible-testbed --force-conflicts
+        -f /tmp/kcm-rbac.yaml -f /tmp/kcm-daemonset.yaml
       register: kcm_apply
-      changed_when: kcm_apply.stdout_lines | reject('search', 'unchanged$') | list | length > 0
+      changed_when: kcm_apply.stdout_lines | select | reject('search', 'unchanged') | list | length > 0
 
     - name: Wait for KCM DaemonSet rollout
       ansible.builtin.command: /usr/local/bin/k3s kubectl -n kcm rollout status ds/kcm-agent --timeout=300s

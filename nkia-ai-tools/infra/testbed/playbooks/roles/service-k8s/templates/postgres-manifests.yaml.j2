@@ -5,10 +5,10 @@ metadata:
   name: db-credentials
   namespace: {{ app_namespace }}
 type: Opaque
-stringData:
-  POSTGRES_DB: "{{ db_name }}"
-  POSTGRES_USER: "{{ db_user }}"
-  POSTGRES_PASSWORD: "{{ db_password }}"
+data:
+  POSTGRES_DB: "{{ db_name | b64encode }}"
+  POSTGRES_USER: "{{ db_user | b64encode }}"
+  POSTGRES_PASSWORD: "{{ db_password | b64encode }}"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

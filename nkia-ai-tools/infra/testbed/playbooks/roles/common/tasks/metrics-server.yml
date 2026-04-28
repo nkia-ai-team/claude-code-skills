@@ -21,11 +21,13 @@
     replace: '\1- --metric-resolution=15s\n\1- --kubelet-insecure-tls'
   when: ms_already_patched.rc != 0
 
-- name: Apply patched metrics-server manifest
+- name: Apply patched metrics-server manifest (server-side)
   ansible.builtin.command: >
-    /usr/local/bin/k3s kubectl apply -f /tmp/metrics-server-upstream.yaml
+    /usr/local/bin/k3s kubectl apply --server-side
+    --field-manager=ansible-testbed --force-conflicts
+    -f /tmp/metrics-server-upstream.yaml
   register: ms_apply
-  changed_when: ms_apply.stdout_lines | reject('search', 'unchanged$') | list | length > 0
+  changed_when: ms_apply.stdout_lines | select | reject('search', 'unchanged') | list | length > 0
 
 - name: Wait for metrics-server deployment to become Available
   ansible.builtin.command: >

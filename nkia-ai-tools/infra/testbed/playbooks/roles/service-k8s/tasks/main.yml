@@ -13,12 +13,15 @@
   vars:
     implemented_db_engines: ['postgres']
 
-- name: Ensure app namespace exists
-  ansible.builtin.shell: |
-    /usr/local/bin/k3s kubectl create namespace {{ app_namespace }} \
-      --dry-run=client -o yaml | /usr/local/bin/k3s kubectl apply -f -
-  register: ns_apply
-  changed_when: ns_apply.stdout_lines | reject('search', 'unchanged$') | list | length > 0
+- name: Check if app namespace exists
+  ansible.builtin.command: /usr/local/bin/k3s kubectl get namespace {{ app_namespace }}
+  register: ns_check
+  changed_when: false
+  failed_when: false
+
+- name: Create app namespace (only when missing)
+  ansible.builtin.command: /usr/local/bin/k3s kubectl create namespace {{ app_namespace }}
+  when: ns_check.rc != 0
 
 - name: Deploy DB
   ansible.builtin.include_tasks: db.yml
