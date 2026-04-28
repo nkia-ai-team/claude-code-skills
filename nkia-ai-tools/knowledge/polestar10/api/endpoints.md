@@ -307,7 +307,6 @@ POST /api/rulechain/integration-systems/count ← 관찰됨
 ### 그 외
 
 - 알람 정책 등록 (개별 정책 + 정책 그룹)
-- 담당자 권한 부여 (`/api/account/*` 영역)
 - 사용자 정의 항목 (Trap/Syslog/SQL/SNMP OID/Script/SLO) save+register
 
 ---
