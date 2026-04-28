@@ -18,11 +18,12 @@ knowledge/polestar10/api/
     ├── add-target.md           # 확정 ✅ Web URL + 서버 (DB/APM/KCM/NMS TBD)
     ├── delete-target.md        # 확정 ✅ Web URL + 서버 (다른 타입 TBD)
     ├── slo.md                  # 확정 ✅ SLO 2-step (register/standby → register)
-    ├── add-alert-policy.md     # 확정 ✅ 공통 + 개별 알람 정의
+    ├── dpm-lifecycle.md        # 확정 ✅ DPM (DB) 풀 라이프사이클 + cascade rule
+    ├── add-alert-policy.md     # 확정 ✅ 공통 + 개별 알람 정의 + 메트릭 카탈로그
     ├── anomaly-policy.md       # 확정 ✅ 이상감지 정책 조회 (CRUD TBD)
     ├── assign-owner.md         # TBD ⏳
-    ├── register-nms.md         # TBD ⏳
-    └── register-dpm.md         # TBD ⏳
+    ├── register-nms.md         # TBD ⏳ (NMS register endpoint)
+    └── register-apm-kcm.md     # TBD ⏳ (APM/KCM register endpoints)
 ```
 
 ## 사용 대상

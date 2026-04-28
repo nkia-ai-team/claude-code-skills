@@ -29,18 +29,31 @@ DevTools HAR 캡처 + curl 검증으로 확인한 polestar10 내부 API 명세.
 
 ## 관리대상 등록 모델
 
-polestar10 의 모든 관리대상 등록은 **staging → register** 2-step. staging 진입 방식이 두 가지:
+polestar10 의 관리대상 등록 모델은 **3 가지** (검증 완료):
 
-| 모델 | 적용 type | staging 진입 | register 호출 시 식별자 필드 |
-|---|---|---|---|
-| **Config-only** | Web URL, SLO, Syslog, SQL, SNMP OID, 연계 시스템 등 | `POST /api/<type>/save` (사용자가 UI 로 +) | `id` (save 응답의 mongo id) |
-| **Agent-based** | 서버, DB, APM, KCM, NMS | 에이전트 heartbeat 자동 | `agentId` (에이전트 자체 ID) |
+| 모델 | 적용 type | staging 진입 | register | 식별자 필드 (register body) |
+|---|---|---|---|---|
+| **Config-only** | Web URL, SLO, Syslog, SQL, SNMP OID, 연계 시스템 등 | `POST /api/<type>/save` (사용자 UI 폼) | `POST /api/<type>/register` (array body) | `id` (save 응답의 mongo id) |
+| **Agent-based** | 서버 (SMS), APM, KCM, NMS | 에이전트 heartbeat 자동 → standby 자동 출현 | `POST /api/<service>/standby-*/register` (array body) | `agentId` (에이전트 자체 ID) |
+| **DB-direct** | DPM (postgresql/oracle/mysql/mariadb/sqlserver/cubrid/tibero) | `POST /api/dpm/preregister` (DB 접속 정보 입력 + 검증) | `POST /api/dpm/register` (단일 객체 body) | `resourceId` (numeric 문자열, polestar10 자동 부여) |
 
-**delete 도 식별자 형식이 type 별로 다름**:
-- Web URL: `weburl_<bare-mongo-id>`
-- 서버: `MA_<hostname>_<timestamp>` (그대로, prefix 없음)
+**delete 패턴도 모델 별로 다름**:
+- Config-only / Agent-based: `POST /api/<service>/<entity>/delete` body `{parameter:[...]}`
+- **DPM**: **`GET /api/dpm/unregister/<resourceId>`** (GET method, body 없음)
 
-→ "<type>_<id>" 패턴으로 일반화 시도했으나 실제로는 **type 별 약속이 다름**. recipe 별 확인 필요.
+**식별자 (delete body / 알람 confId) 형식 — type 별 표**:
+
+| Type | resourceId / 식별자 | 알람 confId |
+|---|---|---|
+| weburl | save 응답 `data.id` 또는 list 응답 `id` (이미 prefix 됨) | `weburl_<24-hex-id>` |
+| server.Server (SMS) | `MA_<hostname>_<timestamp>` | `<resourceId>_server.Server` |
+| postgresql.PostgreSQL (DPM 인스턴스) | numeric 문자열 (예 `"954854831"`) | `<resourceId>_postgresql.PostgreSQL` |
+| postgresql.Database (DPM 알람 대상) | (resource 자체는 없음, 알람용) | `<resourceId>_postgresql.Database_<dbName>` |
+| apm.Agent | numeric 문자열 (음수 가능) | `<resourceId>_apm.Agent` |
+| kcm.Cluster | `cluster-<uuid>` | (사용 X — Pod 단위 알람) |
+| kcm.Pod | UUID (단순 — prefix 없음) | `<pod-uuid>` |
+| nms (NMS) | 24-hex Mongo ID | (TBD) |
+| log (custom monitor) | `MA_<...>_server.LogMonitor_<idx>` (= `customMonitorConfId`) | (TBD) |
 
 ---
 
@@ -102,6 +115,27 @@ polestar10 의 모든 관리대상 등록은 **staging → register** 2-step. st
 → [`recipes/add-target.md`](./recipes/add-target.md), [`recipes/delete-target.md`](./recipes/delete-target.md), [`recipes/list-targets.md`](./recipes/list-targets.md)
 
 > ⚠️ **주의**: 서버 삭제 후에도 SMS 에이전트가 살아있으면 다음 heartbeat 사이클에 자동 재출현 standby. 영구 제거하려면 **에이전트도 stop**.
+
+### DPM (DB Performance Monitoring) — 별도 패턴
+| Method | URL | body 형태 | 결과 |
+|---|---|---|---|
+| POST | `/api/dpm/<dbtype>/list` | `{pageNumber, pagePerSize, sortFieldSets, gridFilters, tagFilters:["confType = <dbtype>"]}` | type 별 (postgresql/oracle/mysql/mariadb/sqlserver/cubrid/tibero) DB list |
+| POST | `/api/dpm/preregister/dbtypes` | `{}` | 사용 가능 DB 타입 dropdown |
+| POST | `/api/dpm/preregister` | DB 접속 정보 + 정책 + 그룹 (`{resourceType, hostName, port, dbName, userName, passwd, ...}`) | staging 입력 + DB 접속 검증 |
+| GET | `/api/dpm/preregister/list` | (none) | staging 항목 list (resourceId 추출용) |
+| POST | `/api/dpm/preregister/error-count` | `{parameter:"ERROR"}` | error 카운트 |
+| POST | `/api/dpm/register` | preregister body + `resourceId` + `managementStatus:"MANAGED"` | **단일 호출 활성화** |
+| **GET** | **`/api/dpm/unregister/<resourceId>`** | (none, path 에 ID) | **GET method** + body 없음 — 다른 type 과 다름 |
+| POST | `/api/dpm/measurement/definitions/resourcetype/<type>/metric` | `{}` | DPM 전용 메트릭 catalog |
+| POST | `/api/dpm/configuration/<id>/basic-info` | `{}` | config 정보 |
+| GET | `/api/dpm/postgresql/instance/<id>/summary` | (none) | 인스턴스 summary |
+| GET | `/api/dpm/postgresql/instance/<id>/efficiency` | (none) | 효율성 메트릭 |
+
+> **DPM 등록 모델**: agent heartbeat 모델이 아니라 polestar10 가 DB 에 직접 접속해서 SQL 쿼리. 사용자가 등록 시점에 DB 접속 정보 입력 필요. 따라서 staging step (`save`) 없이 **`preregister` (DB 접속 검증) → `register` (활성화)** 흐름.
+
+> **알람 cascade rule (검증 완료 — Phase B)**: DPM `unregister` 후 알람 정의는 **삭제되지 않고 orphan 으로 남음**. 같은 `resourceId` 로 재등록하면 알람 자동 reattach. 다른 resourceId 로 등록 시 알람은 영구 orphan.
+
+→ [`recipes/dpm-lifecycle.md`](./recipes/dpm-lifecycle.md)
 
 ### SLO (config-only, 2-step 변형)
 | Method | URL | body 형태 | 결과 |
