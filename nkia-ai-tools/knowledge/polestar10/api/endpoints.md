@@ -131,10 +131,28 @@ polestar10 의 모든 관리대상 등록은 **staging → register** 2-step. st
 |---|---|---|---|
 | POST | `/api/alarm/alarm-definitions` | `{pageNumber, gridFilters, sortFieldSets, pagePerSize, tagFilters}` | `{data:{content:[{id, name, type:"Individual", resourceId, conditions, ...}]}}` |
 | POST | `/api/alarm/alarm-definitions/count` | `{}` | 개수 |
-| POST | `/api/alarm/alarm-definition` | `{targetConfIds:["<conf-id>"], name, resourceType, alarmMessageTemplate, alarmTimeout, timeoutSeverity, measurementDefinitionId, conditions:[{type:"THRESHOLD", alarmSeverity:"LEVEL1..4", operator, numericThreshold, units, dampeningType:"NONE", byAi:false}], alarmNotifications:[], triggerActions:[]}` | `{data:<count>}` |
+| POST | `/api/alarm/alarm-definition` | **풀 스키마**: top-level `{targetConfIds, name, description, enabled, resourceType, alarmMessageTemplate, alarmTimeout, timeoutSeverity, measurementDefinitionId, measurementType:"METRIC", measurementAlias, activeAlarmPolicy:"LAST_ONE", maxAlarmsPerMin, conditions:[...], alarmNotifications:[], triggerActions:[]}` + 각 condition `{type:"THRESHOLD", alarmSeverity, measurementDefinitionId, measurementType:"METRIC", operator, numericThreshold, conditionText, units, dampeningType:"NONE", byAi:false}` | `{data:<count>}` |
 | POST | `/api/alarm/alarm-definition/detail` | `{parameter:"<id>"}` | full detail |
 | POST | `/api/alarm/alarm-definition/delete` | `{parameter:["<id>"]}` | `{data:true}` |
 | POST | `/api/alarm/alarm-definition/update` | (TBD body) | 정의 수정 |
+
+> ⚠️ **NPE 함정**: 위 풀 스키마에서 `measurementType`, `measurementAlias`, `activeAlarmPolicy`, condition 의 `measurementType`, `conditionText`, `units` 중 하나라도 누락하면 detail 호출에서 NPE 발생 (UI drawer 안 열림). 메트릭 prefix (`<resourceType>_<...>`) 가 알람의 `resourceType` 과 일치 필수.
+
+### 메트릭 카탈로그 (알람 정의 추가 시 필수)
+| Method | URL | body 형태 | 결과 |
+|---|---|---|---|
+| POST | `/api/measurement/definitions/resource-type` | `{parameter:{resourceType:"<type>"}}` | type-filtered 메트릭 list (스키마 풍부, `id`/`alias`/`units`/`measurementType` 등) |
+| POST | `/api/measurement/definitions/category/` | `{parameter:"<resourceType>"}` | 동일 결과 (다른 키 이름) |
+| POST | `/api/alarm/options/measurementDefinition` | `{}` | 전체 1404 메트릭 (필터 무시 — 클라이언트 측 필터링용) |
+
+응답 핵심 필드 (`/api/measurement/definitions/resource-type` 기준):
+- `id` ← `measurementDefinitionId` 로 사용
+- `alias` ← `measurementAlias` 로 사용
+- `units` ← condition 의 `units` 로 사용
+- `measurementType` ← top-level + condition 양쪽에 사용
+- `description` ← 사용자 prompt 용 한글 설명
+
+→ [`recipes/add-alert-policy.md`](./recipes/add-alert-policy.md) 의 "메트릭 카탈로그 조회" 섹션 참조.
 
 → [`recipes/add-alert-policy.md`](./recipes/add-alert-policy.md)
 
