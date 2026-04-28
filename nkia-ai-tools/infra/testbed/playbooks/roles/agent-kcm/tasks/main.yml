@@ -101,13 +101,23 @@
         dest: /tmp/kcm-daemonset.yaml
         mode: '0644'
 
-    - name: Apply KCM manifests (server-side)
+    - name: Diff KCM manifests against cluster state
+      ansible.builtin.command: >
+        /usr/local/bin/k3s kubectl diff
+        --field-manager=ansible-testbed
+        -f /tmp/kcm-rbac.yaml -f /tmp/kcm-daemonset.yaml
+      register: kcm_diff
+      changed_when: false
+      failed_when: kcm_diff.rc not in [0, 1]
+
+    - name: Apply KCM manifests (server-side, only when diff)
       ansible.builtin.command: >
         /usr/local/bin/k3s kubectl apply --server-side
         --field-manager=ansible-testbed --force-conflicts
         -f /tmp/kcm-rbac.yaml -f /tmp/kcm-daemonset.yaml
       register: kcm_apply
-      changed_when: kcm_apply.stdout_lines | select | reject('search', 'unchanged') | list | length > 0
+      changed_when: kcm_diff.rc == 1
+      when: kcm_diff.rc == 1
 
     - name: Wait for KCM DaemonSet rollout
       ansible.builtin.command: /usr/local/bin/k3s kubectl -n kcm rollout status ds/kcm-agent --timeout=300s

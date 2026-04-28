@@ -5,13 +5,23 @@
     dest: "/tmp/db-{{ db_engine }}.yaml"
     mode: '0644'
 
-- name: Apply DB manifest (server-side)
+- name: Diff DB manifest against cluster state
+  ansible.builtin.command: >
+    /usr/local/bin/k3s kubectl diff
+    --field-manager=ansible-testbed
+    -f /tmp/db-{{ db_engine }}.yaml
+  register: db_diff
+  changed_when: false
+  failed_when: db_diff.rc not in [0, 1]
+
+- name: Apply DB manifest (server-side, only when diff)
   ansible.builtin.command: >
     /usr/local/bin/k3s kubectl apply --server-side
     --field-manager=ansible-testbed --force-conflicts
     -f /tmp/db-{{ db_engine }}.yaml
   register: db_apply
-  changed_when: db_apply.stdout_lines | select | reject('search', 'unchanged') | list | length > 0
+  changed_when: db_diff.rc == 1
+  when: db_diff.rc == 1
 
 - name: Wait for DB pod readiness
   ansible.builtin.command: >
