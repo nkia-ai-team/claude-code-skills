@@ -6,6 +6,16 @@
   vars:
     target_arch: "{{ 'arm64' if ansible_architecture in ['aarch64', 'arm64'] else 'amd64' }}"
   pre_tasks:
+    - name: Pre-flight OS check (Linux + systemd required)
+      ansible.builtin.assert:
+        that:
+          - ansible_system == 'Linux'
+          - ansible_os_family in ['Debian', 'RedHat', 'Rocky']
+          - ansible_service_mgr == 'systemd'
+        fail_msg: |
+          Target {{ inventory_hostname }} is not Linux+systemd.
+          Got system={{ ansible_system }}, os_family={{ ansible_os_family }}, service_mgr={{ ansible_service_mgr }}.
+          Supported: Ubuntu 22.04+/Debian 12+/RHEL/Rocky 9+ with systemd.
     - name: Echo target architecture
       ansible.builtin.debug:
         msg: "Target arch: {{ target_arch }} (ansible_architecture={{ ansible_architecture }}, os={{ ansible_distribution }} {{ ansible_distribution_version }})"
