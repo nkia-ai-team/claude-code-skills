@@ -139,7 +139,7 @@ recipe 응답 패턴별 처리는 핸드오프 노트 §6 표를 그대로 사�
 - **API 호출 코드 작성** — 모두 recipe 가 담당
 - **메트릭 카탈로그 / severity / 도메인 dropdown 정적 보유** — 런타임에 동적 조회 (`measurement/definitions/resource-type` 등)
 - **MFA TOTP 자동화** — MFA 활성 계정은 recipe 가 중단하고 UI fallback 안내
-- **에이전트 설치/제거** — 이 스킬은 polestar10 web API 만. 에이전트 라이프사이클은 별도 sub-skill (NKIAAI-542 후속) 영역
+- **에이전트 설치/제거** — 이 스킬은 polestar10 web API 만. 에이전트 라이프사이클은 별도 sub-skill 영역
 - **자원 단위 담당자 부여** — API 미확정 (TBD). UI 에서 진행: `전체구성 > 관리대상 > 행 선택 > 권한 패널 > 사용자/역할 추가`. 캡처 절차는 [knowledge/polestar10/api/README.md "TBD 엔드포인트 확정 절차"](../../knowledge/polestar10/api/README.md) 참조
 
 ---
