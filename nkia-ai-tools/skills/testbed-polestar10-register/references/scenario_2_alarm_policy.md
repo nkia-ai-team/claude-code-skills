@@ -117,49 +117,84 @@ UI: **알람 > 정책 관리 > 공통 정책** 탭. polestar10 의 공통 정책
 
 UI: **알람 > 정책 관리 > 개별 정책** 탭. 자원 1개에 메트릭별 임계치 직접 부여.
 
+### 🚨 절대 규칙 (위반 시 NPE / 실수)
+
+1. **카탈로그 조회 먼저, 추측 금지** — metric ID·alias·units 는 절대 추론/추측해서 만들어내지 않는다. **반드시 `/api/measurement/definitions/resource-type` 응답 안에 있는 값만 사용**. 응답 객체의 `id` / `alias` / `units` / `measurementType` 4 필드를 알람 POST 본문에 **그대로 복사**.
+2. **resourceType 과 metric prefix 일치 필수** — `id` 의 prefix (`<resourceType>_<metric>`) 가 알람의 `resourceType` 과 **반드시 동일**. 불일치 시 detail 호출에서 `MeasurementDefinition.getMeasurementType()` NPE → UI drawer 안 열림.
+   - 예: `resourceType="postgresql.Database"` ↔ metric `"postgresql.Database_xxx"` ✅
+   - 예: `resourceType="postgresql.Database"` + metric `"postgresql.PostgreSQL_xxx"` ❌ NPE
+3. **기존 알람 metric 과 중복 회피** — `/api/alarm/alarm-definitions` 로 대상 resourceId 의 기존 알람 list 받아 사용 중 metric 제외하고 신규 metric 만 후보로.
+4. **이름 ↔ metric 일치** — 알람 이름은 metric 의 의미를 반영해야. `description` 또는 `alias` 로부터 도출. (예: metric=`Database_deadLocks` → 이름 "DeadLock 알람", "CPU 사용률 알람" 같은 mismatch 명명 금지)
+
 ### Dispatch flow
 
 ```
 1. 대상 자원 식별
    - 사용자가 이름으로 지목 → recipes/list-targets.md 의 type 별 list-filter 로
-     resourceName / hostname 매칭해 confId 추출
+     resourceName / hostname 매칭해 confId 추출 + resourceId 별도 보관
    - 매칭 실패: dropdown (top 30) 보여주고 선택받기
 
-2. 메트릭 카탈로그 조회
+2. 기존 알람 metric 목록 확보 (중복 회피용)
+   POST /api/alarm/alarm-definitions  (pagePerSize: 200, tagFilters: [])
+   → 대상 resourceId 의 알람들의 measurementDefinitionId set 으로 보관
+
+3. 메트릭 카탈로그 조회 (절대 규칙 1)
    recipes/add-alert-policy.md "메트릭 카탈로그 조회 (필수 — 알람 추가 전 선행)"
-     ← /api/measurement/definitions/resource-type
+     ← POST /api/measurement/definitions/resource-type
         body: {parameter:{resourceType:"<resourceType>"}}
-   응답에서 사용자에게 보여줄 후보:
-     - id (= measurementDefinitionId)
-     - description (한글 설명)
-     - units (COUNT / PERCENTAGE / MILLISECONDS / BYTES …)
-     - alias (= measurementAlias)
 
-   ⚠️ 메트릭 prefix 는 자원 resourceType 과 정확히 일치해야 함
-      (postgresql.Database vs postgresql.PostgreSQL 등 layer 구분 — DB 단위 vs 인스턴스 단위)
+   응답 각 항목:
+     - id (= measurementDefinitionId, 그대로 사용)
+     - alias (= measurementAlias, 그대로 사용)
+     - units (그대로 condition.units 에 사용)
+     - measurementType (그대로 사용)
+     - description (한글, 사용자 보여줄 때 + LLM 의미 추론용)
 
-3. 임계치 인터뷰
-   기본은 4-step (LEVEL1~LEVEL4). 사용자에게:
-     - operator (>= / <= / > / < / == 등)
-     - LEVEL2/3/4 의 numericThreshold (LEVEL1 은 정상 범위)
-     - 또는 "표준 4-step 자동" → recipes/add-alert-policy.md 의 PostgreSQL Lock 예시처럼 default 값 사용
+   ⚠️ 위 4 필드 (id/alias/units/measurementType) **그대로 복사**. 추측 금지.
 
-4. 알람 정의 추가
+4. 메트릭 선정
+   - "표준 자동" 흐름: 카탈로그 응답을 description/alias 기준으로 LLM 이 SRE 관점 분석.
+     기존 사용 중 metric 제외. 운영 critical 순으로 1~N개 선정.
+     예시 (DB 운영 표준):
+       DeadLock수 > Long-running 트랜잭션 > Lock수 > Session수 > BufferHit > IndexScan율 > XID 사용률
+   - "사용자 직접" 흐름: 카탈로그 dropdown 보여주고 선택받기.
+
+5. 임계치 결정 (units 따라)
+   - PERCENTAGE: 보통 LEVEL2=70, LEVEL3=85, LEVEL4=95 (반대 metric 은 역순)
+   - COUNT_PER_SEC (카운트 누적/초): 정상 0~매우 작음, LEVEL2≥1, LEVEL3≥5, LEVEL4≥20
+   - MILLISECONDS (응답시간): 도메인별 상이, 사용자에게 baseline 입력 받기 권장
+   - BYTES / BYTES_PER_SEC: 환경별 — 사용자 입력 필수
+   - LEVEL1 은 항상 정상 범위 (반대 operator)
+
+6. 알람 정의 추가 (POST /api/alarm/alarm-definition)
    recipes/add-alert-policy.md "추가 (POST /api/alarm/alarm-definition)"
-     ⚠️ NPE 함정 — 풀 스키마 모두 채워야 detail drawer 정상:
-        top-level: measurementType, measurementAlias, activeAlarmPolicy, maxAlarmsPerMin
-        condition: measurementType, conditionText, units (메트릭 units 일치)
 
-5. 검증
+   ⚠️ NPE 함정 — 카탈로그 응답값 그대로 + 풀 스키마 모두 채워야 detail drawer 정상:
+      top-level: measurementType, measurementAlias, activeAlarmPolicy, maxAlarmsPerMin
+      condition: measurementType, conditionText, units (메트릭 units 와 동일 값)
+
+7. 검증
    recipes/add-alert-policy.md "상세 조회"
-     ← /api/alarm/alarm-definition/detail
+     ← POST /api/alarm/alarm-definition/detail body {parameter:"<id>"}
+   - success:true + data.measurementType == "METRIC" 확인 (NPE 없으면 정상)
    - data.conditions[] 가 4-step 그대로 들어갔는지
-   - UI 에서도 drawer 가 열리는지 (선택, NPE 가드)
+   - UI drawer 가 열리는지 (선택, NPE 가드)
 
-6. 보고
-   - 알람 이름 / 대상 자원 / 메트릭 / 4-step 임계치 표
+8. 보고
+   - 알람 이름 / 대상 자원 / 메트릭 ID + description / 4-step 임계치 표
    - UI 경로 안내 (알람 > 정책 관리 > 개별 정책)
 ```
+
+### 흔한 실수 (회피 패턴)
+
+| 실수 | 원인 | 회피 방법 |
+|---|---|---|
+| metric ID 추측 (예: `postgresql.PostgreSQL_CpuRatio` 같은 임의값) | catalog 조회 안 하고 짐작 | Step 3 카탈로그 조회 먼저 (절대 규칙 1) |
+| metric prefix 와 resourceType 불일치 (postgresql.Database ↔ postgresql.PostgreSQL_xxx) | layer 구분 무시 | Step 3 응답의 `resourceType` 필드도 확인 + 알람의 resourceType 과 일치 |
+| condition.units = metric units 와 다름 (예: COUNT 대신 PERCENTAGE) | 추측 | Step 3 응답의 `units` 그대로 복사 (절대 규칙 1) |
+| measurementType / measurementAlias / activeAlarmPolicy 누락 | NPE 함정 인지 부족 | 풀 스키마 체크리스트 (Step 6) |
+| 알람 이름이 실제 metric 과 무관 (예: 메트릭=Commit, 이름=CPU) | 이름 먼저 정하고 metric 마지막에 결정 | 절대 규칙 4 — metric 의 description/alias 로부터 이름 도출 |
+| 기존 알람과 중복 metric 으로 등록 | 사전 list 확인 안 함 | Step 2 기존 metric set 으로 catalog 필터링 |
 
 ### 자주 쓰는 메트릭 빠른 가이드
 
