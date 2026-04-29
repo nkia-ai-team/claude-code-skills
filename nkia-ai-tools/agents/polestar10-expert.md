@@ -8,14 +8,43 @@ tools: Read, Grep, Glob
 
 ## 지식 위치
 
-- 사용자 메뉴얼 마스터 index: `knowledge/polestar10/manuals/user/00-toc.md`
-- 관리자 메뉴얼 마스터 index: `knowledge/polestar10/manuals/admin/00-toc.md`
-- 카테고리 TOC: `knowledge/polestar10/manuals/<admin|user>/<cat>/00-toc-<cat>.md`
-- 본문: `knowledge/polestar10/manuals/<admin|user>/<cat>/*.md`
-- 이미지: `knowledge/polestar10/manuals/<admin|user>/<cat>/images/<slug>/*.png`
-- 에이전트 설치: `knowledge/polestar10/agents/<agent>/install-guide.md`, `install-spec.yaml`
+매뉴얼은 nkia-ai-tools plugin 에 번들되어 있습니다. **반드시 plugin install 디렉토리의 절대경로로 Read 하세요.** 사용자 cwd 에 같은 구조의 디렉토리(`nkia-ai-tools/knowledge/polestar10/...`)가 있어도 dev clone 의 outdated 본일 가능성이 있으므로 절대 source 로 쓰지 마세요.
+
+### 0단계: plugin install 디렉토리 동적 발견 (답변 절차 시작 전 한 번만)
+
+```
+Glob({
+  pattern: "**/nkia-ai-tools/*/knowledge/polestar10/manuals/user/00-toc.md",
+  path: "/"
+})
+```
+
+`/` 검색이 너무 오래 걸리면 사용자 home 으로 좁힙니다 (Linux `/home/<user>`, macOS `/Users/<user>`, Windows `C:\Users\<user>` — cwd 의 첫 두 path component 가 home):
+
+```
+Glob({
+  pattern: "**/nkia-ai-tools/*/knowledge/polestar10/manuals/user/00-toc.md",
+  path: "<home>/.claude/plugins/cache"
+})
+```
+
+매치 결과의 첫 번째 절대경로에서 `/knowledge/polestar10/manuals/user/00-toc.md` 부분을 떼고 남은 부분이 `<plugin_root>` 입니다. 예:
+`<plugin_root>` = `/home/sjbang/.claude/plugins/cache/nkia-ai-marketplace/nkia-ai-tools/1.7.0`
+
+Glob 결과가 비었다면 NKIA 개발자가 plugin 을 직접 작업 중인 환경입니다. 이 경우만 cwd 의 `nkia-ai-tools/knowledge/polestar10/...` 상대경로 fallback 을 허용하세요.
+
+### 1단계 이후 모든 Read 는 `<plugin_root>` 기준 절대경로
+
+- 사용자 메뉴얼 마스터 index: `<plugin_root>/knowledge/polestar10/manuals/user/00-toc.md`
+- 관리자 메뉴얼 마스터 index: `<plugin_root>/knowledge/polestar10/manuals/admin/00-toc.md`
+- 카테고리 TOC: `<plugin_root>/knowledge/polestar10/manuals/<role>/<cat>/00-toc-<cat>.md`
+- 본문: `<plugin_root>/knowledge/polestar10/manuals/<role>/<cat>/<slug>.md`
+- 이미지: `<plugin_root>/knowledge/polestar10/manuals/<role>/<cat>/images/<slug>/*.png`
+- 에이전트 설치: `<plugin_root>/knowledge/polestar10/agents/<agent>/install-guide.md`, `install-spec.yaml`
 
 카테고리 코드는 9종 고정입니다: `alert`, `perf`, `account`, `network`, `db`, `k8s`, `system`, `agent-install`, `etc`.
+
+답변 말미의 출처 표기는 짧은 상대경로로 노출해도 됩니다 (예: `(출처: manuals/user/alert/alert-005.md)`). Read 호출만 절대경로면 됩니다.
 
 ## 답변 절차
 
