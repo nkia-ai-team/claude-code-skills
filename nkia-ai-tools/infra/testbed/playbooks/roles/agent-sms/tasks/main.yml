@@ -60,6 +60,17 @@
     - "'qemu-x86_64' not in (binfmt_ls.stdout | default(''))"
     - "'qemu-amd64' not in (binfmt_ls.stdout | default(''))"
 
+- name: Fail fast if polestar_organization_id missing (SMS install requires tenant)
+  ansible.builtin.fail:
+    msg: |
+      polestar_organization_id is required for SMS install (SaaS mode tenant ID).
+      Find it: 폴스타10 web 우측 상단 [계정] > 조직명 마우스오버 툴팁 (24자리 hex ObjectId).
+      Set via: export POLESTAR_ORG_ID=<id>  또는  -e polestar_organization_id=<id>
+  when:
+    - sms_enabled | default(true) | bool
+    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
+    - polestar_organization_id | default('') | length == 0
+
 - name: Install SMS agent via Polestar AgentInstall.sh + agentstart.sh
   when:
     - sms_enabled | default(true) | bool
@@ -106,40 +117,33 @@
         dest: "{{ sms_install_dir }}"
         remote_src: true
 
-    - name: Run Polestar AgentInstall.sh (config + binfmt registration)
+    # AgentInstall.sh 옵션 (admin/agent-install-017.md):
+    #   -m <Broker IP:Port>          (필수) MQTT broker
+    #   -a <Agent IP>                Agent host IP — 우리 host의 default IPv4 사용
+    #   -e <TENANT_ID>               조직 ID (24자리 hex). SaaS multi-tenant 환경에서
+    #                                MasterAgent.conf 의 SAAS_TENANT_ID 채움.
+    #                                빠지면 backend 가 메시지 라우팅 못 해 standby 등록 안 됨.
+    # default 인자 (AgentInstall.sh 내부):
+    #   -c mosquitto:mosquitto       broker 인증 (우리는 default 사용)
+    #   -i MA_<HOSTNAME>_<YYYYMMDDhhmmss>  agent ID 자동 생성
+    #   -p 41003                     agent listen port
+    - name: Run Polestar AgentInstall.sh (broker + agent IP + tenant)
       ansible.builtin.command:
-        cmd: /bin/sh ./AgentInstall.sh -m {{ polestar10_collector_host }}
+        cmd: >
+          /bin/sh ./AgentInstall.sh
+          -m {{ polestar10_collector_host }}:{{ polestar10_sms_broker_port | default(1883) }}
+          -a {{ ansible_default_ipv4.address }}
+          -e {{ polestar_organization_id }}
         chdir: "{{ sms_install_dir }}"
       register: sms_install_run
       changed_when: sms_install_run.rc == 0
+      no_log: true   # tenant ID 보호
 
-    # AgentInstall.sh fills Brokerinfo.conf with the local interface IP
-    # (which is the lima NAT-internal IP behind a Mac, unreachable from broker)
-    # and mosquitto/mosquitto credentials. The 109 reference shows working
-    # config uses NULL for AGENT_IP/USER_ID/USER_PWD — broker derives the
-    # source IP from the connection itself, and emqx accepts anonymous.
-    - name: Patch Brokerinfo.conf — match 109 reference (NULL agent_ip + null creds)
-      ansible.builtin.lineinfile:
-        path: "{{ sms_install_dir }}/NNPAgent/MAgent/conf/Brokerinfo.conf"
-        regexp: "^{{ item.key }}="
-        line: "{{ item.key }}={{ item.value }}"
-      loop:
-        - { key: BROKER1_AGENT_IP, value: 'NULL' }   # quote → string 'NULL', not Python None
-        - { key: BROKER1_USER_ID, value: 'NULL' }
-        - { key: BROKER1_USER_PWD, value: 'NULL' }
-      register: broker_conf_patch
-
-    # 109's agentstart.sh hardcodes /home/nkia/NNPAgent-sms/... so it can't be
-    # reused verbatim from a different install dir. Bypass it and call
-    # magentctl directly — that's the actual entry point. MAgent forks
-    # SMSAGENTL when it starts.
-    #
-    # Polestar bundles its own libssl/libcrypto/libstdc++ in NNPAgent/LIB/
-    # because the daemon binaries are linked against specific versions.
-    # Without LD_LIBRARY_PATH the qemu-binfmt loader can't resolve libssl.so.3.
-    # If Brokerinfo.conf was patched (or this is fresh), make sure any old
-    # daemon is stopped so it picks up the new conf on next start.
-    - name: Stop magentctl if running (so it reloads patched conf)
+    # AgentInstall.sh 가 데몬을 자동 기동하지 않을 수 있어 명시적으로 stop+start 사이클.
+    # Polestar bundles libssl/libcrypto/libstdc++ in NNPAgent/LIB/ — qemu-binfmt loader
+    # 가 그걸 찾도록 LD_LIBRARY_PATH 강제.
+    # Stop은 unconditional + failed_when:false (데몬 안 돌면 silent OK).
+    - name: Stop magentctl (idempotent — silent if not running)
       ansible.builtin.command: ./magentctl -stop
       args:
         chdir: "{{ sms_install_dir }}/NNPAgent/MAgent/bin"
@@ -148,7 +152,6 @@
       register: magentctl_stop
       changed_when: magentctl_stop.rc == 0
       failed_when: false
-      when: broker_conf_patch is changed
 
     - name: Start Polestar Master Agent (magentctl -start; forks SMSAGENTL)
       ansible.builtin.command: ./magentctl -start

@@ -7,7 +7,14 @@ polestar10_wpm_collector_tcp_port: 31005
 # APM (OTel) 은 OTLP gRPC endpoint
 polestar10_apm_collector_otlp_endpoint: "http://192.168.230.104:6565"
 polestar10_kcm_collector_port: 20040
-# SMS 는 AgentInstall.sh 의 -m 인자로 manager_ip[:port] (default 8883)
+# SMS 는 AgentInstall.sh 의 -m 인자로 broker_ip:port (MQTT 1883)
+polestar10_sms_broker_port: 1883
+
+# Polestar 조직(테넌트) ID — SaaS 모드 SMS 가 broker publish 시 organizationId 로 필요.
+# 빠지면 polestar-app-sms-1 backend 가 메시지 라우팅 못 해 standby 등록 안 됨.
+# 폴스타10 web 우측 상단 [계정] > 조직명 마우스오버 툴팁의 24자리 hex(ObjectId).
+# 주입: env POLESTAR_ORG_ID 또는 ansible-playbook -e polestar_organization_id=<id>.
+polestar_organization_id: "{{ lookup('env', 'POLESTAR_ORG_ID') | default('', true) }}"
 
 # K3s 설치 옵션
 k3s_version: "v1.32.5+k3s1"
