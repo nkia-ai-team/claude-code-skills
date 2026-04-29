@@ -1,4 +1,12 @@
 ---
+- name: ARM + SMS prerequisites — amd64 multi-arch + apt sources split
+  ansible.builtin.include_tasks: arm-sms-prereq.yml
+  when:
+    - target_arch == 'arm64'
+    - sms_enabled | default(true)
+    - ansible_os_family == 'Debian'
+  tags: [prereqs]
+
 - name: Install archive utilities (unzip for zip-format agent archives)
   ansible.builtin.package:
     name: unzip

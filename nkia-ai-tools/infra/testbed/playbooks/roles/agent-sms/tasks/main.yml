@@ -29,73 +29,12 @@
     - sms_existing.rc == 0
     - not (sms_force_reinstall | default(false))
 
-- name: ARM only — install qemu-user-static + binfmt-support
-  ansible.builtin.apt:
-    name: [qemu-user-static, binfmt-support]
-    state: present
-    update_cache: true
-  when:
-    - sms_enabled | default(true)
-    - target_arch == 'arm64'
-    - ansible_os_family == 'Debian'
-    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
-
-# qemu-user-static needs the x86_64 dynamic linker + libc on the ARM host
-# to load Polestar's amd64 daemons (MAGENTL/SMSAGENTL). Without this,
-# qemu-binfmt fails with "Could not open /lib64/ld-linux-x86-64.so.2".
-- name: ARM only — enable amd64 multi-arch
-  ansible.builtin.shell: |
-    if ! dpkg --print-foreign-architectures | grep -q '^amd64$'; then
-      dpkg --add-architecture amd64
-      echo CHANGED
-    fi
-  register: dpkg_add_arch
-  changed_when: "'CHANGED' in (dpkg_add_arch.stdout | default(''))"
-  when:
-    - sms_enabled | default(true)
-    - target_arch == 'arm64'
-    - ansible_os_family == 'Debian'
-    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
-
-# ports.ubuntu.com only hosts ARM packages, so apt 404s on amd64 packages
-# unless we (a) restrict the default sources to arm64, and (b) point amd64
-# at archive.ubuntu.com.
-- name: ARM only — pin ports.ubuntu.com sources to arm64 (DEB822)
-  ansible.builtin.shell: |
-    set -e
-    F=/etc/apt/sources.list.d/ubuntu.sources
-    [ -f "$F" ] || exit 0
-    if grep -q '^Architectures:' "$F"; then
-      exit 0
-    fi
-    sed -i '/^URIs: http:\/\/ports.ubuntu.com/a Architectures: arm64' "$F"
-    echo CHANGED
-  register: pin_arm64
-  changed_when: "'CHANGED' in (pin_arm64.stdout | default(''))"
-  when:
-    - sms_enabled | default(true)
-    - target_arch == 'arm64'
-    - ansible_os_family == 'Debian'
-    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
-
-- name: ARM only — add amd64 sources (archive.ubuntu.com)
-  ansible.builtin.copy:
-    dest: /etc/apt/sources.list.d/amd64.list
-    content: |
-      deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }} main restricted universe multiverse
-      deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }}-updates main restricted universe multiverse
-      deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }}-security main restricted universe multiverse
-    mode: '0644'
-  when:
-    - sms_enabled | default(true)
-    - target_arch == 'arm64'
-    - ansible_os_family == 'Debian'
-    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
-
-- name: ARM only — install amd64 libc + libstdc++ for qemu-user-static targets
+- name: ARM only — install qemu-user-static + binfmt-support + amd64 libs
   ansible.builtin.apt:
     name:
-      - libc6:amd64
+      - qemu-user-static
+      - binfmt-support
+      - libc6:amd64           # x86_64 dynamic linker for qemu-binfmt
       - libstdc++6:amd64
     state: present
     update_cache: true
