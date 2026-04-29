@@ -116,10 +116,16 @@
     # reused verbatim from a different install dir. Bypass it and call
     # magentctl directly — that's the actual entry point. MAgent forks
     # SMSAGENTL when it starts.
+    #
+    # Polestar bundles its own libssl/libcrypto/libstdc++ in NNPAgent/LIB/
+    # because the daemon binaries are linked against specific versions.
+    # Without LD_LIBRARY_PATH the qemu-binfmt loader can't resolve libssl.so.3.
     - name: Start Polestar Master Agent (magentctl -start; forks SMSAGENTL)
       ansible.builtin.command: ./magentctl -start
       args:
         chdir: "{{ sms_install_dir }}/NNPAgent/MAgent/bin"
+      environment:
+        LD_LIBRARY_PATH: "{{ sms_install_dir }}/NNPAgent/LIB"
       register: magentctl_run
       changed_when: magentctl_run.rc == 0
 
