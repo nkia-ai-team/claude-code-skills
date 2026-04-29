@@ -57,6 +57,41 @@
     - ansible_os_family == 'Debian'
     - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
 
+# ports.ubuntu.com only hosts ARM packages, so apt 404s on amd64 packages
+# unless we (a) restrict the default sources to arm64, and (b) point amd64
+# at archive.ubuntu.com.
+- name: ARM only — pin ports.ubuntu.com sources to arm64 (DEB822)
+  ansible.builtin.shell: |
+    set -e
+    F=/etc/apt/sources.list.d/ubuntu.sources
+    [ -f "$F" ] || exit 0
+    if grep -q '^Architectures:' "$F"; then
+      exit 0
+    fi
+    sed -i '/^URIs: http:\/\/ports.ubuntu.com/a Architectures: arm64' "$F"
+    echo CHANGED
+  register: pin_arm64
+  changed_when: "'CHANGED' in (pin_arm64.stdout | default(''))"
+  when:
+    - sms_enabled | default(true)
+    - target_arch == 'arm64'
+    - ansible_os_family == 'Debian'
+    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
+
+- name: ARM only — add amd64 sources (archive.ubuntu.com)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/amd64.list
+    content: |
+      deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }} main restricted universe multiverse
+      deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }}-updates main restricted universe multiverse
+      deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }}-security main restricted universe multiverse
+    mode: '0644'
+  when:
+    - sms_enabled | default(true)
+    - target_arch == 'arm64'
+    - ansible_os_family == 'Debian'
+    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
+
 - name: ARM only — install amd64 libc + libstdc++ for qemu-user-static targets
   ansible.builtin.apt:
     name:
