@@ -4,7 +4,8 @@ feature: "자산구성작업 – 자산구성작업 목록"
 admin_required: false
 original_title: "자산구성작업"
 category: account
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "자산구성작업"
 ---
 자산구성작업 – 자산구성작업 목록
 

@@ -4,7 +4,8 @@ feature: "SQL Server 목록"
 admin_required: false
 original_title: "SQLServer목록"
 category: alert
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "전체구성 > 관리대상 > SQL Server"
 ---
 SQL Server 목록
 

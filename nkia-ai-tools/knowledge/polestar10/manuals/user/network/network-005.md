@@ -4,7 +4,8 @@ feature: "네트워크 스크립트 템플릿"
 admin_required: false
 original_title: "네트워크스크립트템플릿"
 category: network
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "전체구성 > 사용자 정의 항목 > 네트워크 스크립트"
 ---
 네트워크 스크립트 템플릿
 

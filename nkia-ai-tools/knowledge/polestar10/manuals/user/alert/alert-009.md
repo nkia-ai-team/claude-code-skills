@@ -5,6 +5,7 @@ admin_required: false
 original_title: "레이아웃"
 category: alert
 menu_path_verified: false
+is_menu: false
 ---
 레이아웃
 

@@ -4,7 +4,8 @@ feature: "보고서 템플릿 관리"
 admin_required: false
 original_title: "보고서템플릿관리"
 category: system
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "운영관리 > EMS > 보고서 템플릿 관리"
 ---
 보고서 템플릿 관리
 

@@ -4,7 +4,8 @@ feature: "라이선스 관리"
 admin_required: false
 original_title: "라이선스관리"
 category: system
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "운영관리 > 기본 설정 > 라이선스 관리"
 ---
 라이선스 관리
 

@@ -4,7 +4,8 @@ feature: "<span id=\"_Hlk169177776\" class=\"anchor\"></span>애플리케이션 
 admin_required: false
 original_title: "애플리케이션서비스상세"
 category: perf
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "전체구성 > 관리대상 > 애플리케이션"
 ---
 <span id="_Hlk169177776" class="anchor"></span>애플리케이션 상세
 

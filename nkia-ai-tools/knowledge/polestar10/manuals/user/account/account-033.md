@@ -4,7 +4,8 @@ feature: "요청현황"
 admin_required: false
 original_title: "요청현황"
 category: account
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "요청현황"
 ---
 요청현황
 

@@ -5,6 +5,7 @@ admin_required: false
 original_title: "즐겨찾기"
 category: perf
 menu_path_verified: false
+is_menu: false
 ---
 즐겨찾기
 

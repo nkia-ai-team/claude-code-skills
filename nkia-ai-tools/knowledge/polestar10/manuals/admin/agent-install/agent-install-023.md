@@ -5,6 +5,7 @@ admin_required: true
 original_title: "서문"
 category: agent-install
 menu_path_verified: false
+is_menu: false
 ---
 관리자 매뉴얼
 

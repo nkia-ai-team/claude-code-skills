@@ -4,7 +4,8 @@ feature: "ITAM 기준정보 관리 – 자산분류체계"
 admin_required: false
 original_title: "운영관리_ITAM_기준정보관리"
 category: account
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "운영관리 > ITG > ITAM 기준정보 관리"
 ---
 ITAM 기준정보 관리 – 자산분류체계
 

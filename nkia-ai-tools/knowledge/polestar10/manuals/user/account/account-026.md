@@ -4,7 +4,8 @@ feature: "서비스카탈로그"
 admin_required: false
 original_title: "서비스카탈로그"
 category: account
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "서비스카탈로그"
 ---
 서비스카탈로그
 
