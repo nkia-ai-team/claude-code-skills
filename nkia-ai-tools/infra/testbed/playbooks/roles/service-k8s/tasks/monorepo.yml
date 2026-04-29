@@ -12,11 +12,22 @@
 
 - name: Clone testbed-services monorepo
   ansible.builtin.git:
-    repo: "{{ app_repo }}"
+    repo: >-
+      {%- if github_pat | length > 0 and app_repo is match('^https://') -%}
+      {{ app_repo | regex_replace('^https://', 'https://oauth2:' ~ github_pat ~ '@') }}
+      {%- else -%}
+      {{ app_repo }}
+      {%- endif -%}
     dest: "/opt/{{ app_namespace }}/src"
     version: "{{ app_version }}"
     force: false
+  environment:
+    # Prevent git from prompting for credentials when PAT-less / wrong PAT —
+    # otherwise ansible.git hangs forever.
+    GIT_TERMINAL_PROMPT: "0"
+    GIT_ASKPASS: "/bin/true"
   register: app_clone
+  no_log: true
 
 - name: Stat build-and-deploy.sh
   ansible.builtin.stat:
