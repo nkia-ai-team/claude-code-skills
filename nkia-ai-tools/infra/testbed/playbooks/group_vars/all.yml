@@ -20,10 +20,12 @@ go_install_dir: "/usr/local/go"
 
 # 서비스 배포 — testbed-services monorepo 패턴 (NKIAAI-570)
 # 자체 k8s/ manifest + 5 service docker build 가정.
-# 본 ansible 은 git clone + build-and-deploy.sh 호출만 책임. DB/app manifest 는 monorepo 가 보유.
+# 본 ansible 은 git clone + <app_subdir>/k8s/build-and-deploy.sh 호출만 책임.
+# DB/app manifest 는 monorepo 가 보유.
 app_namespace: "rca-testbed"               # plopvape-shop 의 00-namespace.yaml
-app_repo: ""                                # e.g. https://github.com/BangSungjoon/plopvape-shop
+app_repo: "https://github.com/nkia-ai-team/testbed-services"
 app_version: "main"
+app_subdir: "plopvape-shop"                 # monorepo 내부 testbed 폴더 (NKIAAI-570)
 testbed_services: [order, product, inventory, payment, notification]
 
 # 에이전트 활성화 플래그 (테스트베드는 6종 고정 스택이라 모두 true 가 기본)
@@ -62,11 +64,11 @@ sms_asset_name: "polestar10_SMS_Linux64_3.4_10.0.0_18.tar.gz"
 # 강제 재설치하려면 inventory 또는 --extra-vars 로 sms_force_reinstall=true.
 sms_force_reinstall: false
 
-# 에이전트 호스트 설치 경로
-# plopvape-shop 의 manifest 가 가정한 hardcoded path 와 일치 (NKIAAI-570 표준화 후속).
-agent_install_root: "/home/nkia"
-wpm_install_dir: "{{ agent_install_root }}/wpm-agent"
-apm_install_dir: "{{ agent_install_root }}/apm-agent"
+# 에이전트 호스트 설치 경로 — NKIAAI-570 표준 (testbed-services/README.md §3 명세).
+# 모든 testbed manifest 가 이 경로를 hostPath 로 마운트한다고 가정.
+agent_install_root: "/opt/polestar10"
+wpm_install_dir: "{{ agent_install_root }}/wpm"
+apm_install_dir: "{{ agent_install_root }}/apm"
 wpm_jar_name: "wpmagent.jar"
 apm_jar_name: "opentelemetry-javaagent.jar"
 

@@ -12,7 +12,8 @@ all:
           ansible_user: sjbang
           ansible_python_interpreter: /usr/bin/python3
       vars:
-        # testbed-services monorepo (NKIAAI-570) — k8s/build-and-deploy.sh 가 5 service build + apply
-        app_repo: "https://github.com/BangSungjoon/plopvape-shop"
+        # testbed-services monorepo (NKIAAI-570) — <app_subdir>/k8s/build-and-deploy.sh 가 5 service build + apply
+        app_repo: "https://github.com/nkia-ai-team/testbed-services"
         app_version: main
+        app_subdir: plopvape-shop
         app_namespace: rca-testbed
