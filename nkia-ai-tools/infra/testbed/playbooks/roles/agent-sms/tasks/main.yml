@@ -40,6 +40,32 @@
     - ansible_os_family == 'Debian'
     - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
 
+# qemu-user-static needs the x86_64 dynamic linker + libc on the ARM host
+# to load Polestar's amd64 daemons (MAGENTL/SMSAGENTL). Without this,
+# qemu-binfmt fails with "Could not open /lib64/ld-linux-x86-64.so.2".
+- name: ARM only — enable amd64 multi-arch
+  ansible.builtin.command: dpkg --add-architecture amd64
+  register: dpkg_add_arch
+  changed_when: "'amd64' not in (lookup('pipe', 'dpkg --print-foreign-architectures', errors='ignore') | default(''))"
+  when:
+    - sms_enabled | default(true)
+    - target_arch == 'arm64'
+    - ansible_os_family == 'Debian'
+    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
+
+- name: ARM only — install amd64 libc + libstdc++ for qemu-user-static targets
+  ansible.builtin.apt:
+    name:
+      - libc6:amd64
+      - libstdc++6:amd64
+    state: present
+    update_cache: true
+  when:
+    - sms_enabled | default(true)
+    - target_arch == 'arm64'
+    - ansible_os_family == 'Debian'
+    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
+
 - name: ARM only — verify binfmt registration
   ansible.builtin.command: ls /proc/sys/fs/binfmt_misc/
   register: binfmt_ls
