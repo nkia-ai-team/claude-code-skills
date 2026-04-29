@@ -4,13 +4,12 @@
     msg: "SMS agent disabled (sms_enabled=false)"
   when: not (sms_enabled | default(true))
 
-# Detection covers Polestar's actual daemons (SMSAGENT/MAGENT/DCAAGENT)
-# rather than a generic 'sms-agent' name. Other 3 agents are namespace-isolated
-# (K8s pod / DaemonSet) so this guard only applies to SMS.
+# 109 reference shows actual daemon names are MAGENTL/SMSAGENTL (not SMSAGENT/MAGENT).
+# Polestar SMS uses agentstart.sh -> magentctl -start to fork daemons; no systemd unit.
 - name: Detect existing Polestar SMS daemons
   ansible.builtin.shell: |
     set +e
-    PROC=$(pgrep -af 'SMSAGENT|MAGENT' | grep -v grep | head -1)
+    PROC=$(pgrep -af 'SMSAGENTL|MAGENTL|PARFT' | grep -v grep | head -1)
     if [ -n "$PROC" ]; then
       echo "FOUND $PROC"
       exit 0
@@ -56,7 +55,7 @@
     - "'qemu-x86_64' not in (binfmt_ls.stdout | default(''))"
     - "'qemu-amd64' not in (binfmt_ls.stdout | default(''))"
 
-- name: Install SMS agent via Polestar AgentInstall.sh
+- name: Install SMS agent via Polestar AgentInstall.sh + agentstart.sh
   when:
     - sms_enabled | default(true)
     - github_pat | length > 0
@@ -102,14 +101,32 @@
         dest: "{{ sms_install_dir }}"
         remote_src: true
 
-    # AgentInstall.sh's shebang is on line 7 (after a comment header), so the
-    # kernel reads it as binary. Invoke explicitly via /bin/sh.
-    - name: Run Polestar AgentInstall.sh (registers daemons + autostart)
+    - name: Run Polestar AgentInstall.sh (config + binfmt registration)
       ansible.builtin.command:
         cmd: /bin/sh ./AgentInstall.sh -m {{ polestar10_collector_host }}
         chdir: "{{ sms_install_dir }}"
       register: sms_install_run
       changed_when: sms_install_run.rc == 0
+
+    # 109 reference pattern: agentstart.sh -> magentctl -start. No systemd unit.
+    # The script is a no-op when daemons are already running (it greps PROCNAME).
+    - name: Start Polestar SMS daemons via agentstart.sh
+      ansible.builtin.shell: bash agentstart.sh
+      args:
+        chdir: "{{ sms_install_dir }}/NNPAgent"
+      register: sms_start_run
+      changed_when: "'is already running' not in (sms_start_run.stdout | default(''))"
+
+    - name: Verify SMS daemons started
+      ansible.builtin.shell: |
+        set +e
+        pgrep -af 'SMSAGENTL|MAGENTL' | grep -v grep | head -3
+      register: sms_verify
+      changed_when: false
+      failed_when: sms_verify.stdout | length == 0
+      retries: 6
+      delay: 5
+      until: sms_verify.stdout | length > 0
 
 - name: SMS skip notice (GITHUB_PAT not set + not running)
   ansible.builtin.debug:

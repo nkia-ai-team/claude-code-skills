@@ -9,7 +9,7 @@ arch_support:
   arm64:
     method: qemu-user-static
     asset_url: "TBD (amd64 binary run under qemu-user-static on arm64 host)"
-detection_command: "pgrep -af 'SMSAGENT|MAGENT' | grep -v grep | head -1 || systemctl status sms-agent --no-pager 2>/dev/null | head -n 5"
+detection_command: "pgrep -af 'SMSAGENTL|MAGENTL|PARFT' | grep -v grep | head -1"
 prerequisites:
   - "Linux host with systemd (or Windows with Services Manager)"
   - "Outbound TCP connectivity to the SMS collector"
