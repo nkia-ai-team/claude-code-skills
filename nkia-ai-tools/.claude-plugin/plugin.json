@@ -8,6 +8,5 @@
   "repository": "https://github.com/nkia-ai/claude-code-plugins",
   "license": "MIT",
   "keywords": ["code-review", "commit", "linear", "issue-management", "project-updater", "initiative-updater", "evidence", "confluence", "figma", "react", "weekly-report", "google-sheets", "google-calendar", "workflow", "automation", "polestar10", "monitoring", "nkia-operations"],
-  "skills": "./skills",
-  "agents": "./agents"
+  "skills": "./skills"
 }
