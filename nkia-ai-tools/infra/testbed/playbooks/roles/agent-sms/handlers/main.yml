@@ -1,6 +1,0 @@
----
-- name: restart sms-agent
-  ansible.builtin.systemd:
-    name: sms-agent
-    state: restarted
-    daemon_reload: true

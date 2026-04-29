@@ -1,9 +1,0 @@
-collector:
-  host: {{ polestar10_collector_host }}
-  port: {{ polestar10_sms_collector_port }}
-agent:
-  hostname: "{{ ansible_hostname }}"
-  arch: "{{ target_arch }}"
-report_interval: "{{ '60s' if target_arch == 'arm64' else '15s' }}"
-# ARM 호스트는 qemu-user-static 으로 AMD 바이너리 실행 — CPU 사용량 2~3배 상승.
-# report_interval 60s 로 부하 완화 (install-guide.md 의 성능 주의 사항).

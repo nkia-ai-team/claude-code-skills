@@ -4,16 +4,15 @@
     msg: "SMS agent disabled (sms_enabled=false)"
   when: not (sms_enabled | default(true))
 
-# Host-level systemd agent: pre-detect to skip when already installed.
-# Other 3 agents are namespace-isolated (K8s pod / DaemonSet) so this guard
-# only applies to SMS.
-- name: Detect existing SMS agent (host-level systemd / process)
+# Detection covers Polestar's actual daemons (SMSAGENT/MAGENT/DCAAGENT)
+# rather than a generic 'sms-agent' name. Other 3 agents are namespace-isolated
+# (K8s pod / DaemonSet) so this guard only applies to SMS.
+- name: Detect existing Polestar SMS daemons
   ansible.builtin.shell: |
     set +e
-    PROC=$(pgrep -af sms-agent | grep -v grep | head -1)
-    SVC=$(systemctl is-active sms-agent 2>/dev/null)
-    if [ -n "$PROC" ] || [ "$SVC" = "active" ]; then
-      echo "FOUND proc='$PROC' service='$SVC'"
+    PROC=$(pgrep -af 'SMSAGENT|MAGENT' | grep -v grep | head -1)
+    if [ -n "$PROC" ]; then
+      echo "FOUND $PROC"
       exit 0
     fi
     exit 1
@@ -21,10 +20,10 @@
   changed_when: false
   failed_when: false
 
-- name: SMS already installed — skip install (set sms_force_reinstall=true to override)
+- name: SMS already running — skip install (set sms_force_reinstall=true to override)
   ansible.builtin.debug:
     msg: >
-      SMS agent already present on host — install skipped.
+      SMS daemons already running on host — install skipped.
       Detection: {{ (sms_existing.stdout | default('')) | trim }}
   when:
     - sms_enabled | default(true)
@@ -57,7 +56,7 @@
     - "'qemu-x86_64' not in (binfmt_ls.stdout | default(''))"
     - "'qemu-amd64' not in (binfmt_ls.stdout | default(''))"
 
-- name: Install SMS agent (PAT configured + not already present)
+- name: Install SMS agent via Polestar AgentInstall.sh
   when:
     - sms_enabled | default(true)
     - github_pat | length > 0
@@ -103,38 +102,18 @@
         dest: "{{ sms_install_dir }}"
         remote_src: true
 
-    - name: Locate SMS agent binary
-      ansible.builtin.shell: |
-        find {{ sms_install_dir }} -type f -name 'sms-agent*' -executable 2>/dev/null \
-          | head -1 \
-          || find {{ sms_install_dir }} -maxdepth 4 -type f -name 'sms-agent*' 2>/dev/null | head -1
-      register: sms_binary_path
-      changed_when: false
+    - name: Run Polestar AgentInstall.sh (registers daemons + autostart)
+      ansible.builtin.command:
+        cmd: ./AgentInstall.sh -m {{ polestar10_collector_host }}
+        chdir: "{{ sms_install_dir }}"
+      register: sms_install_run
+      changed_when: sms_install_run.rc == 0
+      # AgentInstall.sh handles systemd / rc.local registration internally;
+      # repeat invocations are guarded by the detection block above.
 
-    - name: Render SMS config
-      ansible.builtin.template:
-        src: sms-config.yaml.j2
-        dest: "{{ sms_install_dir }}/agent-config.yaml"
-        mode: '0644'
-      notify: restart sms-agent
-
-    - name: Render SMS systemd unit
-      ansible.builtin.template:
-        src: sms-agent.service.j2
-        dest: /etc/systemd/system/sms-agent.service
-        mode: '0644'
-      notify: restart sms-agent
-
-    - name: Enable + start SMS agent
-      ansible.builtin.systemd:
-        name: sms-agent
-        enabled: true
-        state: started
-        daemon_reload: true
-
-- name: SMS skip notice (GITHUB_PAT not set + not installed)
+- name: SMS skip notice (GITHUB_PAT not set + not running)
   ansible.builtin.debug:
-    msg: "SMS agent skipped — set GITHUB_PAT env var on the controller to download from polestar-agents-binaries."
+    msg: "SMS agent skipped — set GITHUB_PAT (or 'gh auth login') on the controller."
   when:
     - sms_enabled | default(true)
     - github_pat | length == 0
