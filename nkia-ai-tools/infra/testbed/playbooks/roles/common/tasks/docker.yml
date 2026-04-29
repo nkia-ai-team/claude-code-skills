@@ -5,11 +5,24 @@
   changed_when: false
   failed_when: false
 
+# apt-get update can be poisoned by stale third-party repos on real hosts
+# (e.g. 109's expired NVIDIA workbench GPG). The CLI prints W:/E: and
+# moves on; ansible.builtin.apt with update_cache=true treats the same
+# state as fatal. Use a tolerant shell update + skip the in-module update
+# afterwards — matches manual `apt install` behavior.
+- name: Best-effort apt update (tolerate third-party repo errors)
+  ansible.builtin.shell: apt-get update 2>&1 | tail -10 || true
+  args:
+    executable: /bin/bash
+  changed_when: false
+  when:
+    - docker_check.rc != 0
+    - ansible_os_family == 'Debian'
+
 - name: Install Docker prerequisites (Debian)
   ansible.builtin.apt:
     name: [ca-certificates, curl, gnupg, lsb-release]
     state: present
-    update_cache: true
   when:
     - docker_check.rc != 0
     - ansible_os_family == 'Debian'
@@ -34,15 +47,23 @@
       {{ ansible_distribution_release }} stable
     filename: docker
     state: present
+    update_cache: false   # we update separately in a tolerant shell call
   when:
     - docker_check.rc != 0
     - ansible_os_family == 'Debian'
+  register: docker_repo_added
+
+- name: Best-effort apt update after Docker repo add (tolerate)
+  ansible.builtin.shell: apt-get update 2>&1 | tail -10 || true
+  args:
+    executable: /bin/bash
+  changed_when: false
+  when: docker_repo_added is changed
 
 - name: Install Docker engine (Debian)
   ansible.builtin.apt:
     name: [docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin]
     state: present
-    update_cache: true
   when:
     - docker_check.rc != 0
     - ansible_os_family == 'Debian'

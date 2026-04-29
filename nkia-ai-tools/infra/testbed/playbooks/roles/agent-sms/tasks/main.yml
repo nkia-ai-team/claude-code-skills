@@ -37,7 +37,8 @@
       - libc6:amd64           # x86_64 dynamic linker for qemu-binfmt
       - libstdc++6:amd64
     state: present
-    update_cache: true
+    # update_cache handled tolerantly in arm-sms-prereq; avoids third-party
+    # repo errors (e.g. NVIDIA expired GPG on 109) blocking the install.
   when:
     - sms_enabled | default(true)
     - target_arch == 'arm64'

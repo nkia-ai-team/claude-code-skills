@@ -46,13 +46,8 @@
   register: amd64_sources
 
 - name: Refresh apt cache after sources change (tolerate third-party repo errors)
-  ansible.builtin.apt:
-    update_cache: true
+  ansible.builtin.shell: apt-get update 2>&1 | tail -10 || true
+  args:
+    executable: /bin/bash
+  changed_when: false
   when: arch_add.changed or pin_arm64.changed or (amd64_sources.changed | default(false))
-  register: apt_refresh
-  failed_when: false
-
-- name: Warn when apt update reported errors (e.g. expired NVIDIA GPG, unrelated to our sources)
-  ansible.builtin.debug:
-    msg: "apt update returned warnings/errors — these come from pre-existing host repos, not from the sources this role added. Continuing."
-  when: apt_refresh.failed | default(false)
