@@ -108,14 +108,16 @@
       register: sms_install_run
       changed_when: sms_install_run.rc == 0
 
-    # 109 reference pattern: agentstart.sh -> magentctl -start. No systemd unit.
-    # The script is a no-op when daemons are already running (it greps PROCNAME).
-    - name: Start Polestar SMS daemons via agentstart.sh
-      ansible.builtin.shell: bash agentstart.sh
+    # 109's agentstart.sh hardcodes /home/nkia/NNPAgent-sms/... so it can't be
+    # reused verbatim from a different install dir. Bypass it and call
+    # magentctl directly — that's the actual entry point. MAgent forks
+    # SMSAGENTL when it starts.
+    - name: Start Polestar Master Agent (magentctl -start; forks SMSAGENTL)
+      ansible.builtin.command: ./magentctl -start
       args:
-        chdir: "{{ sms_install_dir }}/NNPAgent"
-      register: sms_start_run
-      changed_when: "'is already running' not in (sms_start_run.stdout | default(''))"
+        chdir: "{{ sms_install_dir }}/NNPAgent/MAgent/bin"
+      register: magentctl_run
+      changed_when: magentctl_run.rc == 0
 
     - name: Verify SMS daemons started
       ansible.builtin.shell: |
