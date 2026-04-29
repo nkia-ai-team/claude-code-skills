@@ -70,17 +70,25 @@ all:
         app_nodeport: 30080
 ```
 
-### 2. GitHub PAT 설정
+### 2. GitHub 인증 (둘 중 하나)
 
-WPM/APM/SMS 자산은 `nkia-ai-team/polestar-agents-binaries` (private repo) 에서 받습니다. controller (Mac/Linux) 에 `GITHUB_PAT` 환경변수 export:
+WPM/APM/SMS 자산은 `nkia-ai-team/polestar-agents-binaries` (private repo) 에서 받습니다.
 
+**옵션 A — gh CLI** (권장 — 이미 `gh` 쓰는 팀원은 추가 작업 없음):
 ```sh
-export GITHUB_PAT=ghp_xxx        # NKIA org repo:read 권한 필요
+gh auth login         # 한 번만. NKIA org 의 멤버이면 OK
+gh auth status        # logged in 확인
+```
+ansible 이 자동으로 `gh auth token` 으로 token 추출.
+
+**옵션 B — Personal Access Token**:
+```sh
+export GITHUB_PAT=ghp_xxx        # repo scope. NKIA org SAML SSO 면 별도 인가 필요
 ```
 
-PAT 미설정 시 WPM/APM/SMS 다운로드 task 는 skip + 안내 메시지 출력 — common + service-k8s 까지만 동작.
+둘 다 미설정 시 WPM/APM/SMS 다운로드 task 는 skip + 안내 메시지 출력 — common + service-k8s 까지만 동작.
 
-`group_vars/all.yml` 의 `wpm_release_tag` / `apm_release_tag` / `sms_release_tag` + `*_asset_name` 으로 어떤 release 를 쓸지 결정. 기본값은 NKIAAI-537 의 최신 자산.
+`group_vars/all.yml` 의 `wpm_release_tag` / `apm_release_tag` / `sms_release_tag` + `*_asset_name` 으로 어떤 release 를 쓸지 결정.
 
 ### 3. 실행
 

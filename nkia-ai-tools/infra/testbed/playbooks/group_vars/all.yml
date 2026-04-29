@@ -37,7 +37,11 @@ sms_enabled: true
 
 # polestar-agents-binaries (private repo) GitHub API 패턴
 agent_release_api_base: "https://api.github.com/repos/nkia-ai-team/polestar-agents-binaries"
-github_pat: "{{ lookup('env', 'GITHUB_PAT') | default('', true) }}"
+# Token resolution: GITHUB_PAT env > `gh auth token` (if user did `gh auth login`) > empty
+github_pat: >-
+  {{ lookup('env', 'GITHUB_PAT')
+     | default(lookup('pipe', 'gh auth token 2>/dev/null || true'), true)
+     | default('', true) }}
 
 # WPM
 wpm_agent_version: "8.1.1"
