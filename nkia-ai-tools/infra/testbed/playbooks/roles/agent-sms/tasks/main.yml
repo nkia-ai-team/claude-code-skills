@@ -112,6 +112,22 @@
       register: sms_install_run
       changed_when: sms_install_run.rc == 0
 
+    # AgentInstall.sh fills Brokerinfo.conf with the local interface IP
+    # (which is the lima NAT-internal IP behind a Mac, unreachable from broker)
+    # and mosquitto/mosquitto credentials. The 109 reference shows working
+    # config uses NULL for AGENT_IP/USER_ID/USER_PWD — broker derives the
+    # source IP from the connection itself, and emqx accepts anonymous.
+    - name: Patch Brokerinfo.conf — match 109 reference (NULL agent_ip + null creds)
+      ansible.builtin.lineinfile:
+        path: "{{ sms_install_dir }}/NNPAgent/MAgent/conf/Brokerinfo.conf"
+        regexp: "^{{ item.key }}="
+        line: "{{ item.key }}={{ item.value }}"
+      loop:
+        - { key: BROKER1_AGENT_IP, value: NULL }
+        - { key: BROKER1_USER_ID, value: NULL }
+        - { key: BROKER1_USER_PWD, value: NULL }
+      register: broker_conf_patch
+
     # 109's agentstart.sh hardcodes /home/nkia/NNPAgent-sms/... so it can't be
     # reused verbatim from a different install dir. Bypass it and call
     # magentctl directly — that's the actual entry point. MAgent forks
@@ -120,6 +136,19 @@
     # Polestar bundles its own libssl/libcrypto/libstdc++ in NNPAgent/LIB/
     # because the daemon binaries are linked against specific versions.
     # Without LD_LIBRARY_PATH the qemu-binfmt loader can't resolve libssl.so.3.
+    # If Brokerinfo.conf was patched (or this is fresh), make sure any old
+    # daemon is stopped so it picks up the new conf on next start.
+    - name: Stop magentctl if running (so it reloads patched conf)
+      ansible.builtin.command: ./magentctl -stop
+      args:
+        chdir: "{{ sms_install_dir }}/NNPAgent/MAgent/bin"
+      environment:
+        LD_LIBRARY_PATH: "{{ sms_install_dir }}/NNPAgent/LIB"
+      register: magentctl_stop
+      changed_when: magentctl_stop.rc == 0
+      failed_when: false
+      when: broker_conf_patch is changed
+
     - name: Start Polestar Master Agent (magentctl -start; forks SMSAGENTL)
       ansible.builtin.command: ./magentctl -start
       args:
