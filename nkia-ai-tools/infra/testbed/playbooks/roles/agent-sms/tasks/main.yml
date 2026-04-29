@@ -123,9 +123,9 @@
         regexp: "^{{ item.key }}="
         line: "{{ item.key }}={{ item.value }}"
       loop:
-        - { key: BROKER1_AGENT_IP, value: NULL }
-        - { key: BROKER1_USER_ID, value: NULL }
-        - { key: BROKER1_USER_PWD, value: NULL }
+        - { key: BROKER1_AGENT_IP, value: 'NULL' }   # quote → string 'NULL', not Python None
+        - { key: BROKER1_USER_ID, value: 'NULL' }
+        - { key: BROKER1_USER_PWD, value: 'NULL' }
       register: broker_conf_patch
 
     # 109's agentstart.sh hardcodes /home/nkia/NNPAgent-sms/... so it can't be
