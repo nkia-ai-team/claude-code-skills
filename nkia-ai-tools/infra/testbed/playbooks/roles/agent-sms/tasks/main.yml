@@ -102,14 +102,14 @@
         dest: "{{ sms_install_dir }}"
         remote_src: true
 
+    # AgentInstall.sh's shebang is on line 7 (after a comment header), so the
+    # kernel reads it as binary. Invoke explicitly via /bin/sh.
     - name: Run Polestar AgentInstall.sh (registers daemons + autostart)
       ansible.builtin.command:
-        cmd: ./AgentInstall.sh -m {{ polestar10_collector_host }}
+        cmd: /bin/sh ./AgentInstall.sh -m {{ polestar10_collector_host }}
         chdir: "{{ sms_install_dir }}"
       register: sms_install_run
       changed_when: sms_install_run.rc == 0
-      # AgentInstall.sh handles systemd / rc.local registration internally;
-      # repeat invocations are guarded by the detection block above.
 
 - name: SMS skip notice (GITHUB_PAT not set + not running)
   ansible.builtin.debug:
