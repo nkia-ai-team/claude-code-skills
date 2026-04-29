@@ -1,8 +1,13 @@
 ---
-- name: Install WPM agent (URL configured)
+- name: WPM disabled notice
+  ansible.builtin.debug:
+    msg: "WPM agent disabled (wpm_enabled=false)"
+  when: not (wpm_enabled | default(true))
+
+- name: Install WPM agent
   when:
     - wpm_enabled | default(true)
-    - wpm_agent_url | length > 0
+    - github_pat | length > 0
   block:
     - name: Ensure WPM install dir
       ansible.builtin.file:
@@ -10,24 +15,58 @@
         state: directory
         mode: '0755'
 
-    - name: Download WPM agent jar
+    - name: Fetch WPM release metadata (private repo via API)
+      ansible.builtin.uri:
+        url: "{{ agent_release_api_base }}/releases/tags/{{ wpm_release_tag }}"
+        headers:
+          Authorization: "Bearer {{ github_pat }}"
+          Accept: "application/vnd.github+json"
+        return_content: true
+      register: wpm_release_meta
+      no_log: true
+
+    - name: Resolve WPM asset id
+      ansible.builtin.set_fact:
+        wpm_asset_id: "{{ (wpm_release_meta.json.assets | selectattr('name', 'equalto', wpm_asset_name) | map(attribute='id') | list | first) }}"
+
+    - name: Download WPM agent archive (octet-stream)
       ansible.builtin.get_url:
-        url: "{{ wpm_agent_url }}"
-        dest: "{{ agent_install_root }}/wpm/agent.jar"
+        url: "{{ agent_release_api_base }}/releases/assets/{{ wpm_asset_id }}"
+        headers:
+          Authorization: "Bearer {{ github_pat }}"
+          Accept: "application/octet-stream"
+        dest: "/tmp/{{ wpm_asset_name }}"
         mode: '0644'
       register: wpm_dl
       retries: 5
       delay: 10
       until: wpm_dl is succeeded
+      no_log: true
 
-- name: WPM skip notice (URL empty)
+    - name: Extract WPM archive
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ wpm_asset_name }}"
+        dest: "{{ agent_install_root }}/wpm"
+        remote_src: true
+
+    - name: Find WPM agent jar (largest jar in archive)
+      ansible.builtin.find:
+        paths: "{{ agent_install_root }}/wpm"
+        patterns: "*.jar"
+        recurse: true
+      register: wpm_jars
+
+    - name: Symlink WPM jar to agent.jar
+      ansible.builtin.file:
+        src: "{{ (wpm_jars.files | sort(attribute='size') | reverse | first).path }}"
+        dest: "{{ agent_install_root }}/wpm/agent.jar"
+        state: link
+        force: true
+      when: wpm_jars.matched > 0
+
+- name: WPM skip notice (GITHUB_PAT not set)
   ansible.builtin.debug:
-    msg: "WPM agent skipped — wpm_agent_url is empty. Set in group_vars/all.yml once polestar-agents-binaries asset is published."
+    msg: "WPM agent skipped — set GITHUB_PAT env var on the controller to download from polestar-agents-binaries."
   when:
     - wpm_enabled | default(true)
-    - wpm_agent_url | length == 0
-
-- name: WPM disabled notice
-  ansible.builtin.debug:
-    msg: "WPM agent disabled (wpm_enabled=false)"
-  when: not (wpm_enabled | default(true))
+    - github_pat | length == 0

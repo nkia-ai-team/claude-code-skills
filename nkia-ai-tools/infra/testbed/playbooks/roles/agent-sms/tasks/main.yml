@@ -4,9 +4,9 @@
     msg: "SMS agent disabled (sms_enabled=false)"
   when: not (sms_enabled | default(true))
 
-# install-spec.yaml 의 detection_command 와 동등.
-# 호스트 모니터링용 SMS 는 다른 모니터링 시스템 또는 이전 자동화로 이미 깔려 있을 가능성 높음.
-# 다른 3 에이전트 (WPM/APM/KCM) 는 본 playbook 이 만든 새 namespace 안에서만 동작하므로 격리됨.
+# Host-level systemd agent: pre-detect to skip when already installed.
+# Other 3 agents are namespace-isolated (K8s pod / DaemonSet) so this guard
+# only applies to SMS.
 - name: Detect existing SMS agent (host-level systemd / process)
   ansible.builtin.shell: |
     set +e
@@ -24,7 +24,7 @@
 - name: SMS already installed — skip install (set sms_force_reinstall=true to override)
   ansible.builtin.debug:
     msg: >
-      SMS agent already present on host — install skipped (멱등성 보장).
+      SMS agent already present on host — install skipped.
       Detection: {{ (sms_existing.stdout | default('')) | trim }}
   when:
     - sms_enabled | default(true)
@@ -57,10 +57,10 @@
     - "'qemu-x86_64' not in (binfmt_ls.stdout | default(''))"
     - "'qemu-amd64' not in (binfmt_ls.stdout | default(''))"
 
-- name: Install SMS agent (URL configured + not already present, or force_reinstall)
+- name: Install SMS agent (PAT configured + not already present)
   when:
     - sms_enabled | default(true)
-    - sms_agent_url | length > 0
+    - github_pat | length > 0
     - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
   block:
     - name: Ensure SMS install dir
@@ -69,22 +69,47 @@
         state: directory
         mode: '0755'
 
-    - name: Download SMS tarball
+    - name: Fetch SMS release metadata (private repo via API)
+      ansible.builtin.uri:
+        url: "{{ agent_release_api_base }}/releases/tags/{{ sms_release_tag }}"
+        headers:
+          Authorization: "Bearer {{ github_pat }}"
+          Accept: "application/vnd.github+json"
+        return_content: true
+      register: sms_release_meta
+      no_log: true
+
+    - name: Resolve SMS asset id
+      ansible.builtin.set_fact:
+        sms_asset_id: "{{ (sms_release_meta.json.assets | selectattr('name', 'equalto', sms_asset_name) | map(attribute='id') | list | first) }}"
+
+    - name: Download SMS tarball (octet-stream)
       ansible.builtin.get_url:
-        url: "{{ sms_agent_url }}"
-        dest: /tmp/sms-agent.tar.gz
+        url: "{{ agent_release_api_base }}/releases/assets/{{ sms_asset_id }}"
+        headers:
+          Authorization: "Bearer {{ github_pat }}"
+          Accept: "application/octet-stream"
+        dest: "/tmp/{{ sms_asset_name }}"
         mode: '0644'
       register: sms_dl
       retries: 5
       delay: 10
       until: sms_dl is succeeded
+      no_log: true
 
     - name: Extract SMS tarball
       ansible.builtin.unarchive:
-        src: /tmp/sms-agent.tar.gz
+        src: "/tmp/{{ sms_asset_name }}"
         dest: "{{ sms_install_dir }}"
         remote_src: true
-        creates: "{{ sms_install_dir }}/sms-agent"
+
+    - name: Locate SMS agent binary
+      ansible.builtin.shell: |
+        find {{ sms_install_dir }} -type f -name 'sms-agent*' -executable 2>/dev/null \
+          | head -1 \
+          || find {{ sms_install_dir }} -maxdepth 4 -type f -name 'sms-agent*' 2>/dev/null | head -1
+      register: sms_binary_path
+      changed_when: false
 
     - name: Render SMS config
       ansible.builtin.template:
@@ -107,10 +132,10 @@
         state: started
         daemon_reload: true
 
-- name: SMS skip notice (URL empty + not installed)
+- name: SMS skip notice (GITHUB_PAT not set + not installed)
   ansible.builtin.debug:
-    msg: "SMS agent skipped — sms_agent_url is empty. Set in group_vars/all.yml once polestar-agents-binaries asset is published."
+    msg: "SMS agent skipped — set GITHUB_PAT env var on the controller to download from polestar-agents-binaries."
   when:
     - sms_enabled | default(true)
-    - sms_agent_url | length == 0
+    - github_pat | length == 0
     - sms_existing.rc != 0

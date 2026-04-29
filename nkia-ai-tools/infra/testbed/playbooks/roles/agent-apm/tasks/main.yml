@@ -1,8 +1,13 @@
 ---
-- name: Install APM agent (URL configured)
+- name: APM disabled notice
+  ansible.builtin.debug:
+    msg: "APM agent disabled (apm_enabled=false)"
+  when: not (apm_enabled | default(true))
+
+- name: Install APM agent
   when:
     - apm_enabled | default(true)
-    - apm_agent_url | length > 0
+    - github_pat | length > 0
   block:
     - name: Ensure APM install dir
       ansible.builtin.file:
@@ -10,24 +15,58 @@
         state: directory
         mode: '0755'
 
-    - name: Download APM agent jar
+    - name: Fetch APM release metadata (private repo via API)
+      ansible.builtin.uri:
+        url: "{{ agent_release_api_base }}/releases/tags/{{ apm_release_tag }}"
+        headers:
+          Authorization: "Bearer {{ github_pat }}"
+          Accept: "application/vnd.github+json"
+        return_content: true
+      register: apm_release_meta
+      no_log: true
+
+    - name: Resolve APM asset id
+      ansible.builtin.set_fact:
+        apm_asset_id: "{{ (apm_release_meta.json.assets | selectattr('name', 'equalto', apm_asset_name) | map(attribute='id') | list | first) }}"
+
+    - name: Download APM agent archive (octet-stream)
       ansible.builtin.get_url:
-        url: "{{ apm_agent_url }}"
-        dest: "{{ agent_install_root }}/apm/agent.jar"
+        url: "{{ agent_release_api_base }}/releases/assets/{{ apm_asset_id }}"
+        headers:
+          Authorization: "Bearer {{ github_pat }}"
+          Accept: "application/octet-stream"
+        dest: "/tmp/{{ apm_asset_name }}"
         mode: '0644'
       register: apm_dl
       retries: 5
       delay: 10
       until: apm_dl is succeeded
+      no_log: true
 
-- name: APM skip notice (URL empty)
+    - name: Extract APM archive
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ apm_asset_name }}"
+        dest: "{{ agent_install_root }}/apm"
+        remote_src: true
+
+    - name: Find APM agent jar (largest jar in archive)
+      ansible.builtin.find:
+        paths: "{{ agent_install_root }}/apm"
+        patterns: "*.jar"
+        recurse: true
+      register: apm_jars
+
+    - name: Symlink APM jar to agent.jar
+      ansible.builtin.file:
+        src: "{{ (apm_jars.files | sort(attribute='size') | reverse | first).path }}"
+        dest: "{{ agent_install_root }}/apm/agent.jar"
+        state: link
+        force: true
+      when: apm_jars.matched > 0
+
+- name: APM skip notice (GITHUB_PAT not set)
   ansible.builtin.debug:
-    msg: "APM agent skipped — apm_agent_url is empty. Set in group_vars/all.yml once polestar-agents-binaries asset is published."
+    msg: "APM agent skipped — set GITHUB_PAT env var on the controller to download from polestar-agents-binaries."
   when:
     - apm_enabled | default(true)
-    - apm_agent_url | length == 0
-
-- name: APM disabled notice
-  ansible.builtin.debug:
-    msg: "APM agent disabled (apm_enabled=false)"
-  when: not (apm_enabled | default(true))
+    - github_pat | length == 0

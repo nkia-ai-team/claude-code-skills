@@ -35,21 +35,28 @@ apm_enabled: true
 kcm_enabled: true
 sms_enabled: true
 
-# 에이전트 버전 (polestar-agents-binaries Releases 자산 확정 후 override)
-wpm_agent_version: "TBD"
-apm_agent_version: "TBD"
+# polestar-agents-binaries (private repo) GitHub API 패턴
+agent_release_api_base: "https://api.github.com/repos/nkia-ai-team/polestar-agents-binaries"
+github_pat: "{{ lookup('env', 'GITHUB_PAT') | default('', true) }}"
+
+# WPM
+wpm_agent_version: "8.1.1"
+wpm_release_tag: "wpm-v8.1.1"
+wpm_asset_name: "WPMAgent_8.1.1_20250403.zip"
+
+# APM
+apm_agent_version: "10.2.2"
+apm_release_tag: "apm-v10.2.2"
+apm_asset_name: "apm_agent_10.2.2.zip"
+
+# KCM (AMD64 이미지 자산은 미정 — ARM 은 source build)
 kcm_agent_version: "TBD"
-sms_agent_version: "TBD"
-
-# WPM/APM 자산 URL — polestar-agents-binaries Releases 에서 받음
-wpm_agent_url: ""
-apm_agent_url: ""
-
-# KCM AMD64 자산 URL (이미지 tar). ARM 은 source build 라 URL 불필요
 kcm_image_url_amd64: ""
 
-# SMS 자산 URL (AMD64 tarball — ARM 은 동일 AMD 바이너리를 qemu-user-static 으로 실행)
-sms_agent_url: ""
+# SMS (Linux x86_64; ARM 은 동일 AMD 바이너리를 qemu-user-static 으로 실행)
+sms_agent_version: "10.0.0_18"
+sms_release_tag: "sms-linux-v10.0.0_18"
+sms_asset_name: "polestar10_SMS_Linux64_3.4_10.0.0_18.tar.gz"
 # SMS 는 호스트 systemd 에 이미 깔려 있을 가능성이 높아 사전 감지 후 skip 이 기본.
 # 강제 재설치하려면 inventory 또는 --extra-vars 로 sms_force_reinstall=true.
 sms_force_reinstall: false

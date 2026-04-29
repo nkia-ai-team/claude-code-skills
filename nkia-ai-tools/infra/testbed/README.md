@@ -70,23 +70,17 @@ all:
         app_nodeport: 30080
 ```
 
-### 2. 에이전트 자산 URL 채우기
+### 2. GitHub PAT 설정
 
-`group_vars/all.yml` 에 polestar-agents-binaries Releases URL 입력:
+WPM/APM/SMS 자산은 `nkia-ai-team/polestar-agents-binaries` (private repo) 에서 받습니다. controller (Mac/Linux) 에 `GITHUB_PAT` 환경변수 export:
 
-```yaml
-wpm_agent_url: "https://.../wpm-agent.jar"
-apm_agent_url: "https://.../apm-agent.jar"
-kcm_image_url_amd64: "https://.../kcm-amd64.tar"
-sms_agent_url: "https://.../sms-agent-linux-amd64.tar.gz"
-
-wpm_agent_version: "1.0.0"
-apm_agent_version: "1.0.0"
-kcm_agent_version: "1.0.0"
-sms_agent_version: "1.0.0"
+```sh
+export GITHUB_PAT=ghp_xxx        # NKIA org repo:read 권한 필요
 ```
 
-URL 이 빈 값이면 해당 에이전트 task 는 안내 메시지 출력 후 skip — common + service-k8s 만 동작합니다.
+PAT 미설정 시 WPM/APM/SMS 다운로드 task 는 skip + 안내 메시지 출력 — common + service-k8s 까지만 동작.
+
+`group_vars/all.yml` 의 `wpm_release_tag` / `apm_release_tag` / `sms_release_tag` + `*_asset_name` 으로 어떤 release 를 쓸지 결정. 기본값은 NKIAAI-537 의 최신 자산.
 
 ### 3. 실행
 

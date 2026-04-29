@@ -1,7 +1,7 @@
 ---
-{# Mount + javaagent only when agent jar URL is also configured (jar exists on host). #}
-{% set wpm_active = (wpm_enabled | default(false)) and ((wpm_agent_url | default('')) | length > 0) %}
-{% set apm_active = (apm_enabled | default(false)) and ((apm_agent_url | default('')) | length > 0) %}
+{# Mount + javaagent only when GITHUB_PAT is set (i.e. agent jar will be downloaded onto host). #}
+{% set wpm_active = (wpm_enabled | default(false)) and ((github_pat | default('')) | length > 0) %}
+{% set apm_active = (apm_enabled | default(false)) and ((github_pat | default('')) | length > 0) %}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -39,6 +39,9 @@ spec:
 {% set _java_opts = [] %}
 {% if wpm_active %}{% set _ = _java_opts.append('-javaagent:/agents/wpm/agent.jar') %}{% endif %}
 {% if apm_active %}{% set _ = _java_opts.append('-javaagent:/agents/apm/agent.jar') %}{% endif %}
+{% if apm_active %}{% set _ = _java_opts.append('-Dapm.collector.host=' + (polestar10_collector_host | string)) %}{% endif %}
+{% if apm_active %}{% set _ = _java_opts.append('-Dapm.collector.port=' + (polestar10_apm_collector_port | string)) %}{% endif %}
+{% if apm_active %}{% set _ = _java_opts.append('-Dapm.app.id=' + app_namespace) %}{% endif %}
             - name: JAVA_TOOL_OPTIONS
               value: "{{ _java_opts | join(' ') }}"
 {% if wpm_active %}
