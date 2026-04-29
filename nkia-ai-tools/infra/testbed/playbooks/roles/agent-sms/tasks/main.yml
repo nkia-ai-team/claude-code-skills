@@ -44,9 +44,13 @@
 # to load Polestar's amd64 daemons (MAGENTL/SMSAGENTL). Without this,
 # qemu-binfmt fails with "Could not open /lib64/ld-linux-x86-64.so.2".
 - name: ARM only — enable amd64 multi-arch
-  ansible.builtin.command: dpkg --add-architecture amd64
+  ansible.builtin.shell: |
+    if ! dpkg --print-foreign-architectures | grep -q '^amd64$'; then
+      dpkg --add-architecture amd64
+      echo CHANGED
+    fi
   register: dpkg_add_arch
-  changed_when: "'amd64' not in (lookup('pipe', 'dpkg --print-foreign-architectures', errors='ignore') | default(''))"
+  changed_when: "'CHANGED' in (dpkg_add_arch.stdout | default(''))"
   when:
     - sms_enabled | default(true)
     - target_arch == 'arm64'
