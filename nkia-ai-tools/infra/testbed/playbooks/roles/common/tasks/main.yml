@@ -1,4 +1,10 @@
 ---
+- name: Install archive utilities (unzip for zip-format agent archives)
+  ansible.builtin.package:
+    name: unzip
+    state: present
+  tags: [prereqs]
+
 - name: Apply firewall rules (no-op if disabled)
   ansible.builtin.include_tasks: firewall.yml
   tags: [firewall]
