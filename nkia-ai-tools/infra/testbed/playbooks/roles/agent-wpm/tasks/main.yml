@@ -2,11 +2,11 @@
 - name: WPM disabled notice
   ansible.builtin.debug:
     msg: "WPM agent disabled (wpm_enabled=false)"
-  when: not (wpm_enabled | default(true))
+  when: not (wpm_enabled | default(true) | bool)
 
 - name: Install WPM agent
   when:
-    - wpm_enabled | default(true)
+    - wpm_enabled | default(true) | bool
     - github_pat | length > 0
   block:
     - name: Ensure WPM install dir
@@ -75,5 +75,5 @@
   ansible.builtin.debug:
     msg: "WPM agent skipped — set GITHUB_PAT (or 'gh auth login') on the controller to download from polestar-agents-binaries."
   when:
-    - wpm_enabled | default(true)
+    - wpm_enabled | default(true) | bool
     - github_pat | length == 0

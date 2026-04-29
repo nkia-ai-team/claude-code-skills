@@ -3,7 +3,7 @@
   ansible.builtin.include_tasks: arm-sms-prereq.yml
   when:
     - target_arch == 'arm64'
-    - sms_enabled | default(true)
+    - sms_enabled | default(true) | bool
     - ansible_os_family == 'Debian'
   tags: [prereqs]
 

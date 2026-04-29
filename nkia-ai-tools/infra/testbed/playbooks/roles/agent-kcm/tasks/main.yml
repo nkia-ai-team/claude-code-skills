@@ -2,11 +2,11 @@
 - name: KCM disabled notice
   ansible.builtin.debug:
     msg: "KCM agent disabled (kcm_enabled=false)"
-  when: not (kcm_enabled | default(true))
+  when: not (kcm_enabled | default(true) | bool)
 
 - name: AMD64 — load prebuilt KCM image
   when:
-    - kcm_enabled | default(true)
+    - kcm_enabled | default(true) | bool
     - target_arch == 'amd64'
     - kcm_image_url_amd64 | length > 0
   block:
@@ -27,7 +27,7 @@
 
 - name: ARM64 — build KCM from source (lucida-kcmagent)
   when:
-    - kcm_enabled | default(true)
+    - kcm_enabled | default(true) | bool
     - target_arch == 'arm64'
   block:
     - name: Ensure source dir
@@ -73,7 +73,7 @@
   ansible.builtin.debug:
     msg: "kcm_image_url_amd64 empty — KCM AMD apply skipped. Set in group_vars/all.yml once polestar-agents-binaries asset is published."
   when:
-    - kcm_enabled | default(true)
+    - kcm_enabled | default(true) | bool
     - target_arch == 'amd64'
     - kcm_image_url_amd64 | length == 0
 
@@ -86,7 +86,7 @@
 
 - name: Apply KCM RBAC + DaemonSet
   when:
-    - kcm_enabled | default(true)
+    - kcm_enabled | default(true) | bool
     - kcm_image_present.rc == 0
   block:
     - name: Render KCM RBAC manifest

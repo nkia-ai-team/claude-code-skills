@@ -2,7 +2,7 @@
 - name: SMS disabled notice
   ansible.builtin.debug:
     msg: "SMS agent disabled (sms_enabled=false)"
-  when: not (sms_enabled | default(true))
+  when: not (sms_enabled | default(true) | bool)
 
 # 109 reference shows actual daemon names are MAGENTL/SMSAGENTL (not SMSAGENT/MAGENT).
 # Polestar SMS uses agentstart.sh -> magentctl -start to fork daemons; no systemd unit.
@@ -25,7 +25,7 @@
       SMS daemons already running on host — install skipped.
       Detection: {{ (sms_existing.stdout | default('')) | trim }}
   when:
-    - sms_enabled | default(true)
+    - sms_enabled | default(true) | bool
     - sms_existing.rc == 0
     - not (sms_force_reinstall | default(false))
 
@@ -40,7 +40,7 @@
     # update_cache handled tolerantly in arm-sms-prereq; avoids third-party
     # repo errors (e.g. NVIDIA expired GPG on 109) blocking the install.
   when:
-    - sms_enabled | default(true)
+    - sms_enabled | default(true) | bool
     - target_arch == 'arm64'
     - ansible_os_family == 'Debian'
     - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
@@ -50,11 +50,11 @@
   register: binfmt_ls
   changed_when: false
   when:
-    - sms_enabled | default(true)
+    - sms_enabled | default(true) | bool
     - target_arch == 'arm64'
     - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
   failed_when:
-    - sms_enabled | default(true)
+    - sms_enabled | default(true) | bool
     - target_arch == 'arm64'
     - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
     - "'qemu-x86_64' not in (binfmt_ls.stdout | default(''))"
@@ -62,7 +62,7 @@
 
 - name: Install SMS agent via Polestar AgentInstall.sh + agentstart.sh
   when:
-    - sms_enabled | default(true)
+    - sms_enabled | default(true) | bool
     - github_pat | length > 0
     - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
   block:
@@ -174,6 +174,6 @@
   ansible.builtin.debug:
     msg: "SMS agent skipped — set GITHUB_PAT (or 'gh auth login') on the controller."
   when:
-    - sms_enabled | default(true)
+    - sms_enabled | default(true) | bool
     - github_pat | length == 0
     - sms_existing.rc != 0

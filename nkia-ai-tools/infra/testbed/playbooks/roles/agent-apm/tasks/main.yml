@@ -2,11 +2,11 @@
 - name: APM disabled notice
   ansible.builtin.debug:
     msg: "APM agent disabled (apm_enabled=false)"
-  when: not (apm_enabled | default(true))
+  when: not (apm_enabled | default(true) | bool)
 
 - name: Install APM agent
   when:
-    - apm_enabled | default(true)
+    - apm_enabled | default(true) | bool
     - github_pat | length > 0
   block:
     - name: Ensure APM install dir
@@ -47,5 +47,5 @@
   ansible.builtin.debug:
     msg: "APM agent skipped — set GITHUB_PAT (or 'gh auth login') on the controller."
   when:
-    - apm_enabled | default(true)
+    - apm_enabled | default(true) | bool
     - github_pat | length == 0
