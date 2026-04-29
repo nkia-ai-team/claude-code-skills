@@ -11,7 +11,7 @@
   block:
     - name: Ensure WPM install dir
       ansible.builtin.file:
-        path: "{{ agent_install_root }}/wpm"
+        path: "{{ wpm_install_dir }}"
         state: directory
         mode: '0755'
 
@@ -46,27 +46,34 @@
     - name: Extract WPM archive
       ansible.builtin.unarchive:
         src: "/tmp/{{ wpm_asset_name }}"
-        dest: "{{ agent_install_root }}/wpm"
+        dest: "{{ wpm_install_dir }}"
         remote_src: true
 
-    - name: Find WPM agent jar (largest jar in archive)
+    - name: Locate WPM jar in extracted archive (largest jar)
       ansible.builtin.find:
-        paths: "{{ agent_install_root }}/wpm"
-        patterns: "*.jar"
+        paths: "{{ wpm_install_dir }}"
+        patterns: "wpmagent*.jar"
         recurse: true
       register: wpm_jars
 
-    - name: Symlink WPM jar to agent.jar
-      ansible.builtin.file:
+    - name: Copy WPM jar to install root as {{ wpm_jar_name }}
+      ansible.builtin.copy:
         src: "{{ (wpm_jars.files | sort(attribute='size') | reverse | first).path }}"
-        dest: "{{ agent_install_root }}/wpm/agent.jar"
-        state: link
-        force: true
+        dest: "{{ wpm_install_dir }}/{{ wpm_jar_name }}"
+        remote_src: true
+        mode: '0644'
       when: wpm_jars.matched > 0
+
+    - name: Generate WPM service-specific config (one per testbed service)
+      ansible.builtin.template:
+        src: wpmagent-service.conf.j2
+        dest: "{{ wpm_install_dir }}/wpmagent-{{ item }}.conf"
+        mode: '0644'
+      loop: "{{ testbed_services }}"
 
 - name: WPM skip notice (GITHUB_PAT not set)
   ansible.builtin.debug:
-    msg: "WPM agent skipped — set GITHUB_PAT env var on the controller to download from polestar-agents-binaries."
+    msg: "WPM agent skipped — set GITHUB_PAT (or 'gh auth login') on the controller to download from polestar-agents-binaries."
   when:
     - wpm_enabled | default(true)
     - github_pat | length == 0

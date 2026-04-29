@@ -1,0 +1,54 @@
+---
+- name: Ensure git installed
+  ansible.builtin.package:
+    name: git
+    state: present
+
+- name: Ensure source dir parent
+  ansible.builtin.file:
+    path: "/opt/{{ app_namespace }}"
+    state: directory
+    mode: '0755'
+
+- name: Clone testbed-services monorepo
+  ansible.builtin.git:
+    repo: "{{ app_repo }}"
+    dest: "/opt/{{ app_namespace }}/src"
+    version: "{{ app_version }}"
+    force: false
+  register: app_clone
+
+- name: Stat build-and-deploy.sh
+  ansible.builtin.stat:
+    path: "/opt/{{ app_namespace }}/src/k8s/build-and-deploy.sh"
+  register: bds_stat
+
+- name: Fail when build-and-deploy.sh is missing
+  ansible.builtin.fail:
+    msg: |
+      Expected k8s/build-and-deploy.sh in {{ app_repo }} but not found.
+      testbed-services monorepo standard requires this script (NKIAAI-570).
+  when: not bds_stat.stat.exists
+
+- name: Run build-and-deploy.sh (5 service docker build + ctr import + kubectl apply)
+  ansible.builtin.shell: bash k8s/build-and-deploy.sh
+  args:
+    chdir: "/opt/{{ app_namespace }}/src"
+    executable: /bin/bash
+  register: bds_run
+  changed_when: bds_run.rc == 0
+  when: bds_stat.stat.exists
+
+- name: Wait for all testbed deployments to be Available
+  ansible.builtin.command: >
+    /usr/local/bin/k3s kubectl -n {{ app_namespace }}
+    rollout status deployment --timeout=300s
+  changed_when: false
+  failed_when: false
+
+- name: Wait for all testbed statefulsets to be ready
+  ansible.builtin.command: >
+    /usr/local/bin/k3s kubectl -n {{ app_namespace }}
+    rollout status statefulset --timeout=180s
+  changed_when: false
+  failed_when: false

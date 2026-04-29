@@ -1,10 +1,13 @@
 ---
 # Polestar10 collector endpoints — 테스트베드는 104 collector 사용
 polestar10_collector_host: "192.168.230.104"
-polestar10_wpm_collector_port: 20070
-polestar10_apm_collector_port: 20060
+# WPM 수집기는 UDP/TCP 두 채널 사용 (109 의 wpmagent-*.conf 검증값)
+polestar10_wpm_collector_udp_port: 31002
+polestar10_wpm_collector_tcp_port: 31005
+# APM (OTel) 은 OTLP gRPC endpoint
+polestar10_apm_collector_otlp_endpoint: "http://192.168.230.104:6565"
 polestar10_kcm_collector_port: 20040
-polestar10_sms_collector_port: 20020
+# SMS 는 AgentInstall.sh 의 -m 인자로 manager_ip[:port] (default 8883)
 
 # K3s 설치 옵션
 k3s_version: "v1.32.5+k3s1"
@@ -15,19 +18,13 @@ metrics_server_version: "v0.7.2"
 go_version: "1.22.5"
 go_install_dir: "/usr/local/go"
 
-# 서비스 배포 기본값 (사용자가 inventory 에서 override 가능)
-app_namespace: "testbed-app"
-db_engine: "postgres"
-db_version: "16"
-db_storage: "5Gi"
-db_name: "appdb"
-db_user: "appuser"
-db_password: "apppass"
-app_repo: ""
+# 서비스 배포 — testbed-services monorepo 패턴 (NKIAAI-570)
+# 자체 k8s/ manifest + 5 service docker build 가정.
+# 본 ansible 은 git clone + build-and-deploy.sh 호출만 책임. DB/app manifest 는 monorepo 가 보유.
+app_namespace: "rca-testbed"               # plopvape-shop 의 00-namespace.yaml
+app_repo: ""                                # e.g. https://github.com/BangSungjoon/plopvape-shop
 app_version: "main"
-app_image_tag: "testbed-app:latest"
-app_nodeport: 30080
-app_health_path: "/actuator/health"
+testbed_services: [order, product, inventory, payment, notification]
 
 # 에이전트 활성화 플래그 (테스트베드는 6종 고정 스택이라 모두 true 가 기본)
 wpm_enabled: true
@@ -48,10 +45,10 @@ wpm_agent_version: "8.1.1"
 wpm_release_tag: "wpm-v8.1.1"
 wpm_asset_name: "WPMAgent_8.1.1_20250403.zip"
 
-# APM
+# APM (plopvape-shop manifest 가 OTel 모드 사용 — 폴스타 자체 APM 대신 opentelemetry-javaagent.jar)
 apm_agent_version: "10.2.2"
 apm_release_tag: "apm-v10.2.2"
-apm_asset_name: "apm_agent_10.2.2.zip"
+apm_asset_name: "opentelemetry-javaagent.jar"
 
 # KCM (AMD64 이미지 자산은 미정 — ARM 은 source build)
 kcm_agent_version: "TBD"
@@ -66,7 +63,12 @@ sms_asset_name: "polestar10_SMS_Linux64_3.4_10.0.0_18.tar.gz"
 sms_force_reinstall: false
 
 # 에이전트 호스트 설치 경로
-agent_install_root: "/opt/polestar10"
+# plopvape-shop 의 manifest 가 가정한 hardcoded path 와 일치 (NKIAAI-570 표준화 후속).
+agent_install_root: "/home/nkia"
+wpm_install_dir: "{{ agent_install_root }}/wpm-agent"
+apm_install_dir: "{{ agent_install_root }}/apm-agent"
+wpm_jar_name: "wpmagent.jar"
+apm_jar_name: "opentelemetry-javaagent.jar"
 
 # KCM ARM 소스 빌드 (target-source-build 방식)
 kcm_source_repo: "https://cims2.nkia.net:8443/gitlab/lucida-kcmagent"

@@ -132,7 +132,7 @@ SMS 만 호스트 systemd 라 다른 시스템에서 깔려 있을 가능성이 
 | 롤 | 책임 | ARM 분기 | 비고 |
 |---|---|---|---|
 | `common` | 방화벽 + Docker + K3s + metrics-server + Go(ARM) | Go 1.22 자동 설치 | metrics-server 는 `--kubelet-insecure-tls` 강제 (KCM 의존) |
-| `service-k8s` | namespace + DB + Spring boot 앱 (host build → ctr import → K8s deploy) | image build 가 ARM native | postgres 본 구현. mysql/mariadb/cubrid/tibero placeholder — assert 가드 |
+| `service-k8s` | testbed-services monorepo deploy — git clone + `k8s/build-and-deploy.sh` 호출 (자체 5 service build + manifest apply) | image build 가 ARM native | namespace/secret/configmap/DB/5 service 모두 monorepo 의 `k8s/` 매니페스트가 정의 (NKIAAI-570) |
 | `agent-wpm` | JVM jar 다운로드 → `/opt/polestar10/wpm/agent.jar` | 동일 (JVM 아키 무관) | service-k8s app deployment 가 hostPath mount |
 | `agent-apm` | 동일 | 동일 | 동일 |
 | `agent-kcm` | RBAC + DaemonSet apply | ARM = lucida-kcmagent 소스 scp → 타겟 빌드 (Go) → docker build → ctr import | metrics-server 미설치 시 KCM 메트릭 빈 값 |

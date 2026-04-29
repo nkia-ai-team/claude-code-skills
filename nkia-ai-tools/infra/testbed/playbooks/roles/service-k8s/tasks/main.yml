@@ -1,31 +1,14 @@
 ---
-- name: Validate db_engine
-  ansible.builtin.assert:
-    that:
-      - db_engine in ['postgres', 'mysql', 'mariadb', 'cubrid', 'tibero']
-    fail_msg: "db_engine must be one of postgres, mysql, mariadb, cubrid, tibero (got: {{ db_engine }})"
-
-- name: Validate db_engine implementation status (Phase 1 = postgres only)
-  ansible.builtin.assert:
-    that:
-      - db_engine in implemented_db_engines
-    fail_msg: "db_engine '{{ db_engine }}' declared but not yet implemented. Implemented: {{ implemented_db_engines | join(', ') }}. Other engines tracked under NKIAAI-540 Phase 2/3."
-  vars:
-    implemented_db_engines: ['postgres']
-
-- name: Check if app namespace exists
-  ansible.builtin.command: /usr/local/bin/k3s kubectl get namespace {{ app_namespace }}
-  register: ns_check
-  changed_when: false
-  failed_when: false
-
-- name: Create app namespace (only when missing)
-  ansible.builtin.command: /usr/local/bin/k3s kubectl create namespace {{ app_namespace }}
-  when: ns_check.rc != 0
-
-- name: Deploy DB
-  ansible.builtin.include_tasks: db.yml
-
-- name: Deploy application (skip if app_repo empty)
-  ansible.builtin.include_tasks: app.yml
+# service-k8s — testbed-services monorepo deploy 패턴 (NKIAAI-570 권고).
+# Monorepo 가 자체 k8s/ manifest 보유: namespace + secret + configmap + DB + 5 service deployment.
+# 본 ansible 은 git clone + build-and-deploy.sh 호출까지만 책임.
+#
+# Legacy single-app DB+app manifest 패턴은 폐기 (NKIAAI-540 검증 중 plopvape-shop monorepo 와 비호환 확인).
+- name: Deploy testbed-services monorepo
+  ansible.builtin.include_tasks: monorepo.yml
   when: app_repo | length > 0
+
+- name: Skip notice (app_repo empty)
+  ansible.builtin.debug:
+    msg: "service-k8s skipped — app_repo empty. Set in inventory to deploy a testbed-services monorepo."
+  when: app_repo | length == 0
