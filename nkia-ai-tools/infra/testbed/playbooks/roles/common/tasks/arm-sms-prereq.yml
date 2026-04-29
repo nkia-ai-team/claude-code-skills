@@ -22,16 +22,17 @@
   register: pin_arm64
   changed_when: "'CHANGED' in (pin_arm64.stdout | default(''))"
 
-# Skip writing our own amd64.list if the user (or another tool) already
-# put amd64 sources somewhere. This prevents "configured multiple times"
-# warnings and avoids overlap with hand-maintained host setups (e.g. 109
-# already ships /etc/apt/sources.list.d/amd64-cross.list).
-- name: Detect existing amd64 source files
-  ansible.builtin.find:
-    paths: /etc/apt/sources.list.d/
-    patterns: '*.list'
-    contains: '\[arch=amd64\]'
-  register: existing_amd64_sources
+# Skip writing our own amd64.list if any existing source file declares
+# arch=amd64 (e.g. 109 already ships /etc/apt/sources.list.d/amd64-cross.list
+# with the same lines). Using shell grep — ansible.builtin.find's contains
+# regex didn't match the literal '[arch=amd64]' reliably across all hosts.
+- name: Detect existing amd64 source files (shell grep)
+  ansible.builtin.shell: |
+    set +e
+    grep -l 'arch=amd64' /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null | head -1
+  register: existing_amd64_grep
+  changed_when: false
+  failed_when: false
 
 - name: Add amd64 sources (only when no amd64 list exists yet)
   ansible.builtin.copy:
@@ -41,7 +42,7 @@
       deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }}-updates main restricted universe multiverse
       deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }}-security main restricted universe multiverse
     mode: '0644'
-  when: existing_amd64_sources.matched == 0
+  when: (existing_amd64_grep.stdout | default('') | trim) | length == 0
   register: amd64_sources
 
 - name: Refresh apt cache after sources change (tolerate third-party repo errors)
