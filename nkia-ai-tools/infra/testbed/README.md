@@ -212,6 +212,12 @@ ansible playbook 본체는 **테스트베드 도메인을 모름** — 어떤 �
 ### Caveats — 알려진 한계
 
 1. **폴스타10 standby DB drift**: pod rolling update 로 옛 agent ID 의 K8s pod 이 죽어도 폴스타10 backend "관리대상 추가 → 애플리케이션" 큐에서 stale standby record 가 자동 cleanup 되지 않음. broker 연결도 끊긴 상태인데 web UI 에 계속 남음. **540 자동화 코드와 무관 — 폴스타10 자체 한계**. delete API 가 standby record 를 안 지우는 듯. 운영팀 확인 또는 backend DB 직접 청소가 진짜 해결.
+2. **SMS agentId 재install 시 갱신 → 옛 ID 등록 시 DOWN**: SMS install 시 매번 `MA_<host>_<YYYYMMDDhhmmss>` 패턴의 새 agentId 가 생성됨. 이전 install 의 stale agentId 가 standby 큐에 남아있을 때 그걸 register 하면 hostname 은 일치해도 실제 daemon 의 publish agentId 와 안 맞아 backend 가 heartbeat 매칭 실패 → `availabilityStatus: DOWN`. **해결 절차** (testbed-polestar10-register 스킬에 흐름 박아야 함):
+   1. `/api/sms/hosts/delete` 로 옛 agentId 등록 제거
+   2. 109 SMS daemon 재시작 (`magentctl -stop` + `-start`)
+   3. 30~60s 대기 후 standby 재조회 — 새 agentId 등장 확인
+   4. 새 agentId 로 `/api/sms/standby-hosts/register`
+   5. 30s 후 `availabilityStatus: UP` 확인
 2. **`testbed_services` 배열 + repo 내 SERVICES 배열 이중 정의**: 어긋나면 WPM conf vs 실제 service 불일치. 향후 generator 로 단일 정의 통합 가능.
 3. **KCM 사내 GitLab 의존 (ARM)**: `lucida-kcmagent` 소스 빌드 경로. 외부 환경에선 안 됨. polestar-agents-binaries 에 KCM ARM 빌드도 publish 필요 (NKIAAI-537 후속).
 4. **DPM (DB) / NMS (네트워크 장비)**: SoT 6 종 스택 중 540 본체에 없음. testbed-build 스킬 후속 sub-skill 영역.
