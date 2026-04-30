@@ -20,7 +20,7 @@ trap cleanup EXIT
 # === 환경 변수 (env override 가능) ===
 NAMESPACE="${NAMESPACE:-<from service-spec.yaml>}"
 SERVICE_API="${SERVICE_API:-<from service-spec.yaml>}"
-# ... 패턴 카드의 변형 포인트 변수들
+# ... 패턴 카드의 치환 슬롯 변수들
 
 cleanup() {
   echo "[INFO] cleanup: <원상복구 절차 한 줄>"
@@ -76,7 +76,7 @@ NAMESPACE="${NAMESPACE:-rca-testbed}"
 SERVICE_API="${SERVICE_API:-http://127.0.0.1:30080}"
 ```
 
-다른 testbed 변형 (다른 namespace) 에 같은 시나리오 스크립트를 공유하려면 env 로 override:
+다른 testbed (다른 namespace) 에 같은 시나리오 스크립트를 공유하려면 env 로 override:
 ```bash
 NAMESPACE=rca-testbed-v2 ./scenario-01.sh
 ```

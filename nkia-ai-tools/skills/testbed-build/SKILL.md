@@ -22,7 +22,7 @@ description: NKIA RCA 테스트베드 end-to-end 자동화 오케스트레이터
 - 기존 테스트베드 cleanup (사용자 직접: `kubectl delete ns ...` + testbed-polestar10-register 시나리오 4)
 - 시나리오만 추가 (testbed-generate-scenarios 단독 호출)
 - 알람만 재튜닝 (testbed-tune-alarms 단독 호출)
-- 신규 도메인 변형 (옵션 3) 선택 시 testbed-engineer agent 가 testbed-services 레포에 코드 자동 생성 + git PR (Phase 6)
+- 새 testbed 생성 (옵션 3) 선택 시 testbed-engineer agent 가 testbed-services 레포에 코드 자동 생성 + git PR (Phase 6)
 
 ---
 
@@ -50,10 +50,25 @@ chmod 700 ~/.testbed-build
 
 상세: [references/bootstrap.md](references/bootstrap.md)
 
-핵심:
-- 없으면 인터뷰 (SSH 자격증명 / Polestar10 자격증명 / git PAT / 레포 경로 default `~/dev/`)
-- chmod 600 으로 영구 저장
-- 다음 호출부터 묻지 X (값 변경 시 사용자가 직접 yaml 편집)
+⚠️ **bootstrap.yaml 부재 시 AskUserQuestion 인터뷰 강제** — 다른 캐시 파일 (`~/.polestar10rc` / 레포 디렉토리 / `~/.git-credentials`) 존재 여부와 무관. 캐시된 파일은 인터뷰의 default value 제시용으로만 사용. "다 캐시돼 있으니 인터뷰 skip 하고 default 로 yaml 작성" 은 **금지**.
+
+항상 물어야 하는 슬롯 (default 없음 — 매 호출 결정 필요):
+- SSH 인증 방식 (password / ssh_key)
+- 타겟 SSH user (default 표시: 기존 bootstrap.yaml 또는 `nkia`)
+- Polestar10 base_url (default 표시: ~/.polestar10rc 의 값)
+- Polestar10 user (default 표시: ~/.polestar10rc 의 값)
+- 레포 경로 (default 표시: 기존 디렉토리 또는 `~/dev/...`)
+
+캐시 파일 존재 시 skip 가능한 슬롯:
+- ~/.polestar10rc → Polestar10 password 인터뷰 skip
+- 레포 디렉토리 → clone 작업 skip
+- ~/.git-credentials → git PAT 인터뷰 skip
+
+상세 슬롯 정책 표는 [references/bootstrap.md](references/bootstrap.md) 의 "인터뷰 슬롯 정책 표" 참조.
+
+저장:
+- chmod 600 으로 `~/.testbed-build/bootstrap.yaml` 영구 저장
+- 다음 호출부터 인터뷰 X (값 변경 시 사용자가 직접 yaml 편집 또는 파일 삭제 후 재인터뷰)
 
 ### 3. 외부 레포 부재 시 git clone
 ```bash
@@ -157,9 +172,9 @@ AskUserQuestion(questions=[
 
 target_host 확정됐으니 [references/concurrency-lock.md](references/concurrency-lock.md) 의 flock 획득.
 
-### [Phase 6] Services-Author (조건부 — 신규 변형 시만)
+### [Phase 6] Services-Author (조건부 — 새 testbed 생성 시만)
 
-interview.app.is_new_variant=true (옵션 3 선택) 인 경우만 dispatch. 기존 변형 (plopvape-shop 등) 이면 skip.
+interview.app.is_new_variant=true (옵션 3 선택) 인 경우만 dispatch. 기존 testbed (plopvape-shop 등) 이면 skip.
 
 상세: [references/services-author-task.md](references/services-author-task.md)
 
@@ -193,7 +208,7 @@ if [ "$IS_NEW_VARIANT" = "true" ] && [ ! -d "$TESTBED_DIR" ]; then
       ;;
   esac
 else
-  echo "[phase 6] services-author skip (기존 변형 또는 디렉토리 이미 존재)"
+  echo "[phase 6] services-author skip (기존 testbed 또는 디렉토리 이미 존재)"
   update_manifest_phase "services_author" "skipped"
 fi
 ```
@@ -204,7 +219,7 @@ fi
 - 인터뷰 답 + bootstrap 자격증명 → `runs/<RUN_ID>/inventory.yml` 작성
 - [arm64-sample.yml](../../infra/testbed/playbooks/inventory/arm64-sample.yml) 또는 [amd64-sample.yml] 형식 mimic
 - [group_vars/all.yml](../../infra/testbed/playbooks/group_vars/all.yml) 의 변수 모두 채움 (collector hosts / org id / app subdir / namespace / agent flags / 등)
-- 신규 변형 (Phase 6 = completed) 인 경우 `app_subdir` 와 `app_branch` 가 새로 생성된 디렉토리/브랜치를 가리키도록 설정
+- 새 testbed 생성 (Phase 6 = completed) 인 경우 `app_subdir` 와 `app_branch` 가 새로 생성된 디렉토리/브랜치를 가리키도록 설정
 
 ### [Phase 8] ansible-playbook 실행 + 실패 진단
 
@@ -251,7 +266,7 @@ Skill: testbed-generate-scenarios
   testbed_name: <interview answer>
   count: 4 (default — 4종 패턴 mirror)
   push_mode: pr
-  scenario_hints: <Phase 6 산출 — 신규 변형인 경우 새 코드의 schema/endpoint 매핑>
+  scenario_hints: <Phase 6 산출 — 새 testbed 생성 시 새 코드의 schema/endpoint 매핑>
 ```
 
 scenario_hints 가 있으면 generate-scenarios 가 LLM 인터뷰 없이 직접 변수 채움 (lock_table, lock_endpoint, external_container 등).

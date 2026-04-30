@@ -85,7 +85,7 @@ echo "[OK] done"
 - **부작용 2**: 클러스터에 metrics-server 미설치 시 KCM Pod CPU 알람은 발화하지 않음 (시나리오 자체 실행은 영향 X)
 - 주의: 재기동 동안 DB 일시 단절 → in-flight 트랜잭션 일부 실패. 결과적으로 connection pool 재초기화.
 
-## 변형 포인트
+## 치환 슬롯
 - `DB_DEPLOYMENT` / `DB_CONTAINER` — postgres / mysql / mariadb / oracle (Tibero/CUBRID 는 별도 patch 경로)
 - `THROTTLED_CPU` — 더 낮을수록 강한 throttle (10m = 1% CPU). 너무 낮으면 readiness probe 자체 실패로 빠르게 unhealthy
 - `NORMAL_CPU` — cleanup 시 복구 값. 환경에 맞춤

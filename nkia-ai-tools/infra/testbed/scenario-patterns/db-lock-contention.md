@@ -85,7 +85,7 @@ echo "[OK] done"
 - 부작용: 강제 종료된 트랜잭션이 rollback 되며 일시적 connection churn. 핵심 비즈니스 데이터는 영향 X.
 - 주의: cleanup 안 거치면 DB 가 lock wait 풀릴 때까지 (sleep) 응답 지연 잔존. SIGKILL 시 trap 미동작 → 수동 정리 필요.
 
-## 변형 포인트
+## 치환 슬롯
 - `LOCK_TABLE` / `LOCK_KEY` — 도메인별 핫 row (inventory.id / accounts.id / seats.id)
 - `LOAD_ENDPOINT` — 그 row 를 갱신하는 API
 - `HOLD_SECS` — lock 점유 기간 (시나리오 재생산 시간)

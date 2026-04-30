@@ -2,7 +2,7 @@
 
 testbed-build Phase 6 (services-author) 가 testbed-engineer agent 에 넘기는 task spec.
 
-**조건**: interview.app.testbed_name 이 testbed-services 레포에 **없는 새 변형** 일 때만 실행. 기존 변형 (plopvape-shop 등) 이면 skip 하고 바로 Phase 7 (inventory) 진행.
+**조건**: interview.app.testbed_name 이 testbed-services 레포에 **없는 새 testbed** 일 때만 실행. 기존 testbed (plopvape-shop 등) 이면 skip 하고 바로 Phase 7 (inventory) 진행.
 
 ## Trigger 조건
 
@@ -156,7 +156,7 @@ testbed-engineer 가 반환한 JSON:
 
 다음 경우 phase 6 skip:
 1. interview.app.testbed_name 이 testbed-services 레포에 이미 존재 (= 기존 plopvape-shop 등)
-2. 사용자가 인터뷰에서 옵션 1 (plopvape-shop 레퍼런스) 또는 2 (다른 기존 변형) 선택
+2. 사용자가 인터뷰에서 옵션 1 (plopvape-shop 레퍼런스) 또는 2 (다른 기존 testbed) 선택
 
 → manifest.phases.services_author = `skipped` 로 기록. Phase 7 진행.
 

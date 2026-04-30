@@ -11,8 +11,8 @@
 Read: <patterns_root>/<pattern>.md
 ```
 
-### 2. 변형 포인트 추출
-카드의 `## 변형 포인트` 섹션 마크다운 리스트에서 변수명 + 의미 추출.
+### 2. 치환 슬롯 추출
+카드의 `## 치환 슬롯` 섹션 마크다운 리스트에서 변수명 + 의미 추출.
 
 예 (db-lock-contention.md):
 - `LOCK_TABLE` — 도메인별 핫 row 가 있는 테이블
@@ -23,7 +23,7 @@ Read: <patterns_root>/<pattern>.md
 
 ### 3. service-spec.yaml 메타 + 사용자 인터뷰로 변수 채움
 
-| 변형 포인트 | 자동 결정 가능? | 자동 결정 룰 | 사용자 인터뷰 (자동 안 될 때) |
+| 치환 슬롯 | 자동 결정 가능? | 자동 결정 룰 | 사용자 인터뷰 (자동 안 될 때) |
 |---|---|---|---|
 | `NAMESPACE` | O | service-spec.target.namespace | — |
 | `SERVICE_API` | O | service-spec.target.api_base | — |
@@ -50,7 +50,7 @@ Read: <patterns_root>/<pattern>.md
 
 ### 4-b. scenario_hints (신규 도메인 자동 생성 시)
 
-신규 변형은 testbed-engineer 의 services-author 모드가 코드 생성 후 `scenario_hints` 를 manifest 에 보존:
+새 testbed 생성 시 testbed-engineer 의 services-author 모드가 코드 생성 후 `scenario_hints` 를 manifest 에 보존:
 
 ```yaml
 # manifest.yaml.scenario_hints (Phase 6 산출, Phase 10 입력)
@@ -170,7 +170,7 @@ LOAD_CONCURRENCY="${LOAD_CONCURRENCY:-30}"
 
 다음 단계만 LLM 추론 (나머지는 단순 substitution):
 
-1. **자동 추론 (변형 포인트 채우기)** — service-spec.yaml + 도메인 + 패턴 → 변수 값
+1. **자동 추론 (치환 슬롯 채우기)** — service-spec.yaml + 도메인 + 패턴 → 변수 값
 2. **LOAD_PAYLOAD 합성** — endpoint 의미 보고 의미 있는 JSON 작성
 3. **slug 작성** — 사용자 입력 없으면 패턴 + 도메인 + 변수로 짧은 slug 생성
 

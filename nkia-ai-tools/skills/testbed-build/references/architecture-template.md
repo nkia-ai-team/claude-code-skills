@@ -16,9 +16,9 @@ interview.yaml 의 답변으로 다음 변수 채움:
 - `{{REGISTRATION_MODE}}` — interview.polestar10.registration_mode
 - `{{RUN_ID}}` — runs/<RUN_ID>
 - `{{IS_NEW_VARIANT}}` — interview.app.is_new_variant (true 면 deep interview 산출)
-- `{{DOMAIN}}` — interview.app.domain (자유 도메인 또는 카테고리 이름, 신규 변형 시)
-- `{{SERVICES_TABLE}}` — interview.app.services[] 렌더링 (신규 변형) 또는 testbed-services 의 service-spec 추론 (기존)
-- `{{DB_SCHEMAS_BLOCK}}` — interview.app.db.schemas[] 의 SQL DDL preview (신규 변형 시만)
+- `{{DOMAIN}}` — interview.app.domain (자유 도메인 또는 카테고리 이름, 새 testbed 시)
+- `{{SERVICES_TABLE}}` — interview.app.services[] 렌더링 (새 testbed) 또는 testbed-services 의 service-spec 추론 (기존)
+- `{{DB_SCHEMAS_BLOCK}}` — interview.app.db.schemas[] 의 SQL DDL preview (새 testbed 시만)
 - `{{FAILURE_SURFACES}}` — interview.app.failure_surfaces[] (4종)
 
 ## 템플릿
@@ -38,7 +38,7 @@ interview.yaml 의 답변으로 다음 변수 채움:
 |---|---|
 | 테스트베드 이름 | {{TESTBED_NAME}} |
 | 도메인 | {{DOMAIN}} |
-| 신규 변형? | {{IS_NEW_VARIANT}} {{#if IS_NEW_VARIANT}}— services-author 가 코드 자동 생성{{/if}} |
+| 새 testbed? | {{IS_NEW_VARIANT}} {{#if IS_NEW_VARIANT}}— services-author 가 코드 자동 생성{{/if}} |
 | 타겟 서버 | {{TARGET_HOST}} ({{TARGET_USER}}, {{TARGET_ARCH}}) |
 | K8s namespace | {{NAMESPACE}} |
 | DB 종류 | {{DB_KIND}} |
@@ -52,7 +52,7 @@ interview.yaml 의 답변으로 다음 변수 채움:
 {{SERVICES_TABLE}}
 
 <!--
-신규 변형 시 (interview.app.services[] 렌더링):
+새 testbed 시 (interview.app.services[] 렌더링):
 
 | 서비스 | 책임 | endpoints | depends_on |
 |---|---|---|---|
@@ -61,7 +61,7 @@ interview.yaml 의 답변으로 다음 변수 채움:
 | ledger | 거래 내역 | GET /api/ledger/{accountId} | transfer |
 | audit | 감사 이벤트 | POST /api/audit/event | — |
 
-기존 변형 (plopvape-shop) 시: testbed-services 레포의 service-spec 또는 디렉토리 스캔 결과 표시.
+기존 testbed (plopvape-shop) 시: testbed-services 레포의 service-spec 또는 디렉토리 스캔 결과 표시.
 -->
 
 {{#if IS_NEW_VARIANT}}
@@ -153,12 +153,12 @@ graph TB
 
 | Phase | 작업 | 주요 컴포넌트 |
 |---|---|---|
-| 1 | 인터뷰 4단계 (+ 신규 변형 시 deep interview) | 인라인 |
+| 1 | 인터뷰 4단계 (+ 새 testbed 시 deep interview) | 인라인 |
 | 2 | Polestar10 연결 사전 체크 | curl preLogin |
 | 3 | 아키텍처 v1 작성 | 인라인 (이 문서) |
 | 4 | 사용자 승인 ⛔ | — |
 | 5 | Concurrency lock | flock |
-| 6 | Services-author (신규 변형 시만) | testbed-engineer agent — testbed-services 레포에 코드 생성 + git push |
+| 6 | Services-author (새 testbed 시만) | testbed-engineer agent — testbed-services 레포에 코드 생성 + git push |
 | 7 | Dynamic inventory 생성 | 인라인 |
 | 8 | ansible-playbook 실행 | site.yml + 7 roles (common / agent-wpm / agent-apm / service-k8s / agent-kcm / agent-sms / scenario-runner) |
 | 9 | Polestar10 자원 등록 | testbed-polestar10-register |
@@ -176,7 +176,7 @@ graph TB
 - **rca-scenario-runner refactor 가 머지 전이면** 시나리오는 yaml 만 떨어뜨리고 컨테이너 재시작 시점부터 활성화.
 - **closed-loop max retry = 3**. 실패 시 PARTIAL/FAIL 결과로 finalize. 수동 분석 필요할 수 있음.
 - **단일 target 동시 실행 X**. flock 으로 가드.
-- **신규 변형 시 PR 머지 대기**: push_mode=pr 면 PR 생성 후 사람이 머지해야 Phase 8 ansible 진행. push_mode=direct-push 시 자동.
+- **새 testbed 시 PR 머지 대기**: push_mode=pr 면 PR 생성 후 사람이 머지해야 Phase 8 ansible 진행. push_mode=direct-push 시 자동.
 
 ---
 
