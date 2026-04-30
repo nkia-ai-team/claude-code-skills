@@ -26,6 +26,16 @@ description: NKIA RCA 테스트베드 end-to-end 자동화 오케스트레이터
 
 ---
 
+## ⚠️ 인터뷰는 AskUserQuestion 도구로
+
+**모든 multi-choice 인터뷰 (인증 방식 / 옵션 선택 / yes-no 분기 / 사용자 승인) 은 텍스트 프롬프트가 아니라 `AskUserQuestion` 도구 호출.** 사용자에게 카드형 UI 가 떠서 클릭으로 선택. 자유 입력은 자동 추가되는 "Other" 또는 별도 텍스트 prompt.
+
+여러 단계를 한 호출에 묶어서 (1~4 questions per call) UX 빠르게. 상세: [references/interview-flow.md](references/interview-flow.md) 의 추천 묶음 참조.
+
+순수 자유 입력 슬롯 (target IP, namespace 이름, 자유 도메인 설명 등) 만 텍스트 프롬프트.
+
+---
+
 ## CRITICAL: First Step — Bootstrap
 
 매 호출 첫 단계 ([testbed-polestar10-register/SKILL.md](../testbed-polestar10-register/SKILL.md) 패턴 mimic):
@@ -126,14 +136,22 @@ curl -sS -m 10 "$POLESTAR10_BASE_URL/api/sso/preLogin" >/dev/null \
 
 ### [Phase 4] 사용자 승인 ⛔
 
-```
-=== 아키텍처 v1 ===
-<architecture.md 내용>
+architecture.md 내용을 사용자에게 표시 후 `AskUserQuestion`:
 
-이대로 진행? [Y/n/edit]
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "위 architecture v1 으로 진행할까요?",
+    "header": "Arch 승인",
+    "multiSelect": False,
+    "options": [
+      {"label": "진행 (Recommended)", "description": "Phase 5 lock 획득 → ansible 배포 시작"},
+      {"label": "수정 (edit)", "description": "architecture.md 직접 편집 후 다시 prompt"},
+      {"label": "취소", "description": "phase 미완 상태로 종료, run 보존"}
+    ]
+  }
+])
 ```
-
-`edit` 시 사용자가 architecture.md 직접 편집 후 다시 prompt. `n` 시 phase 미완 상태로 종료.
 
 ### [Phase 5] Lock 획득
 

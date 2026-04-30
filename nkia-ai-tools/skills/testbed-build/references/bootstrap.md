@@ -26,29 +26,49 @@ paths:
   ansible_playbook_root: ""             # 비우면 plugin install 디렉토리 발견
 ```
 
-## 인터뷰 (없으면 수행)
+## 인터뷰 (없으면 수행) — AskUserQuestion 활용
 
+**텍스트 prompt 가 아니라 `AskUserQuestion` 도구 사용** — 카드형 UI. multi-choice 가 있는 슬롯들을 한 묶음에:
+
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "SSH 인증 방식?",
+    "header": "SSH 인증",
+    "multiSelect": False,
+    "options": [
+      {"label": "Password (Recommended)", "description": "매 호출마다 password 입력. 가장 단순."},
+      {"label": "SSH key", "description": "~/.ssh/id_rsa 또는 사용자 지정 경로"}
+    ]
+  },
+  {
+    "question": "Polestar10 instance?",
+    "header": "P10 endpoint",
+    "multiSelect": False,
+    "options": [
+      {"label": "96 demo (Recommended)", "description": "https://192.168.230.96 — 외부 데모 환경"},
+      {"label": "NKIA dev", "description": "사내 dev instance"}
+    ]
+  },
+  {
+    "question": "외부 레포 자동 clone 진행?",
+    "header": "레포 clone",
+    "multiSelect": False,
+    "options": [
+      {"label": "yes (Recommended)", "description": "testbed-services + rca-scenario-runner 둘 다 ~/dev/ 에 자동 clone"},
+      {"label": "no — 직접 경로 입력", "description": "기존 다른 위치 사용"}
+    ]
+  }
+])
 ```
-=== testbed-build 첫 사용 환영합니다. 자격증명 + 레포 경로를 한 번 설정합니다. ===
 
-1. SSH 기본 user [nkia]: _
-2. SSH key 사용? [Y/n] (n 이면 password 매번 입력): _
-   yes → SSH key 경로 [~/.ssh/id_rsa]: _
+자유 입력 슬롯 (텍스트 prompt):
+- SSH user (default `nkia`)
+- (SSH key 선택 시) SSH key 경로 (default `~/.ssh/id_rsa`)
+- (Polestar10 Other 선택 시) 직접 base_url 입력
+- (레포 no 선택 시) 직접 경로 입력
 
-3. Polestar10 instance:
-   1) NKIA dev (https://...)
-   2) 96 demo (https://192.168.230.96)
-   3) 직접 입력
-   선택 [1]: _
-
-4. testbed-services 레포 경로 [~/dev/testbed-services]: _
-   (없으면 자동 git clone — 진행할까요? [Y/n]): _
-
-5. rca-scenario-runner 레포 경로 [~/dev/rca-scenario-runner]: _
-   (없으면 자동 git clone — 진행할까요? [Y/n]): _
-
-→ ~/.testbed-build/bootstrap.yaml 생성 + chmod 600. 다음 호출부터 묻지 않습니다.
-```
+→ 답변 종합 → `~/.testbed-build/bootstrap.yaml` 생성 + `chmod 600`. 다음 호출부터 묻지 않음.
 
 ## Polestar10 자격증명 — 2층 구조
 

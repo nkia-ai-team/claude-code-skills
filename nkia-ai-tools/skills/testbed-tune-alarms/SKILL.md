@@ -90,7 +90,9 @@ GET /api/alarm/individuals (개별 알람)
 
 [references/policy-yaml-schema.md](references/policy-yaml-schema.md) 형식. testbed-polestar10-register 가 입력으로 받음.
 
-### 6. 사용자 승인 ⛔
+### 6. 사용자 승인 ⛔ (AskUserQuestion)
+
+권고 임계치 표 사용자에게 표시 후:
 
 ```
 === 알람 임계치 권고 ===
@@ -109,7 +111,23 @@ DB: postgres
     권고:    LEVEL2=15 LEVEL3=30 LEVEL4=60
     근거:    평소 lock 5~10. 트랜잭션 도메인이라 baseline 보수적.
 
-총 12개 변경 / 3개 신규 정책. 적용? [Y/n/edit]
+총 12개 변경 / 3개 신규 정책.
+```
+
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "위 임계치 권고를 Polestar10 에 적용할까요?",
+    "header": "정책 승인",
+    "multiSelect": False,
+    "options": [
+      {"label": "전부 적용 (Recommended)", "description": "testbed-polestar10-register 시나리오 2 dispatch"},
+      {"label": "수정 후 적용", "description": "특정 권고 제외/조정 후 적용 (자유 입력)"},
+      {"label": "보고서만 (propose)", "description": "yaml 만 산출, 폴스타10 등록 X"},
+      {"label": "취소", "description": "권고 폐기"}
+    ]
+  }
+])
 ```
 
 ### 7. mode 에 따라 분기

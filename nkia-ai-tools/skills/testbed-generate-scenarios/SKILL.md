@@ -96,11 +96,11 @@ ls "$RUNNER_ROOT/scenarios/services/"
 
 > **중요**: rca-scenario-runner 백엔드는 [scenarios.py](https://github.com/BangSungjoon/rca-scenario-runner/blob/develop/backend/app/scenarios.py) 가 service-spec.yaml glob 으로 시나리오 자동 발견. yaml 만 떨어뜨리면 컨테이너 재시작 후 자동 등록.
 
-### 5. 사용자 미리보기 + 승인 ⛔
+### 5. 사용자 미리보기 + 승인 ⛔ (AskUserQuestion)
+
+다음 시나리오 추가 예정 표시 후:
 
 ```
-다음 시나리오 추가 예정:
-
 [scripts/scenario-05-memory-leak.sh] (47 lines)
   trigger: java heap 강제 증가
   expected_alarms: APM 평균응답시간 / KCM Pod Memory / KCM Pod restart count
@@ -110,8 +110,22 @@ ls "$RUNNER_ROOT/scenarios/services/"
 [service-spec.yaml entry]
   id: scenario-05
   ...
+```
 
-이대로 진행? [Y/n/edit]
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "위 시나리오를 추가하고 push 할까요?",
+    "header": "시나리오 승인",
+    "multiSelect": False,
+    "options": [
+      {"label": "진행 + PR (Recommended)", "description": "git commit + push + gh pr create"},
+      {"label": "진행 + direct push", "description": "PR 없이 main 직접 push (신뢰 환경만)"},
+      {"label": "로컬만", "description": "로컬 commit 만, push 는 사용자 결정"},
+      {"label": "취소", "description": "변경사항 폐기"}
+    ]
+  }
+])
 ```
 
 ### 6. git commit + push (push_mode 에 따라)

@@ -2,31 +2,93 @@
 
 testbed-build Phase 1 에서 사용. 인터뷰 답은 `runs/<RUN_ID>/interview.yaml` 에 저장 + 이후 phase 들의 입력.
 
+## ⚠️ 도구 사용 — AskUserQuestion 필수
+
+**모든 multi-choice 인터뷰는 텍스트 프롬프트가 아니라 `AskUserQuestion` 도구로 질문**. 사용자에게 카드형 UI 가 떠서 클릭으로 선택 가능, "Other" 옵션은 자동 추가되어 자유 입력 fallback.
+
+순수 자유 입력만 필요한 슬롯 (target IP, namespace 이름 등) 만 텍스트 프롬프트 사용.
+
+도구 spec:
+- 1~4개 질문 묶음 가능 → **여러 단계를 한 호출에 묶어** UX 빠르게
+- 옵션 2~4개 (Other 자동)
+- 권고 옵션은 `(Recommended)` suffix + 첫 번째 위치
+- header 12자 이내 (chip/tag)
+
 ## 슬롯 캐싱
 
 같은 세션 안에서 이미 답한 슬롯은 재질문 X. bootstrap.yaml 에 영구 저장된 값도 default 로 표시.
 
+추천 패턴: 4단계 인터뷰를 **Phase 1-A (1 AskUserQuestion call, 3 questions)** + **Phase 1-B (target server, 자유 입력 텍스트 프롬프트)** 두 묶음으로 진행.
+
 ---
 
-## 단계 (a): 타겟 서버
+## 추천 호출: Phase 1-A 묶음 (옵션 2/3/4 한 번에)
+
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "어떤 testbed 를 배포하시겠어요?",
+    "header": "배포 앱",
+    "multiSelect": False,
+    "options": [
+      {"label": "plopvape-shop (Recommended)", "description": "레퍼런스 e-commerce 5 services + postgres. 가장 검증된 경로."},
+      {"label": "기존 다른 변형", "description": "testbed-services 레포 안의 다른 변형 (스캔 결과 표시)"},
+      {"label": "신규 도메인 변형", "description": "services-author 가 LLM 으로 새 코드 자동 생성 (deep interview 진입)"}
+    ]
+  },
+  {
+    "question": "NMS 모니터링 대상 네트워크 장비가 있나요?",
+    "header": "NMS",
+    "multiSelect": False,
+    "options": [
+      {"label": "없음 (Recommended)", "description": "skip — 일반적인 K8s 테스트베드는 NMS 불필요"},
+      {"label": "있음 — IP+SNMP 입력 필요", "description": "장비 IP, SNMP version (v2c/v3), community string 추가 인터뷰"}
+    ]
+  },
+  {
+    "question": "Polestar10 자원 등록을 어떻게 진행할까요?",
+    "header": "P10 모드",
+    "multiSelect": False,
+    "options": [
+      {"label": "자동 (Recommended)", "description": "testbed-polestar10-register 스킬이 API 로 일괄 등록"},
+      {"label": "직접 (수동)", "description": "사용자가 Polestar10 web UI 로 수동 등록 후 진행"}
+    ]
+  }
+])
+```
+
+---
+
+## 단계 (a): 타겟 서버 — 자유 입력 + multi-choice 혼합
+
+### 1-a, 1-b: target host + user (자유 입력 — 텍스트 프롬프트)
 
 ```
-=== Step 1/4: 타겟 서버 ===
-
-1-a. 어디에 배포? (IP / alias / hostname):
-   default: 192.168.200.109 (109 DGX Spark, ARM64)
-   _
-
-1-b. SSH user [nkia]: _
-
-1-c. SSH 인증 방식:
-   1) password (인터뷰에서 입력)
-   2) ~/.ssh/id_rsa (key)
-   3) bootstrap.yaml 의 ssh_key_path
-   선택 [1]: _
-
-1-d. (옵션) become password (sudo) [TESTBED_PASSWORD 와 같음]: _
+질문: "타겟 서버 IP/hostname (default: 192.168.200.109)?"
+질문: "SSH user (default: nkia)?"
 ```
+
+이 두 슬롯은 자유 입력이라 AskUserQuestion 부적합. 일반 텍스트 프롬프트.
+
+### 1-c: SSH 인증 방식 (AskUserQuestion)
+
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "SSH 인증 방식?",
+    "header": "SSH 인증",
+    "multiSelect": False,
+    "options": [
+      {"label": "Password (Recommended)", "description": "인터뷰에서 password 직접 입력. 가장 단순."},
+      {"label": "SSH key", "description": "~/.ssh/id_rsa 또는 bootstrap.yaml 의 ssh_key_path"}
+    ]
+  }
+])
+```
+
+### 1-d: become password (옵션, 자유 입력)
+
+password 와 같으면 skip. 다르면 자유 입력 prompt.
 
 검증:
 - IP 형식 (xxx.xxx.xxx.xxx) 또는 hostname 도달성 ping 1회
@@ -46,22 +108,16 @@ target:
 
 ---
 
-## 단계 (b): 배포 앱
+## 단계 (b): 배포 앱 — 위 Phase 1-A 묶음에 포함됨
+
+2-a (어떤 testbed) 는 위 묶음에서 처리. 이후 namespace + branch 는 자유 입력:
 
 ```
-=== Step 2/4: 배포 앱 ===
-
-2-a. 어떤 testbed?
-   1) plopvape-shop (레퍼런스, e-commerce 5 services + postgres)
-   2) testbed-services 레포의 다른 변형 (스캔 결과: ...)
-   3) 새 도메인 변형 자동 생성 (services-author dispatch)
-   선택 [1]: _
-
-2-b. K8s namespace [rca-testbed]: _
-   (이미 사용 중인 namespace 면 충돌 방지 위해 -v2 등 권고)
-
-2-c. (선택) testbed-services 레포 branch [main]: _
+질문: "K8s namespace (default: rca-testbed-v2)?"
+질문: "testbed-services branch (default: main, Enter 로 default)?"
 ```
+
+namespace 가 이미 사용 중인지 검증 (`kubectl get ns`) → 충돌이면 다시 prompt.
 
 검증 (옵션 1, 2):
 - 선택한 testbed 디렉토리 존재 (testbed-services 레포 안에)
@@ -97,20 +153,27 @@ _
 - 8~40자
 - 충돌 시 다시 prompt + LLM 이 변형 제안 (`-v2`, `-banking-v2`)
 
-### 2-d-b. 도메인 분야
+### 2-d-b. 도메인 분야 (AskUserQuestion)
 
-```
-도메인 카테고리 선택 또는 자유 입력:
-   1) 은행/금융 (banking) — account / transfer / ledger / audit
-   2) IoT 플랫폼 — device-registry / telemetry / command / alert
-   3) 소셜 피드 — post / feed / comment / notification
-   4) 물류 — shipment / warehouse / route / driver
-   5) 의료 예약 — appointment / patient / schedule / billing
-   6) 자유 입력 (LLM 이 서비스 분할 제안)
-   선택 [1]: _
+AskUserQuestion 은 옵션 max 4개. 인기 4개를 명시 + Other 가 자동으로 자유 입력 fallback:
+
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "어떤 도메인의 testbed?",
+    "header": "도메인",
+    "multiSelect": False,
+    "options": [
+      {"label": "은행/금융 (Recommended)", "description": "account / transfer / ledger / audit. 트랜잭션·lock 패턴 풍부."},
+      {"label": "IoT 플랫폼", "description": "device-registry / telemetry / command / alert. high-throughput / queue 패턴."},
+      {"label": "소셜 피드", "description": "post / feed / comment / notification. cache / fan-out 패턴."},
+      {"label": "물류", "description": "shipment / warehouse / route / driver. graph traversal / 외부 의존."}
+    ]
+  }
+])
 ```
 
-자유 입력 시 추가 prompt: "도메인 한 줄 설명 (예: '음식 배달 주문 처리 시스템'):"
+`Other` 선택 시 자유 입력 → 사용자가 도메인 한 줄 설명 (예: "음식 배달 주문 처리 / 의료 예약").
 
 기존 testbed-services 레포의 다른 변형과 도메인 충돌 검사 — 같은 분야면 LLM 이 차별점 제안 ("plopvape-shop 이 e-commerce 라 충돌. multi-tenant 변형으로?").
 
@@ -146,30 +209,57 @@ _
      POST /api/audit/event (internal)
    depends_on: []
 
-이 분할로 진행? [Y/n/edit]
+이 분할로 진행?
 ```
 
-`edit` 선택 시:
-- 서비스 add (이름 + 책임 + endpoints + depends_on)
-- 서비스 rename / remove
-- endpoint 추가/제거
-- 의존성 그래프 변경
+승인은 AskUserQuestion 으로:
 
-### 2-d-d. DB 선택 (DPM 지원 7종)
-
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "위 서비스 분할로 진행할까요?",
+    "header": "서비스 승인",
+    "multiSelect": False,
+    "options": [
+      {"label": "진행 (Recommended)", "description": "이 분할 그대로 services-author 가 코드 생성"},
+      {"label": "수정 (edit)", "description": "서비스 추가/제거/이름변경/endpoint 조정 후 재제안"}
+    ]
+  }
+])
 ```
-DB 종류 (DPM 모니터링 지원):
-   1) PostgreSQL ⭐ (default, plopvape-shop 이 사용 중이라 검증된 경로)
-   2) MySQL
-   3) MariaDB
-   4) Oracle
-   5) Tibero
-   6) CUBRID
-   7) SQL Server
-   선택 [1]: _
 
-스키마 자동 생성? [Y/n]
+`edit` 선택 시 추가 자유 입력으로 변경사항 받음 (서비스 add/rename/remove, endpoint 추가/제거, depends_on 그래프).
+
+### 2-d-d. DB 선택 (DPM 지원 7종) — AskUserQuestion 두 묶음
+
+DPM 지원 7종 중 4개 옵션 + Other (Tibero/CUBRID/SQL Server 등은 Other 자유 입력):
+
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "DB 종류 (Polestar10 DPM 모니터링 지원)?",
+    "header": "DB 종류",
+    "multiSelect": False,
+    "options": [
+      {"label": "PostgreSQL (Recommended)", "description": "plopvape-shop 이 사용 중이라 검증된 경로. ARM 호환."},
+      {"label": "MySQL", "description": "널리 쓰이는 OSS RDB"},
+      {"label": "MariaDB", "description": "MySQL fork. 라이선스 자유"},
+      {"label": "Oracle", "description": "Enterprise DB. 라이선스 / 이미지 별도 준비 필요"}
+    ]
+  },
+  {
+    "question": "DB 스키마 자동 생성?",
+    "header": "스키마",
+    "multiSelect": False,
+    "options": [
+      {"label": "자동 생성 (Recommended)", "description": "LLM 이 service 분할 보고 테이블+컬럼+PK/FK 합성"},
+      {"label": "수동 입력", "description": "사용자가 SQL DDL 직접 입력"}
+    ]
+  }
+])
 ```
+
+`Other` 선택 시 Tibero/CUBRID/SQL Server 자유 입력. ARM 환경에서는 Tibero/CUBRID/SQL Server 호환성 별도 검증 필요 (사용자에게 안내).
 
 자동 생성 yes → LLM 이 service 분할 보고 DB 테이블 + 컬럼 + PK/FK 합성:
 
@@ -213,24 +303,31 @@ CREATE TABLE audit_events (
 
 자동 생성 no → 사용자가 SQL 직접 입력 (multi-line).
 
-### 2-d-e. failure_surfaces 결정
+### 2-d-e. failure_surfaces 결정 (AskUserQuestion multiSelect)
 
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "이 testbed 가 시연할 장애 패턴? (다중 선택 가능)",
+    "header": "장애 패턴",
+    "multiSelect": True,
+    "options": [
+      {"label": "db-lock-contention", "description": "DB row/table lock 경합 → 응답시간 + 에러율 폭증"},
+      {"label": "external-api-timeout", "description": "외부 의존성 무응답 → cascade 5xx"},
+      {"label": "db-cpu-throttle", "description": "DB CPU 제한 → 전 서비스 쿼리 지연"},
+      {"label": "traffic-flood", "description": "동시 요청 폭증 → thread pool 포화"}
+    ]
+  }
+])
 ```
-이 testbed 가 어떤 장애 패턴을 시연해야 하나요? (다중 선택 OK):
-   1) ✅ db-lock-contention (DB row lock 경합)
-   2) ✅ external-api-timeout (외부 의존성 무응답)
-   3) ✅ db-cpu-throttle (DB CPU 제한)
-   4) ✅ traffic-flood (동시성 폭주)
-   5) (사용자 정의)
 
-기본 4종 그대로 사용? [Y/n/select]
-```
+default 는 4개 모두 선택 (= 기본 plopvape-shop 패턴). 부분 선택 시 그만큼만 시나리오 생성.
 
 각 surface 의 기본 lock_table / external_container 등은 LLM 이 services + db.schemas 보고 자동 매핑 (services-author 가 이 매핑을 scenario_hints 로 반환).
 
-### 2-d-f. 사용자 최종 승인
+### 2-d-f. 사용자 최종 승인 (AskUserQuestion)
 
-deep interview 결과 종합 표시:
+deep interview 결과 종합 표시 후:
 
 ```
 === 새 testbed 변형 요약 ===
@@ -247,8 +344,21 @@ services-author 가 testbed-services 레포에 다음 작업:
   - db/init.sql + k8s/ 매니페스트 + docker-compose.dev.yml
   - mvnw clean package 검증
   - PR 생성 (또는 직접 push)
+```
 
-진행? [Y/n/edit]
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "위 spec 으로 services-author 진행?",
+    "header": "최종 승인",
+    "multiSelect": False,
+    "options": [
+      {"label": "진행 (Recommended)", "description": "PR push_mode=pr 로 자동 생성"},
+      {"label": "수정", "description": "어느 단계 다시 인터뷰? 자유 입력"},
+      {"label": "취소", "description": "인터뷰 중단, run 보존"}
+    ]
+  }
+])
 ```
 
 ## 옵션 3 산출 (interview.yaml 의 app 섹션)
@@ -296,21 +406,14 @@ app:
 
 ---
 
-## 단계 (c): NMS 모니터링
+## 단계 (c): NMS 모니터링 — Phase 1-A 묶음에 포함됨
+
+위 Phase 1-A 의 두 번째 질문 ("NMS 모니터링 대상 네트워크 장비?") 으로 처리. yes 선택 시에만 추가 자유 입력 prompt:
 
 ```
-=== Step 3/4: NMS (네트워크 장비) ===
-
-3-a. NMS 모니터링 대상 네트워크 장비가 있나요?
-   1) 없음 (skip)
-   2) 있음 — IP + SNMP 자격증명 입력
-   선택 [1]: _
-
-(2 선택 시)
-   장비 IP: _
-   SNMP version [v2c]: _
-   community string [public]: _
-   ...
+질문: "장비 IP?"
+질문: "SNMP version (v2c/v3, default v2c)?"
+질문: "community string (default public)?"
 ```
 
 산출:
@@ -326,7 +429,9 @@ nms:
 
 ---
 
-## 단계 (d): Polestar10 웹 조작 모드
+## 단계 (d): Polestar10 웹 조작 모드 — Phase 1-A 묶음에 포함됨
+
+위 Phase 1-A 의 세 번째 질문 ("Polestar10 자원 등록 모드?") 으로 처리. 아래는 참고용 (옛 형식):
 
 ```
 === Step 4/4: Polestar10 자원 등록 모드 ===
