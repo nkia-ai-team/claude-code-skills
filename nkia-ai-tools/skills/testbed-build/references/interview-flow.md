@@ -174,27 +174,13 @@ app:
 
 옵션 3 선택 시 다음 deep interview 진행. 결과는 services-author 가 코드 생성 입력으로 사용.
 
-> 🚫 **턴 분리 강제**: 아래 단계들 (이름 자유 입력 → 도메인+DB+스키마 카드 → 서비스 분할 LLM 제안 + 승인 카드) 을 절대 한 턴에 묶어 발사 X. 각 단계 사용자 응답 받은 후 다음 턴에 진행. 위 § 강제 규칙 참조.
+> 🎯 **흐름 원칙**: 사용자에게 **도메인 선택만** 받고, 나머지 (이름 / 서비스 분할 / DB 스키마 / failure_surfaces) 는 **LLM 이 도메인 보고 자동 제안**. 사용자는 종합 spec 검토 + 일부 수정만. 사용자가 이름 검사부터 받는 흐름 X.
+>
+> 🚫 **턴 분리 강제**: 자유 입력과 AskUserQuestion 카드는 절대 같은 턴에 발사 X. 위 § 강제 규칙 참조.
 
-### 2-d-a. 새 testbed 이름 (턴 1 — 자유 입력 단독)
+### 2-d-a. 도메인 선택 (턴 1 — AskUserQuestion 단독)
 
-```
-[이 턴에는 텍스트 prompt 만]
-새 testbed 이름 (영문 kebab-case, 예: "core-banking", "iot-platform"):
-_
-```
-
-검증:
-- testbed-services 레포에 같은 이름 디렉토리 X
-- kebab-case 정규식 매치 (`^[a-z][a-z0-9-]*$`)
-- 8~40자
-- 충돌 시 다시 prompt + LLM 이 이름 제안 (`-v2`, `-banking-v2`)
-
-→ **사용자 응답 받은 후 다음 턴**에 2-d-b/c/d 묶음 발사. 같은 턴에 카드 동봉 X.
-
-### 2-d-b. 도메인 분야 (턴 2 — AskUserQuestion)
-
-AskUserQuestion 은 옵션 max 4개. 인기 4개를 명시 + Other 가 자동으로 자유 입력 fallback:
+deep interview 의 **첫이자 거의 유일한 사용자 입력**. 나머지는 LLM 자동 제안 후 검토.
 
 ```python
 AskUserQuestion(questions=[
@@ -212,67 +198,79 @@ AskUserQuestion(questions=[
 ])
 ```
 
-`Other` 선택 시 자유 입력 → 사용자가 도메인 한 줄 설명 (예: "음식 배달 주문 처리 / 의료 예약").
+`Other` 선택 시 자유 입력 prompt → 사용자가 도메인 한 줄 설명 (예: "음식 배달 주문 처리 / 의료 예약").
 
-기존 testbed-services 레포의 다른 testbed 와 도메인 충돌 검사 — 같은 분야면 LLM 이 차별점 제안 ("plopvape-shop 이 e-commerce 라 충돌. multi-tenant 분기로?").
+### 2-d-b. LLM 자동 제안 (턴 2 — 인터뷰 X, 출력만)
 
-### 2-d-c. 서비스 분할 LLM 제안
+도메인 받자마자 LLM 이 다음 5가지를 한 번에 합성:
 
-선택 도메인 → LLM 이 4~6개 microservice 분할 + 각 서비스 책임/endpoint 제안:
+1. **testbed 이름** — kebab-case, testbed-services 레포 충돌 검사 자동 (충돌 시 `-v2` 등 자동 변형). 예: 은행 → `core-banking`, IoT → `iot-platform`, 음식 배달 → `food-delivery`
+2. **서비스 분할** — 4~6개 microservice (이름 + 책임 + endpoints + depends_on)
+3. **DB 종류** — 도메인 적합 default (트랜잭션 도메인이면 PostgreSQL)
+4. **DB 스키마** — service 분할 보고 테이블 + 컬럼 + PK/FK 합성
+5. **failure_surfaces** — default 4종 (db-lock-contention / external-api-timeout / db-cpu-throttle / traffic-flood)
+
+**사용자에게 종합 spec 표시** (인터뷰 X, 알림만):
 
 ```
-[LLM 제안 — core-banking]
-1. account
-   책임: 계좌 조회, 잔액 조회
-   endpoints:
-     GET  /api/accounts/{id}
-     GET  /api/accounts/{id}/balance
-   depends_on: []
+=== LLM 자동 제안 spec ===
 
-2. transfer
-   책임: 계좌 이체 실행
-   endpoints:
-     POST /api/transfer
-     GET  /api/transfer/{id}
-   depends_on: [account]
+이름:    core-banking
+도메인:  은행/금융
+서비스:  account, transfer, ledger, audit (4)
+  - account:  계좌 조회/잔액 (GET /api/accounts/{id})
+  - transfer: 이체 실행 (POST /api/transfer) [depends: account]
+  - ledger:   거래 내역 (GET /api/ledger/{accountId}) [depends: transfer]
+  - audit:    감사 이벤트 (POST /api/audit/event)
+DB:      PostgreSQL + 4 테이블 (accounts, transfers, ledger, audit_events)
+시나리오: db-lock-contention / external-api-timeout / db-cpu-throttle / traffic-flood
 
-3. ledger
-   책임: 거래 내역 기록 + 조회
-   endpoints:
-     GET  /api/ledger/{accountId}
-   depends_on: [transfer]
-
-4. audit
-   책임: 감사 이벤트 수집
-   endpoints:
-     POST /api/audit/event (internal)
-   depends_on: []
-
-이 분할로 진행?
+services-author 가 testbed-services 레포에 다음 작업 진행 예정:
+  - feat/core-banking-scaffold 브랜치 생성
+  - core-banking/ 디렉토리 + 4 service module + shop-common
+  - db/init.sql + k8s/ 매니페스트 + docker-compose.dev.yml
+  - mvnw clean package 검증
+  - PR 생성
 ```
 
-승인은 AskUserQuestion 으로:
+이름 충돌 시 (testbed-services 에 동일 이름 디렉토리 존재) LLM 이 자동으로 `-v2` 또는 다른 변형 제안 (사용자에게 안 묻고 자동).
+
+### 2-d-c. 사용자 검토 + 승인 (턴 3 — AskUserQuestion 단독)
 
 ```python
 AskUserQuestion(questions=[
   {
-    "question": "위 서비스 분할로 진행할까요?",
-    "header": "서비스 승인",
+    "question": "위 spec 으로 services-author 를 진행할까요?",
+    "header": "최종 승인",
     "multiSelect": False,
     "options": [
-      {"label": "진행 (Recommended)", "description": "이 분할 그대로 services-author 가 코드 생성"},
-      {"label": "수정 (edit)", "description": "서비스 추가/제거/이름변경/endpoint 조정 후 재제안"}
+      {"label": "이대로 진행 (Recommended)", "description": "PR push_mode=pr 로 자동 생성"},
+      {"label": "이름만 다시", "description": "이름이 마음에 안 듦 — 자유 입력으로 직접 선택 (kebab-case 검증)"},
+      {"label": "서비스 분할 수정", "description": "서비스 추가/제거/이름변경/endpoint 조정"},
+      {"label": "DB 종류 변경", "description": "PostgreSQL 외 6종 (MySQL/MariaDB/Oracle/Tibero/CUBRID/SQL Server) 선택"}
     ]
   }
 ])
 ```
 
-`edit` 선택 시 추가 자유 입력으로 변경사항 받음 (서비스 add/rename/remove, endpoint 추가/제거, depends_on 그래프).
+`Other` 옵션은 AskUserQuestion 자동 추가 — "취소 / 다른 항목 변경" 자유 입력 fallback.
 
-### 2-d-d. DB 선택 (DPM 지원 7종) — 도메인 응답과 같은 턴 묶음 OK
+### 2-d-d. 수정 분기 (턴 4+, 사용자가 수정 선택 시만)
 
-DPM 지원 7종 중 4개 옵션 + Other (Tibero/CUBRID/SQL Server 등은 Other 자유 입력):
+수정 선택 시 별 턴에 해당 항목만 입력 받고 → LLM 이 spec 반영 → 다시 2-d-c 승인 루프.
 
+#### 이름만 변경 (자유 입력 단독 턴)
+```
+새 이름을 입력해 주세요 (영문 kebab-case, 8~40자):
+_
+```
+검증: kebab-case 정규식 (`^[a-z][a-z0-9-]*$`) + testbed-services 충돌 검사. 충돌 시 LLM 이 변형 제안.
+
+#### 서비스 분할 수정 (자유 입력 단독 턴)
+사용자가 변경 사항 자유 입력 (예: "audit 빼고 notification 추가, transfer 의 endpoint /api/transfer/cancel 추가"). LLM 이 반영하여 spec 다시 표시 → 다시 2-d-c 승인.
+
+#### DB 종류 변경 (AskUserQuestion 단독 턴)
+DPM 지원 7종 중 4개 카드 + Other (Tibero/CUBRID/SQL Server 자유 입력):
 ```python
 AskUserQuestion(questions=[
   {
@@ -285,120 +283,12 @@ AskUserQuestion(questions=[
       {"label": "MariaDB", "description": "MySQL fork. 라이선스 자유"},
       {"label": "Oracle", "description": "Enterprise DB. 라이선스 / 이미지 별도 준비 필요"}
     ]
-  },
-  {
-    "question": "DB 스키마를 자동 생성할까요?",
-    "header": "스키마",
-    "multiSelect": False,
-    "options": [
-      {"label": "자동 생성 (Recommended)", "description": "LLM 이 service 분할 보고 테이블+컬럼+PK/FK 합성"},
-      {"label": "수동 입력", "description": "사용자가 SQL DDL 직접 입력"}
-    ]
   }
 ])
 ```
+선택 후 LLM 이 새 DB 에 맞게 스키마 재생성 → 다시 2-d-c 승인.
 
-`Other` 선택 시 Tibero/CUBRID/SQL Server 자유 입력. ARM 환경에서는 Tibero/CUBRID/SQL Server 호환성 별도 검증 필요 (사용자에게 안내).
-
-자동 생성 yes → LLM 이 service 분할 보고 DB 테이블 + 컬럼 + PK/FK 합성:
-
-```
-[LLM 제안 — core-banking schema]
-
-CREATE TABLE accounts (
-  id          VARCHAR(64) PRIMARY KEY,
-  holder      VARCHAR(128) NOT NULL,
-  balance     DECIMAL(18,2) NOT NULL DEFAULT 0,
-  created_at  TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE transfers (
-  id           BIGSERIAL PRIMARY KEY,
-  from_account VARCHAR(64) REFERENCES accounts(id),
-  to_account   VARCHAR(64) REFERENCES accounts(id),
-  amount       DECIMAL(18,2) NOT NULL,
-  status       VARCHAR(16) NOT NULL,
-  tx_at        TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE ledger (
-  id          BIGSERIAL PRIMARY KEY,
-  account_id  VARCHAR(64) REFERENCES accounts(id),
-  delta       DECIMAL(18,2) NOT NULL,
-  ref_tx_id   BIGINT REFERENCES transfers(id),
-  posted_at   TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE audit_events (
-  id          BIGSERIAL PRIMARY KEY,
-  service     VARCHAR(32) NOT NULL,
-  event_type  VARCHAR(64) NOT NULL,
-  payload     JSONB,
-  occurred_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-이 스키마로 진행? [Y/n/edit]
-```
-
-자동 생성 no → 사용자가 SQL 직접 입력 (multi-line).
-
-### 2-d-e. failure_surfaces 결정 (AskUserQuestion multiSelect)
-
-```python
-AskUserQuestion(questions=[
-  {
-    "question": "이 testbed 가 시연할 장애 패턴을 선택해 주세요 (다중 선택 가능)",
-    "header": "장애 패턴",
-    "multiSelect": True,
-    "options": [
-      {"label": "db-lock-contention", "description": "DB row/table lock 경합 → 응답시간 + 에러율 폭증"},
-      {"label": "external-api-timeout", "description": "외부 의존성 무응답 → cascade 5xx"},
-      {"label": "db-cpu-throttle", "description": "DB CPU 제한 → 전 서비스 쿼리 지연"},
-      {"label": "traffic-flood", "description": "동시 요청 폭증 → thread pool 포화"}
-    ]
-  }
-])
-```
-
-default 는 4개 모두 선택 (= 기본 plopvape-shop 패턴). 부분 선택 시 그만큼만 시나리오 생성.
-
-각 surface 의 기본 lock_table / external_container 등은 LLM 이 services + db.schemas 보고 자동 매핑 (services-author 가 이 매핑을 scenario_hints 로 반환).
-
-### 2-d-f. 사용자 최종 승인 (AskUserQuestion)
-
-deep interview 결과 종합 표시 후:
-
-```
-=== 새 testbed 요약 ===
-
-이름:    core-banking
-도메인:  은행/금융
-서비스:  account, transfer, ledger, audit (4)
-DB:      PostgreSQL + 4 테이블 (accounts, transfers, ledger, audit_events)
-시나리오: db-lock / external-timeout / db-cpu-throttle / traffic-flood
-
-services-author 가 testbed-services 레포에 다음 작업:
-  - feat/core-banking-scaffold 브랜치 생성
-  - core-banking/ 디렉토리 + 4 service module + shop-common
-  - db/init.sql + k8s/ 매니페스트 + docker-compose.dev.yml
-  - mvnw clean package 검증
-  - PR 생성 (또는 직접 push)
-```
-
-```python
-AskUserQuestion(questions=[
-  {
-    "question": "위 spec 으로 services-author 를 진행할까요?",
-    "header": "최종 승인",
-    "multiSelect": False,
-    "options": [
-      {"label": "진행 (Recommended)", "description": "PR push_mode=pr 로 자동 생성"},
-      {"label": "수정", "description": "어느 단계 다시 인터뷰? 자유 입력"},
-      {"label": "취소", "description": "인터뷰 중단, run 보존"}
-    ]
-  }
-])
-```
+승인 시 phase 6 (services-author dispatch) 진입. **사용자 입력 최소화 — 도메인 1개 선택 + (필요 시) 일부 수정** 으로 끝나는 가벼운 흐름.
 
 ## 옵션 3 산출 (interview.yaml 의 app 섹션)
 
