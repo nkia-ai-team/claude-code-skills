@@ -26,6 +26,32 @@ paths:
   ansible_playbook_root: ""             # 비우면 plugin install 디렉토리 발견
 ```
 
+## ⚠️ 두 서버 개념 — 사용자에게 명확히 안내
+
+testbed-build 는 **두 개의 서로 다른 서버** 를 다룸. 인터뷰 시작 전 한 줄 안내 필수:
+
+```
+=== testbed-build 환영합니다 ===
+
+이 스킬은 두 개의 서버를 사용합니다:
+
+  1. 타겟 서버 (Target Host)
+     테스트베드가 깔릴 곳. K3s + 5 services + 폴스타10 에이전트
+     4종이 설치됨. SSH 접근 가능해야 함.
+     예: 109 DGX Spark (192.168.200.109)
+
+  2. Polestar10 모니터링 서버 (Polestar10 instance)
+     RCA 분석을 위한 모니터링 백엔드. 자원 등록 / 알람 정책 /
+     메트릭 시계열 API 가 여기로 호출됨.
+     예: NKIA 96 demo (https://192.168.230.96)
+
+bootstrap 단계에서 둘 다의 자격증명/주소를 한 번에 캐시.
+```
+
+이 안내를 인터뷰 첫 화면에 출력 후 AskUserQuestion 호출.
+
+---
+
 ## 인터뷰 (없으면 수행) — AskUserQuestion 활용
 
 **텍스트 prompt 가 아니라 `AskUserQuestion` 도구 사용** — 카드형 UI. multi-choice 가 있는 슬롯들을 한 묶음에:
@@ -33,21 +59,21 @@ paths:
 ```python
 AskUserQuestion(questions=[
   {
-    "question": "SSH 인증 방식?",
-    "header": "SSH 인증",
+    "question": "타겟 서버 (테스트베드 깔릴 곳) SSH 인증 방식?",
+    "header": "타겟 SSH",
     "multiSelect": False,
     "options": [
-      {"label": "Password (Recommended)", "description": "매 호출마다 password 입력. 가장 단순."},
-      {"label": "SSH key", "description": "~/.ssh/id_rsa 또는 사용자 지정 경로"}
+      {"label": "Password (Recommended)", "description": "매 호출마다 password 입력. 가장 단순. (예: nkia 사용자, NKIA1234)"},
+      {"label": "SSH key", "description": "~/.ssh/id_rsa 또는 사용자 지정 경로 (key 기반 무인증 접속)"}
     ]
   },
   {
-    "question": "Polestar10 instance?",
-    "header": "P10 endpoint",
+    "question": "Polestar10 모니터링 서버 (자원 등록·알람 API) 주소?",
+    "header": "P10 서버",
     "multiSelect": False,
     "options": [
-      {"label": "96 demo (Recommended)", "description": "https://192.168.230.96 — 외부 데모 환경"},
-      {"label": "NKIA dev", "description": "사내 dev instance"}
+      {"label": "96 demo (Recommended)", "description": "https://192.168.230.96 — NKIA 외부 데모 환경"},
+      {"label": "NKIA dev", "description": "사내 dev Polestar10 instance"}
     ]
   },
   {
@@ -62,11 +88,11 @@ AskUserQuestion(questions=[
 ])
 ```
 
-자유 입력 슬롯 (텍스트 prompt):
-- SSH user (default `nkia`)
+자유 입력 슬롯 (텍스트 prompt — 위 카드와 별도로):
+- 타겟 서버 SSH user (default `nkia`) — *109/96/104 공통 user 가 nkia 라 default*
 - (SSH key 선택 시) SSH key 경로 (default `~/.ssh/id_rsa`)
-- (Polestar10 Other 선택 시) 직접 base_url 입력
-- (레포 no 선택 시) 직접 경로 입력
+- (Polestar10 Other 선택 시) Polestar10 base_url 직접 입력 (`https://...` 형식, self-signed cert 일반)
+- (레포 no 선택 시) testbed-services / rca-scenario-runner 경로 각각 직접 입력
 
 → 답변 종합 → `~/.testbed-build/bootstrap.yaml` 생성 + `chmod 600`. 다음 호출부터 묻지 않음.
 
