@@ -1,17 +1,31 @@
 ---
-# ARM64 검증용 inventory 샘플 — DGX Spark (109)
-# 사용 예: ansible-playbook -i inventory/arm64-sample.yml site.yml
+# ARM64 검증용 inventory 샘플 (DGX Spark 등)
 #
-# 보안 주의: ansible_password 평문 대신 ansible-vault 사용 권장
+# 자격증명을 git에 박지 않기 위해 모든 connection 변수를 환경변수에서 받음.
+# testbed-build 스킬은 이 sample 을 그대로 쓰지 않고, 인터뷰로 받은 값으로
+# 런타임 inventory 를 생성. 본 sample 은 수동 ansible-playbook 실행용.
+#
+# 사용 예:
+#   export TESTBED_HOST=<TARGET-HOST>
+#   export TESTBED_USER=nkia
+#   export TESTBED_PASSWORD=<ssh_password>           # ssh key 사용 시 unset
+#   export TESTBED_BECOME_PASSWORD=<sudo_password>   # 미설정 시 TESTBED_PASSWORD 재사용
+#   export POLESTAR_ORG_ID=<24-hex tenant id>        # SMS install 필수
+#   export GITHUB_PAT=<token>                         # private repo asset 다운로드
+#   ansible-playbook -i inventory/arm64-sample.yml site.yml
+#
+# ssh key 인증 권장 (ansible_ssh_private_key_file). 부득이 password 사용 시
+# 환경변수 또는 ansible-vault. git history 에 평문 commit 절대 금지.
 all:
   children:
     testbed:
       hosts:
         arm64-target:
-          ansible_host: <TARGET-HOST>
-          ansible_user: nkia
-          ansible_password: <REDACTED-SSH-PASSWORD>
-          ansible_become_password: <REDACTED-SSH-PASSWORD>
+          ansible_host: "{{ lookup('env', 'TESTBED_HOST') }}"
+          ansible_user: "{{ lookup('env', 'TESTBED_USER') }}"
+          ansible_password: "{{ lookup('env', 'TESTBED_PASSWORD') | default(omit, true) }}"
+          ansible_become_password: "{{ lookup('env', 'TESTBED_BECOME_PASSWORD') | default(lookup('env', 'TESTBED_PASSWORD'), true) }}"
+          ansible_ssh_private_key_file: "{{ lookup('env', 'TESTBED_SSH_KEY') | default(omit, true) }}"
           ansible_python_interpreter: /usr/bin/python3
       vars:
         # testbed-services monorepo (NKIAAI-570) — <app_subdir>/k8s/build-and-deploy.sh 가 5 service build + apply

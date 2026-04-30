@@ -49,26 +49,29 @@ sudo apt install sshpass                     # Linux
 
 ## 빠른 시작
 
-### 1. inventory 채우기
+### 1. 환경변수 export (자격증명 + 타겟 + 폴스타10 조직)
 
-`inventory/amd64-sample.yml` 또는 `arm64-sample.yml` 복사 + 타겟 정보 채우기:
+inventory sample 의 connection 값은 모두 환경변수에서 읽습니다 — git 에 평문 자격증명 commit 방지. testbed-build 스킬은 인터뷰로 받은 값으로 런타임 inventory 를 생성하므로 본 단계 자동화. 수동 ansible-playbook 실행 시:
 
-```yaml
-all:
-  children:
-    testbed:
-      hosts:
-        my-target:
-          ansible_host: 10.0.0.42
-          ansible_user: ubuntu
-          # ssh key 권장. 패스워드는 ansible-vault:
-          # ansible-vault encrypt_string 'PASSWORD' --name 'ansible_password'
-      vars:
-        db_engine: postgres
-        app_repo: "https://github.com/your-org/your-spring-boot-app"
-        app_version: main
-        app_nodeport: 30080
+```sh
+# 필수
+export TESTBED_HOST=<TARGET-HOST>               # 타겟 호스트 IP
+export TESTBED_USER=nkia                          # SSH 사용자
+export POLESTAR_ORG_ID=<24-hex tenant id>         # SMS install 시 SAAS_TENANT_ID 채움 (폴스타10 web [계정] > 조직명 마우스오버)
+
+# SSH 인증 — 둘 중 하나
+export TESTBED_SSH_KEY=~/.ssh/id_ed25519          # 권장: ssh key
+# 또는
+export TESTBED_PASSWORD=<password>                # 비추: 평문 password
+
+# Sudo 인증 — 미설정 시 TESTBED_PASSWORD 재사용
+export TESTBED_BECOME_PASSWORD=<sudo password>
+
+# Private repo 자산 다운로드 — gh CLI 또는 PAT (다음 섹션 참조)
+export GITHUB_PAT=<token>
 ```
+
+`testbed_services` / `app_repo` / `app_subdir` / `app_namespace` 등 도메인 변수는 inventory `vars:` 또는 `-e` 로 override (다른 테스트베드 도메인 추가 시 [§ 다른 테스트베드 추가하기](#다른-테스트베드-추가하기-nkiaai-540-후속-작업자용) 참조).
 
 ### 2. GitHub 인증 (둘 중 하나)
 

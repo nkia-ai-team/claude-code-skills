@@ -1,4 +1,31 @@
 ---
+# Inventory sample 의 connection 변수 (TESTBED_HOST/USER/PASSWORD/...) 가
+# 누락되면 SSH 시도 시점에 cryptic 한 에러가 나기 전에 명확한 메시지 출력.
+# testbed-build 스킬은 인터뷰 후 동적 inventory 를 생성하므로 통과,
+# 수동 ansible-playbook 실행 시 사용자에게 가이드 역할.
+- name: Pre-flight env vars check
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Validate required env vars (sample inventory 사용 시)
+      ansible.builtin.assert:
+        that:
+          - lookup('env', 'TESTBED_HOST') | length > 0
+          - lookup('env', 'TESTBED_USER') | length > 0
+        fail_msg: |
+          Required environment variables not set.
+          ansible-playbook 직접 실행 시 다음을 export 하거나 testbed-build
+          스킬을 사용하세요:
+            export TESTBED_HOST=<target ip>            # 필수
+            export TESTBED_USER=<ssh user>             # 필수
+            export TESTBED_PASSWORD=<password>         # ssh key 미사용 시
+            export TESTBED_BECOME_PASSWORD=<sudo pw>   # 미설정 시 PASSWORD 재사용
+            export TESTBED_SSH_KEY=<keypath>           # password 대안
+            export POLESTAR_ORG_ID=<24-hex tenant>     # SMS install 필수
+            export GITHUB_PAT=<token>                  # private repo asset
+        success_msg: "Connection env vars present (host={{ lookup('env', 'TESTBED_HOST') }}, user={{ lookup('env', 'TESTBED_USER') }})"
+      when: lookup('env', 'TESTBED_HOST_SKIP_CHECK') | default('') | length == 0
+
 - name: RCA Testbed bootstrap — common stack + agents + service
   hosts: testbed
   become: true
