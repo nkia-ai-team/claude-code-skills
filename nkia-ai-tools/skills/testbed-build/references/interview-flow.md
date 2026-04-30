@@ -436,59 +436,49 @@ ALREADY_REGISTERED=$(curl -sS --cookie-jar "$JAR" \
   | jq -r '.data[].host')
 ```
 
-### Step 2: 결과 분기
+### Step 2: 결과 분기 — 발견 시 자동 등록
 
-#### Case A: 1+ 장비 발견
+원칙: **가능하면 무조건 수집**. 발견된 장비는 추가 prompt 없이 자동으로 NMS 자원 등록 진행. 사용자에게는 결과 알림만.
 
-```python
-# 발견된 장비 리스트를 옵션으로 표시 (max 4개, 더 많으면 truncate + Other)
-AskUserQuestion(questions=[
-  {
-    "question": "다음 SNMP 장비가 자동 감지됐습니다. NMS 자원으로 등록할까요?",
-    "header": "NMS 등록",
-    "multiSelect": True,
-    "options": [
-      {"label": "192.168.200.1 (가능: 라우터)", "description": "sysDescr: Cisco IOS XE 17.x — gateway"},
-      {"label": "192.168.200.10 (가능: 스위치)", "description": "sysDescr: Juniper EX2300"},
-      {"label": "192.168.200.20 (가능: 방화벽)", "description": "sysDescr: Palo Alto PA-220"},
-      {"label": "다 등록 (Recommended)", "description": "발견된 장비 모두 NMS 자원으로 등록"}
-    ]
-  }
-])
+#### Case A: 1+ 장비 발견 → 자동 등록 (인터뷰 X)
+
+```
+[NMS 자동 감지 결과]
+  ✓ 192.168.200.1   sysDescr: Cisco IOS XE 17.x          → NMS 등록 진행
+  ✓ 192.168.200.10  sysDescr: Juniper EX2300             → NMS 등록 진행
+  ✓ 192.168.200.20  sysDescr: Palo Alto PA-220           → NMS 등록 진행
+
+총 3 개 장비 자동 NMS 등록 진행합니다 (community: probe 성공 값 사용).
 ```
 
-선택된 장비마다 추가 자유 입력 (community string, SNMP version) prompt.
+각 장비에 대해 testbed-polestar10-register 의 NMS 분기 자동 호출. community string 은 SNMP probe 성공한 값 그대로 사용 (v2c=public 응답이면 그대로 사용 / v3 면 user-based credential 자동 감지 어렵지만 v2c probe 만으로도 대부분 환경 커버).
 
-#### Case B: 0 장비 발견 또는 스캔 실패 (snmpwalk/nmap 부재 또는 권한 없음)
+> 자동 등록 후 Polestar10 web UI 에서 사용자가 community 변경/추가 정보 보강 가능. 본 스킬 책임은 "발견 + 1차 등록" 까지.
 
-```python
-AskUserQuestion(questions=[
-  {
-    "question": "SNMP 장비가 자동 감지되지 않았습니다. NMS 등록을 어떻게 진행할까요?",
-    "header": "NMS",
-    "multiSelect": False,
-    "options": [
-      {"label": "Skip (Recommended)", "description": "이 환경에 SNMP 장비 없음. NMS 등록 안 함."},
-      {"label": "직접 입력", "description": "사용자가 SNMP 장비 IP + community string + version 직접 입력"}
-    ]
-  }
-])
+#### Case B: 0 장비 발견 또는 스캔 실패 → skip + 안내 (인터뷰 X)
+
+```
+[NMS 자동 감지 결과]
+  스캔 완료. SNMP 응답 장비 0 개.
+  
+  → NMS 등록 skip. 환경에 SNMP 장비가 추가되면 나중에
+    /testbed-polestar10-register 단독 호출로 추가 가능.
 ```
 
-`직접 입력` 시 자유 입력 prompt:
-```
-"장비 IP?" (예: 192.168.200.1)
-"SNMP version (v2c/v3, default v2c)?"
-"community string (default public)?"
-```
+사용자에게 묻지 않고 진행. 인터뷰 단계 늘리는 노이즈 제거.
 
 #### Case C: 자동 감지 도구 부재 (snmpwalk + nmap 둘 다 없음)
 
-타겟 서버에 추가 설치 권하지 않고 fallback:
 ```
-"자동 감지 불가 — 타겟 서버에 snmpwalk/nmap 미설치. SNMP 장비가 있는지
- 사용자께서 알고 계신가요? 있으면 IP 입력 (없으면 Enter)."
+[NMS 자동 감지]
+  타겟 서버에 snmpwalk / nmap 미설치 → 자동 감지 불가.
+  
+  → NMS 등록 skip. 알려진 SNMP 장비가 있으면 나중에
+    /testbed-polestar10-register 단독 호출로 추가 가능.
+    또는 타겟 서버에 `apt install snmp nmap` 후 testbed-build resume.
 ```
+
+이 경우도 사용자에게 묻지 않고 자동 skip. 추후 추가 경로만 안내.
 
 ### interview.yaml 산출
 
