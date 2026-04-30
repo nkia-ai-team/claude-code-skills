@@ -1,0 +1,145 @@
+# Polestar10 에이전트 설치 명세
+#
+# testbed-build / Ansible playbook 이 참조하는 single source of truth.
+# 6종 Polestar10 에이전트 × 2 아키텍처 (amd64 / arm64) 매트릭스.
+#
+# 필드:
+#   host_install        호스트에 에이전트 데몬을 깔아야 하는가
+#                       false = Polestar10 backend 가 자원에 직접 접속 (DPM, NMS)
+#   arch_support.<arch>:
+#     mode              binary | source-build | qemu-user-static | polestar10-side
+#     url               binary URL (mode=binary) 또는 source repo (mode=source-build)
+#     prerequisites     설치 prereq (gcc / Go / glibc 등)
+#     verify_command    설치 후 heartbeat 확인 명령
+
+agents:
+
+  KCM:
+    description: Kubernetes Container Monitoring — DaemonSet over the running K3s cluster
+    host_install: true
+    install_unit: cluster      # 1 클러스터당 1 인스턴스 (DaemonSet)
+    arch_support:
+      amd64:
+        mode: binary
+        url: ""                # NKIAAI-537 후속에서 publish 필요
+        prerequisites: []
+        verify_command: "kubectl -n kube-system get ds | grep -i kcm"
+      arm64:
+        mode: source-build
+        url: "https://cims2.nkia.net:8443/gitlab/lucida-kcmagent"
+        prerequisites:
+          - gcc
+          - "Go >= 1.21"
+        verify_command: "kubectl -n kube-system get ds | grep -i kcm"
+
+  APM:
+    description: Application Performance Monitoring — JVM agent (OpenTelemetry-based)
+    host_install: true
+    install_unit: jvm          # 호스트당 1 jar, conf 만 service 별
+    arch_support:
+      amd64:
+        mode: binary
+        url: ""                # publish 필요
+        prerequisites:
+          - "Java >= 17"
+        verify_command: "ls /opt/polestar10/apm/opentelemetry-javaagent.jar"
+      arm64:
+        mode: binary           # JVM 이라 arch 무관 (Java bytecode)
+        url: ""
+        prerequisites:
+          - "Java >= 17"
+        verify_command: "ls /opt/polestar10/apm/opentelemetry-javaagent.jar"
+
+  WPM:
+    description: Web Performance Monitoring — JVM agent (Spring transaction tracing)
+    host_install: true
+    install_unit: jvm
+    arch_support:
+      amd64:
+        mode: binary
+        url: ""
+        prerequisites:
+          - "Java >= 17"
+          - "Java =< 17"       # WPM은 Java 21 미지원 (memory: Polestar WPM의 K8s 한계)
+        verify_command: "ls /opt/polestar10/wpm/wpmagent.jar"
+      arm64:
+        mode: binary
+        url: ""
+        prerequisites:
+          - "Java >= 17"
+          - "Java =< 17"
+        verify_command: "ls /opt/polestar10/wpm/wpmagent.jar"
+
+  SMS:
+    description: System Monitoring System — host-level systemd daemon
+    host_install: true
+    install_unit: host         # 호스트당 1 인스턴스
+    arch_support:
+      amd64:
+        mode: binary
+        url: ""
+        prerequisites:
+          - glibc
+        verify_command: "systemctl is-active smsagent"
+      arm64:
+        mode: qemu-user-static
+        url: ""                # amd64 binary + qemu-user-static 호환층
+        prerequisites:
+          - "qemu-user-static (apt install qemu-user-static)"
+          - "binfmt-support"
+        verify_command: "systemctl is-active smsagent"
+
+  DPM:
+    description: Database Performance Monitoring — Polestar10 backend 가 DB 에 직접 접속 (호스트 에이전트 없음)
+    host_install: false
+    install_unit: polestar10-side
+    arch_support:
+      amd64:
+        mode: polestar10-side
+        prerequisites:
+          - "DB 가 polestar10 collector 에서 도달 가능해야 함 (네트워크)"
+          - "DB 자격증명 (read-only role 권장)"
+          - "지원 DB: PostgreSQL / MySQL / MariaDB / Oracle / Tibero / CUBRID / SQL Server"
+        verify_command: "polestar10 web UI 에서 자원 등록 후 status=UP 확인"
+      arm64:
+        mode: polestar10-side
+        prerequisites:
+          - "DB 가 polestar10 collector 에서 도달 가능해야 함"
+          - "DB 자격증명"
+        verify_command: "polestar10 web UI 에서 status=UP"
+
+  NMS:
+    description: Network Management System — SNMP polling (장비에 에이전트 X, polestar10 가 SNMP 폴링)
+    host_install: false
+    install_unit: polestar10-side
+    arch_support:
+      amd64:
+        mode: polestar10-side
+        prerequisites:
+          - "네트워크 장비가 SNMP v2c/v3 응답 가능"
+          - "community string 또는 SNMP v3 자격증명"
+          - "polestar10 collector → 장비 SNMP 포트 (161/udp) 도달 가능"
+        verify_command: "polestar10 web UI 에서 자원 등록 후 status=UP"
+      arm64:
+        mode: polestar10-side
+        prerequisites:
+          - "네트워크 장비가 SNMP v2c/v3 응답"
+          - "SNMP 자격증명"
+        verify_command: "polestar10 web UI 에서 status=UP"
+
+# === 환경별 prerequisite 메모 ===
+notes:
+  - "ARM64 (109 DGX Spark / Apple Silicon) 에서 SMS 는 qemu-user-static 호환층 필요. KCM 은 lucida-kcmagent 소스 빌드 (gcc + Go)."
+  - "WPM 은 Java 21 미지원. JDK 17 권장."
+  - "K3s 환경의 KCM Pod CPU/Mem 메트릭은 metrics-server 필수 (`--kubelet-insecure-tls` 플래그 권장)."
+  - "사전 에이전트 감지 시 재설치 안 함 (멱등성). 이미 systemd unit 활성 또는 jar 존재 시 skip."
+  - "바이너리 URL 은 polestar-agents-binaries 레포 (NKIA org GitHub Releases) 의 자산. NKIAAI-537 후속에서 채움."
+
+# === 5번 단계 (에이전트 설치) Ansible role 매핑 ===
+ansible_role_map:
+  KCM: agent-kcm
+  APM: agent-apm
+  WPM: agent-wpm
+  SMS: agent-sms
+  DPM: null                    # role 없음. testbed-polestar10-register 가 처리
+  NMS: null                    # role 없음. testbed-polestar10-register 가 처리

@@ -3,7 +3,7 @@
 # 누락되면 SSH 시도 시점에 cryptic 한 에러가 나기 전에 명확한 메시지 출력.
 # testbed-build 스킬은 인터뷰 후 동적 inventory 를 생성하므로 통과,
 # 수동 ansible-playbook 실행 시 사용자에게 가이드 역할.
-- name: Pre-flight env vars check
+- name: Pre-flight env vars + polestar10 connectivity check
   hosts: localhost
   gather_facts: false
   tasks:
@@ -25,6 +25,36 @@
             export GITHUB_PAT=<token>                  # private repo asset
         success_msg: "Connection env vars present (host={{ lookup('env', 'TESTBED_HOST') }}, user={{ lookup('env', 'TESTBED_USER') }})"
       when: lookup('env', 'TESTBED_HOST_SKIP_CHECK') | default('') | length == 0
+
+    # Polestar10 controller-side reachability — POLESTAR10_BASE_URL 가 설정된 경우만 검사.
+    # SMS 설치 (POLESTAR_ORG_ID 사용) + agent install 단계에서 Polestar10 도달 필수.
+    # 미설정이면 사용자가 testbed-build 스킬 외부에서 ansible 만 돌리는 케이스로 간주, skip.
+    - name: Polestar10 connectivity precheck (when POLESTAR10_BASE_URL set)
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'POLESTAR10_BASE_URL') }}/api/sso/preLogin"
+        method: POST
+        body_format: json
+        body: {}
+        validate_certs: false
+        status_code: [200, 400]
+        timeout: 10
+      when:
+        - lookup('env', 'POLESTAR10_BASE_URL') | length > 0
+        - lookup('env', 'TESTBED_POLESTAR10_SKIP_CHECK') | default('') | length == 0
+      register: polestar10_precheck
+      ignore_errors: true
+
+    - name: Fail with guidance if polestar10 precheck failed
+      ansible.builtin.fail:
+        msg: |
+          Polestar10 도달 불가 — 다음을 점검하세요:
+            - {{ lookup('env', 'POLESTAR10_BASE_URL') }} 가 정상 동작 중인지 확인
+            - controller → Polestar10 네트워크 (방화벽 / VPN / DNS) 점검
+            - bootstrap.yaml 또는 export 한 POLESTAR10_BASE_URL 오타 확인
+            - skip 하려면 export TESTBED_POLESTAR10_SKIP_CHECK=1
+      when:
+        - polestar10_precheck is defined
+        - polestar10_precheck.failed | default(false)
 
 - name: RCA Testbed bootstrap — common stack + agents + service
   hosts: testbed
@@ -52,6 +82,7 @@
   #   3. service-k8s — Spring boot + DB; mounts wpm/apm jars via hostPath
   #   4. agent-kcm — DaemonSet over the running K3s cluster
   #   5. agent-sms — host-level systemd; independent of K3s
+  #   6. scenario-runner — RCA 장애 시나리오 실행 웹 서비스 (docker-compose). Polestar10 무관.
   # SoT 10-step view orders agents AFTER service deploy. Implementation order differs for technical reasons (mount sequencing).
   roles:
     - role: common
@@ -66,3 +97,6 @@
       tags: [agents, kcm]
     - role: agent-sms
       tags: [agents, sms]
+    - role: scenario-runner
+      tags: [scenario-runner]
+      when: scenario_runner_enabled | default(true)

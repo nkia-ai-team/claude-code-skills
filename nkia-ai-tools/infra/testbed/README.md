@@ -3,6 +3,9 @@
 K3s + 서비스 (Spring boot + DB) + 에이전트 4종 (WPM/APM/KCM/SMS) 을 한 번에 깔아주는 Ansible playbook.
 Claude Code 없이 `ansible-playbook` 직접 실행이 1차 인터페이스.
 
+> **상위 오케스트레이터**: `testbed-build` 스킬이 본 playbook 의 thin wrapper 로 작동 — 인터뷰 → 동적 inventory 생성 → site.yml 호출 → Polestar10 자원 등록 + 시나리오 + 알람 + closed-loop verify 까지 end-to-end 자동화.
+> 본 README 는 **playbook 자체** 의 SoT. 오케스트레이터 + 전체 흐름의 SoT 는 [.omc/state/nkiaai-542/sot.md](../../../.omc/state/nkiaai-542/sot.md) 또는 [skills/testbed-build/SKILL.md](../../skills/testbed-build/SKILL.md) 참조.
+
 ## 디렉토리 구조
 
 ```
@@ -23,7 +26,8 @@ infra/testbed/
         ├── agent-wpm/                   # JVM agent jar 다운로드 → host /opt/polestar10/wpm
         ├── agent-apm/                   # JVM agent jar 다운로드 → host /opt/polestar10/apm
         ├── agent-kcm/                   # K3s DaemonSet (AMD: image pull / ARM: lucida-kcmagent 소스 빌드)
-        └── agent-sms/                   # 호스트 systemd (사전 감지 → 이미 있으면 skip)
+        ├── agent-sms/                   # 호스트 systemd (사전 감지 → 이미 있으면 skip)
+        └── scenario-runner/             # rca-scenario-runner docker-compose 배포 (git clone + .env + healthz)
 ```
 
 ## 사전 요구사항
@@ -49,7 +53,7 @@ sudo apt install sshpass                     # Linux
 
 ## 빠른 시작
 
-### 1. 환경변수 export (자격증명 + 타겟 + 폴스타10 조직)
+### 1. 환경변수 export (자격증명 + 타겟 + Polestar10 조직)
 
 inventory sample 의 connection 값은 모두 환경변수에서 읽습니다 — git 에 평문 자격증명 commit 방지. testbed-build 스킬은 인터뷰로 받은 값으로 런타임 inventory 를 생성하므로 본 단계 자동화. 수동 ansible-playbook 실행 시:
 
@@ -57,7 +61,7 @@ inventory sample 의 connection 값은 모두 환경변수에서 읽습니다 �
 # 필수
 export TESTBED_HOST=<TARGET-HOST>               # 타겟 호스트 IP
 export TESTBED_USER=nkia                          # SSH 사용자
-export POLESTAR_ORG_ID=<24-hex tenant id>         # SMS install 시 SAAS_TENANT_ID 채움 (폴스타10 web [계정] > 조직명 마우스오버)
+export POLESTAR_ORG_ID=<24-hex tenant id>         # SMS install 시 SAAS_TENANT_ID 채움 (Polestar10 web [계정] > 조직명 마우스오버)
 
 # SSH 인증 — 둘 중 하나
 export TESTBED_SSH_KEY=~/.ssh/id_ed25519          # 권장: ssh key
@@ -194,7 +198,7 @@ ansible playbook 본체는 **테스트베드 도메인을 모름** — 어떤 �
 | 도메인 (e-commerce→banking) | testbed-services repo | 새 subdir |
 | K8s namespace | inventory | `app_namespace: "rca-xxx"` |
 | 사용 안 할 에이전트 | inventory | `wpm_enabled: false` (Python only 등) |
-| 폴스타10 조직 | env | `POLESTAR_ORG_ID=...` |
+| Polestar10 조직 | env | `POLESTAR_ORG_ID=...` |
 | 타겟 호스트 | inventory | `ansible_host: ...` |
 
 **ansible playbook 본체 (이 디렉토리) 변경 X**. 한 번 깔면 모든 테스트베드 처리.
@@ -214,7 +218,7 @@ ansible playbook 본체는 **테스트베드 도메인을 모름** — 어떤 �
 
 ### Caveats — 알려진 한계
 
-1. **폴스타10 standby DB drift**: pod rolling update 로 옛 agent ID 의 K8s pod 이 죽어도 폴스타10 backend "관리대상 추가 → 애플리케이션" 큐에서 stale standby record 가 자동 cleanup 되지 않음. broker 연결도 끊긴 상태인데 web UI 에 계속 남음. **540 자동화 코드와 무관 — 폴스타10 자체 한계**. delete API 가 standby record 를 안 지우는 듯. 운영팀 확인 또는 backend DB 직접 청소가 진짜 해결.
+1. **Polestar10 standby DB drift**: pod rolling update 로 옛 agent ID 의 K8s pod 이 죽어도 Polestar10 backend "관리대상 추가 → 애플리케이션" 큐에서 stale standby record 가 자동 cleanup 되지 않음. broker 연결도 끊긴 상태인데 web UI 에 계속 남음. **540 자동화 코드와 무관 — Polestar10 자체 한계**. delete API 가 standby record 를 안 지우는 듯. 운영팀 확인 또는 backend DB 직접 청소가 진짜 해결.
 2. **SMS agentId 재install 시 갱신 → 옛 ID 등록 시 DOWN**: SMS install 시 매번 `MA_<host>_<YYYYMMDDhhmmss>` 패턴의 새 agentId 가 생성됨. 이전 install 의 stale agentId 가 standby 큐에 남아있을 때 그걸 register 하면 hostname 은 일치해도 실제 daemon 의 publish agentId 와 안 맞아 backend 가 heartbeat 매칭 실패 → `availabilityStatus: DOWN`. **해결 절차** (testbed-polestar10-register 스킬에 흐름 박아야 함):
    1. `/api/sms/hosts/delete` 로 옛 agentId 등록 제거
    2. 109 SMS daemon 재시작 (`magentctl -stop` + `-start`)
