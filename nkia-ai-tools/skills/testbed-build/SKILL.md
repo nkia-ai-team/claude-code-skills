@@ -129,16 +129,20 @@ mkdir -p "$HOME/.testbed-build/runs/$RUN_ID"
 
 답변 → `runs/<RUN_ID>/interview.yaml` 저장.
 
-### [Phase 2] Polestar10 연결 사전 체크
+### [Phase 2] Polestar10 도달성 precheck
 
-[references/polestar10-error-handling.md](references/polestar10-error-handling.md) 의 connectivity precheck 절차:
+**Reachability 만 확인** — host 가 controller 에서 도달 가능한지. 실제 auth endpoint 동작은 testbed-polestar10-register 의 login.md (`POST /api/account/pre-login` → `POST /api/account/login`) 가 phase 9 시점에 검증. server 버전마다 auth path 다를 수 있어 본 단계에서 hardcode X.
 
 ```bash
-curl -sS -m 10 "$POLESTAR10_BASE_URL/api/sso/preLogin" >/dev/null \
-  || { echo "Polestar10 연결 실패. 점검 후 재시도."; exit 1; }
+HTTP_CODE=$(curl -s -k -o /dev/null -w "%{http_code}" -m 10 "$POLESTAR10_BASE_URL/")
+[ "$HTTP_CODE" = "000" ] && {
+  echo "Polestar10 도달 불가 (network). bootstrap.yaml base_url + 네트워크 점검."
+  exit 1
+}
+echo "[precheck] reachable (HTTP $HTTP_CODE)"
 ```
 
-실패 시 ask-polestar10 호출 + 사용자 안내 후 phase 미완 상태로 종료.
+상세: [references/polestar10-error-handling.md](references/polestar10-error-handling.md). 실패 시 사용자 안내 후 phase 미완 상태로 종료 — ask-polestar10 호출은 actual auth 단계에서 (network 영역은 매뉴얼 무관).
 
 ### [Phase 3] Architecture-draft (인라인)
 
