@@ -78,7 +78,7 @@ AskUserQuestion(questions=[
     "header": "타겟 SSH",
     "multiSelect": False,
     "options": [
-      {"label": "Password (Recommended)", "description": "매 호출마다 password 입력. 가장 단순. (예: nkia 사용자, NKIA1234)"},
+      {"label": "Password (Recommended)", "description": "매 호출마다 password 입력. 가장 단순."},
       {"label": "SSH key", "description": "~/.ssh/id_rsa 또는 사용자 지정 경로 (key 기반 무인증 접속)"}
     ]
   },
