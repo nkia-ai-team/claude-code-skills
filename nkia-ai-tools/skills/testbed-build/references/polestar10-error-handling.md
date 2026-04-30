@@ -27,21 +27,16 @@ testbed-build 의 모든 phase + sub-skill 에서 공통.
 
 → 자동 재로그인 1회 (recipes/login.md 다시 실행). 그래도 401 면 사용자 prompt: "자격증명 다시 입력?"
 
-## Connectivity precheck (Phase 2)
+## Reachability precheck (Phase 2)
 
-본격적인 phase 진입 전:
+본격적인 phase 진입 전 — **server 도달성만** 검사. 실제 auth 검증은 testbed-polestar10-register 의 login.md recipe 가 처리 (그게 실제 endpoint `/api/account/pre-login` 사용). Polestar10 버전/배포 형태마다 auth path 가 다르므로 본 단계에서는 hardcode X.
 
 ```bash
-PRECHECK_URL="$POLESTAR10_BASE_URL/api/sso/preLogin"
-
-# 10초 timeout, self-signed cert 무시 (-k)
-HTTP_CODE=$(curl -s -k -o /dev/null -w "%{http_code}" -m 10 -X POST \
-  -H 'Content-Type: application/json' -d '{}' "$PRECHECK_URL")
+# 10초 timeout, self-signed cert 무시 (-k), root URL 만 GET
+HTTP_CODE=$(curl -s -k -o /dev/null -w "%{http_code}" -m 10 \
+  "$POLESTAR10_BASE_URL/")
 
 case "$HTTP_CODE" in
-  200|400)
-    echo "[precheck] Polestar10 연결 OK (HTTP $HTTP_CODE)"
-    ;;
   000)
     cat <<EOF
 [precheck] Polestar10 도달 불가 (network).
@@ -55,13 +50,13 @@ EOF
     exit 1
     ;;
   *)
-    echo "[precheck] Polestar10 응답 이상 (HTTP $HTTP_CODE). 부트스트랩 진행 시도..."
-    # /api/sso/preLogin 이 변경됐을 수 있음. 부트스트랩 단계에서 재확인.
+    # HTTP 200/3xx/4xx 모두 reachable 의미. 5xx 도 controller 입장에선 도달 가능.
+    echo "[precheck] Polestar10 reachable (HTTP $HTTP_CODE)"
     ;;
 esac
 ```
 
-`HTTP_CODE=400` 도 OK 로 봄: 빈 바디로 POST 했으니 server reachable + login flow 동작 중.
+> 어떤 HTTP code 든 (000 만 빼고) "controller 가 host 에 도달 가능" 의미. 실제 auth endpoint 동작은 login.md 가 호출 시 검증.
 
 ## Sub-skill 안의 에러 처리 표준
 
