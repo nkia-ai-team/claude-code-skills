@@ -1,0 +1,51 @@
+---
+- name: APM disabled notice
+  ansible.builtin.debug:
+    msg: "APM agent disabled (apm_enabled=false)"
+  when: not (apm_enabled | default(true) | bool)
+
+- name: Install APM agent
+  when:
+    - apm_enabled | default(true) | bool
+    - github_pat | length > 0
+  block:
+    - name: Ensure APM install dir
+      ansible.builtin.file:
+        path: "{{ apm_install_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Fetch APM release metadata (private repo via API)
+      ansible.builtin.uri:
+        url: "{{ agent_release_api_base }}/releases/tags/{{ apm_release_tag }}"
+        headers:
+          Authorization: "Bearer {{ github_pat }}"
+          Accept: "application/vnd.github+json"
+        return_content: true
+      register: apm_release_meta
+      no_log: true
+
+    - name: Resolve APM asset id (opentelemetry-javaagent.jar)
+      ansible.builtin.set_fact:
+        apm_asset_id: "{{ (apm_release_meta.json.assets | selectattr('name', 'equalto', apm_asset_name) | map(attribute='id') | list | first) }}"
+
+    - name: Download APM jar directly (octet-stream — bare .jar, no zip)
+      ansible.builtin.get_url:
+        url: "{{ agent_release_api_base }}/releases/assets/{{ apm_asset_id }}"
+        headers:
+          Authorization: "Bearer {{ github_pat }}"
+          Accept: "application/octet-stream"
+        dest: "{{ apm_install_dir }}/{{ apm_jar_name }}"
+        mode: '0644'
+      register: apm_dl
+      retries: 5
+      delay: 10
+      until: apm_dl is succeeded
+      no_log: true
+
+- name: APM skip notice (GITHUB_PAT not set)
+  ansible.builtin.debug:
+    msg: "APM agent skipped — set GITHUB_PAT (or 'gh auth login') on the controller."
+  when:
+    - apm_enabled | default(true) | bool
+    - github_pat | length == 0

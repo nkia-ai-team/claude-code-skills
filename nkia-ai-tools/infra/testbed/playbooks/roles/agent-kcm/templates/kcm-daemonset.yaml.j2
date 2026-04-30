@@ -1,0 +1,41 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kcm-agent
+  namespace: kcm
+  labels:
+    app: kcm-agent
+spec:
+  selector:
+    matchLabels:
+      app: kcm-agent
+  template:
+    metadata:
+      labels:
+        app: kcm-agent
+    spec:
+      serviceAccountName: kcm-agent
+      hostNetwork: true
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: kcm-agent
+          image: "{{ kcm_image_name }}:{{ kcm_agent_version }}-{{ target_arch }}"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KCM_COLLECTOR_HOST
+              value: "{{ polestar10_collector_host }}"
+            - name: KCM_COLLECTOR_PORT
+              value: "{{ polestar10_kcm_collector_port }}"
+            - name: KCM_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

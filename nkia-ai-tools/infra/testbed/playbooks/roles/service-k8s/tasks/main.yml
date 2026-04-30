@@ -1,0 +1,14 @@
+---
+# service-k8s — testbed-services monorepo deploy 패턴 (NKIAAI-570 권고).
+# Monorepo 가 자체 k8s/ manifest 보유: namespace + secret + configmap + DB + 5 service deployment.
+# 본 ansible 은 git clone + build-and-deploy.sh 호출까지만 책임.
+#
+# Legacy single-app DB+app manifest 패턴은 폐기 (NKIAAI-540 검증 중 plopvape-shop monorepo 와 비호환 확인).
+- name: Deploy testbed-services monorepo
+  ansible.builtin.include_tasks: monorepo.yml
+  when: app_repo | length > 0
+
+- name: Skip notice (app_repo empty)
+  ansible.builtin.debug:
+    msg: "service-k8s skipped — app_repo empty. Set in inventory to deploy a testbed-services monorepo."
+  when: app_repo | length == 0

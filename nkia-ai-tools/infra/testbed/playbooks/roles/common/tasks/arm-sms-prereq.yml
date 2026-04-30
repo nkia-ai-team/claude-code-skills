@@ -1,0 +1,53 @@
+---
+# ARM target with SMS enabled needs amd64 multi-arch (Polestar SMS daemons are amd64).
+# Must be set up BEFORE any apt operation, otherwise apt tries to fetch amd64
+# packages from ports.ubuntu.com which only hosts ARM and returns 404.
+
+- name: Enable amd64 multi-arch
+  ansible.builtin.shell: |
+    if ! dpkg --print-foreign-architectures | grep -q '^amd64$'; then
+      dpkg --add-architecture amd64
+      echo CHANGED
+    fi
+  register: arch_add
+  changed_when: "'CHANGED' in (arch_add.stdout | default(''))"
+
+- name: Pin ports.ubuntu.com sources to arm64 only
+  ansible.builtin.shell: |
+    F=/etc/apt/sources.list.d/ubuntu.sources
+    [ -f "$F" ] || exit 0
+    grep -q '^Architectures:' "$F" && exit 0
+    sed -i '/^URIs: http:\/\/ports.ubuntu.com/a Architectures: arm64' "$F"
+    echo CHANGED
+  register: pin_arm64
+  changed_when: "'CHANGED' in (pin_arm64.stdout | default(''))"
+
+# Skip writing our own amd64.list if any existing source file declares
+# arch=amd64 (e.g. 109 already ships /etc/apt/sources.list.d/amd64-cross.list
+# with the same lines). Using shell grep — ansible.builtin.find's contains
+# regex didn't match the literal '[arch=amd64]' reliably across all hosts.
+- name: Detect existing amd64 source files (shell grep)
+  ansible.builtin.shell: |
+    set +e
+    grep -l 'arch=amd64' /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null | head -1
+  register: existing_amd64_grep
+  changed_when: false
+  failed_when: false
+
+- name: Add amd64 sources (only when no amd64 list exists yet)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/amd64.list
+    content: |
+      deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }} main restricted universe multiverse
+      deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }}-updates main restricted universe multiverse
+      deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }}-security main restricted universe multiverse
+    mode: '0644'
+  when: (existing_amd64_grep.stdout | default('') | trim) | length == 0
+  register: amd64_sources
+
+- name: Refresh apt cache after sources change (tolerate third-party repo errors)
+  ansible.builtin.shell: apt-get update 2>&1 | tail -10 || true
+  args:
+    executable: /bin/bash
+  changed_when: false
+  when: arch_add.changed or pin_arm64.changed or (amd64_sources.changed | default(false))

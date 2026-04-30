@@ -1,0 +1,182 @@
+---
+- name: SMS disabled notice
+  ansible.builtin.debug:
+    msg: "SMS agent disabled (sms_enabled=false)"
+  when: not (sms_enabled | default(true) | bool)
+
+# 109 reference shows actual daemon names are MAGENTL/SMSAGENTL (not SMSAGENT/MAGENT).
+# Polestar SMS uses agentstart.sh -> magentctl -start to fork daemons; no systemd unit.
+- name: Detect existing Polestar SMS daemons
+  ansible.builtin.shell: |
+    set +e
+    PROC=$(pgrep -af 'SMSAGENTL|MAGENTL|PARFT' | grep -v grep | head -1)
+    if [ -n "$PROC" ]; then
+      echo "FOUND $PROC"
+      exit 0
+    fi
+    exit 1
+  register: sms_existing
+  changed_when: false
+  failed_when: false
+
+- name: SMS already running — skip install (set sms_force_reinstall=true to override)
+  ansible.builtin.debug:
+    msg: >
+      SMS daemons already running on host — install skipped.
+      Detection: {{ (sms_existing.stdout | default('')) | trim }}
+  when:
+    - sms_enabled | default(true) | bool
+    - sms_existing.rc == 0
+    - not (sms_force_reinstall | default(false))
+
+- name: ARM only — install qemu-user-static + binfmt-support + amd64 libs
+  ansible.builtin.apt:
+    name:
+      - qemu-user-static
+      - binfmt-support
+      - libc6:amd64           # x86_64 dynamic linker for qemu-binfmt
+      - libstdc++6:amd64
+    state: present
+    # update_cache handled tolerantly in arm-sms-prereq; avoids third-party
+    # repo errors (e.g. NVIDIA expired GPG on 109) blocking the install.
+  when:
+    - sms_enabled | default(true) | bool
+    - target_arch == 'arm64'
+    - ansible_os_family == 'Debian'
+    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
+
+- name: ARM only — verify binfmt registration
+  ansible.builtin.command: ls /proc/sys/fs/binfmt_misc/
+  register: binfmt_ls
+  changed_when: false
+  when:
+    - sms_enabled | default(true) | bool
+    - target_arch == 'arm64'
+    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
+  failed_when:
+    - sms_enabled | default(true) | bool
+    - target_arch == 'arm64'
+    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
+    - "'qemu-x86_64' not in (binfmt_ls.stdout | default(''))"
+    - "'qemu-amd64' not in (binfmt_ls.stdout | default(''))"
+
+- name: Fail fast if polestar_organization_id missing (SMS install requires tenant)
+  ansible.builtin.fail:
+    msg: |
+      polestar_organization_id is required for SMS install (SaaS mode tenant ID).
+      Find it: 폴스타10 web 우측 상단 [계정] > 조직명 마우스오버 툴팁 (24자리 hex ObjectId).
+      Set via: export POLESTAR_ORG_ID=<id>  또는  -e polestar_organization_id=<id>
+  when:
+    - sms_enabled | default(true) | bool
+    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
+    - polestar_organization_id | default('') | length == 0
+
+- name: Install SMS agent via Polestar AgentInstall.sh + agentstart.sh
+  when:
+    - sms_enabled | default(true) | bool
+    - github_pat | length > 0
+    - (sms_existing.rc != 0) or (sms_force_reinstall | default(false))
+  block:
+    - name: Ensure SMS install dir
+      ansible.builtin.file:
+        path: "{{ sms_install_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Fetch SMS release metadata (private repo via API)
+      ansible.builtin.uri:
+        url: "{{ agent_release_api_base }}/releases/tags/{{ sms_release_tag }}"
+        headers:
+          Authorization: "Bearer {{ github_pat }}"
+          Accept: "application/vnd.github+json"
+        return_content: true
+      register: sms_release_meta
+      no_log: true
+
+    - name: Resolve SMS asset id
+      ansible.builtin.set_fact:
+        sms_asset_id: "{{ (sms_release_meta.json.assets | selectattr('name', 'equalto', sms_asset_name) | map(attribute='id') | list | first) }}"
+
+    - name: Download SMS tarball (octet-stream)
+      ansible.builtin.get_url:
+        url: "{{ agent_release_api_base }}/releases/assets/{{ sms_asset_id }}"
+        headers:
+          Authorization: "Bearer {{ github_pat }}"
+          Accept: "application/octet-stream"
+        dest: "/tmp/{{ sms_asset_name }}"
+        mode: '0644'
+      register: sms_dl
+      retries: 5
+      delay: 10
+      until: sms_dl is succeeded
+      no_log: true
+
+    - name: Extract SMS tarball
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ sms_asset_name }}"
+        dest: "{{ sms_install_dir }}"
+        remote_src: true
+
+    # AgentInstall.sh 옵션 (admin/agent-install-017.md):
+    #   -m <Broker IP:Port>          (필수) MQTT broker
+    #   -a <Agent IP>                Agent host IP — 우리 host의 default IPv4 사용
+    #   -e <TENANT_ID>               조직 ID (24자리 hex). SaaS multi-tenant 환경에서
+    #                                MasterAgent.conf 의 SAAS_TENANT_ID 채움.
+    #                                빠지면 backend 가 메시지 라우팅 못 해 standby 등록 안 됨.
+    # default 인자 (AgentInstall.sh 내부):
+    #   -c mosquitto:mosquitto       broker 인증 (우리는 default 사용)
+    #   -i MA_<HOSTNAME>_<YYYYMMDDhhmmss>  agent ID 자동 생성
+    #   -p 41003                     agent listen port
+    - name: Run Polestar AgentInstall.sh (broker + agent IP + tenant)
+      ansible.builtin.command:
+        cmd: >
+          /bin/sh ./AgentInstall.sh
+          -m {{ polestar10_collector_host }}:{{ polestar10_sms_broker_port | default(1883) }}
+          -a {{ ansible_default_ipv4.address }}
+          -e {{ polestar_organization_id }}
+        chdir: "{{ sms_install_dir }}"
+      register: sms_install_run
+      changed_when: sms_install_run.rc == 0
+      no_log: true   # tenant ID 보호
+
+    # AgentInstall.sh 가 데몬을 자동 기동하지 않을 수 있어 명시적으로 stop+start 사이클.
+    # Polestar bundles libssl/libcrypto/libstdc++ in NNPAgent/LIB/ — qemu-binfmt loader
+    # 가 그걸 찾도록 LD_LIBRARY_PATH 강제.
+    # Stop은 unconditional + failed_when:false (데몬 안 돌면 silent OK).
+    - name: Stop magentctl (idempotent — silent if not running)
+      ansible.builtin.command: ./magentctl -stop
+      args:
+        chdir: "{{ sms_install_dir }}/NNPAgent/MAgent/bin"
+      environment:
+        LD_LIBRARY_PATH: "{{ sms_install_dir }}/NNPAgent/LIB"
+      register: magentctl_stop
+      changed_when: magentctl_stop.rc == 0
+      failed_when: false
+
+    - name: Start Polestar Master Agent (magentctl -start; forks SMSAGENTL)
+      ansible.builtin.command: ./magentctl -start
+      args:
+        chdir: "{{ sms_install_dir }}/NNPAgent/MAgent/bin"
+      environment:
+        LD_LIBRARY_PATH: "{{ sms_install_dir }}/NNPAgent/LIB"
+      register: magentctl_run
+      changed_when: magentctl_run.rc == 0
+
+    - name: Verify SMS daemons started
+      ansible.builtin.shell: |
+        set +e
+        pgrep -af 'SMSAGENTL|MAGENTL' | grep -v grep | head -3
+      register: sms_verify
+      changed_when: false
+      failed_when: sms_verify.stdout | length == 0
+      retries: 6
+      delay: 5
+      until: sms_verify.stdout | length > 0
+
+- name: SMS skip notice (GITHUB_PAT not set + not running)
+  ansible.builtin.debug:
+    msg: "SMS agent skipped — set GITHUB_PAT (or 'gh auth login') on the controller."
+  when:
+    - sms_enabled | default(true) | bool
+    - github_pat | length == 0
+    - sms_existing.rc != 0

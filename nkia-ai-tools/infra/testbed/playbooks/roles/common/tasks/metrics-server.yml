@@ -1,0 +1,50 @@
+---
+# K3s 기본엔 metrics-server 가 없음. KCM Pod CPU/MEM 알람 + kubectl top + HPA 모두 차단됨.
+# K3s self-signed kubelet cert 환경에서는 --kubelet-insecure-tls flag 가 반드시 필요.
+
+- name: Download metrics-server upstream manifest
+  ansible.builtin.get_url:
+    url: "https://github.com/kubernetes-sigs/metrics-server/releases/download/{{ metrics_server_version }}/components.yaml"
+    dest: /tmp/metrics-server-upstream.yaml
+    mode: '0644'
+  register: ms_dl
+  retries: 5
+  delay: 10
+  until: ms_dl is succeeded
+
+- name: Check whether metrics-server YAML already patched
+  ansible.builtin.command: grep -q -- '--kubelet-insecure-tls' /tmp/metrics-server-upstream.yaml
+  register: ms_already_patched
+  changed_when: false
+  failed_when: false
+
+- name: Patch metrics-server — inject --kubelet-insecure-tls (only when missing)
+  ansible.builtin.replace:
+    path: /tmp/metrics-server-upstream.yaml
+    regexp: '^(\s+)- --metric-resolution=15s\s*$'
+    replace: '\1- --metric-resolution=15s\n\1- --kubelet-insecure-tls'
+  when: ms_already_patched.rc != 0
+
+- name: Diff metrics-server manifest against cluster state
+  ansible.builtin.command: >
+    /usr/local/bin/k3s kubectl diff
+    --field-manager=ansible-testbed
+    -f /tmp/metrics-server-upstream.yaml
+  register: ms_diff
+  changed_when: false
+  failed_when: ms_diff.rc not in [0, 1]
+
+- name: Apply patched metrics-server manifest (server-side, only when diff)
+  ansible.builtin.command: >
+    /usr/local/bin/k3s kubectl apply --server-side
+    --field-manager=ansible-testbed --force-conflicts
+    -f /tmp/metrics-server-upstream.yaml
+  register: ms_apply
+  changed_when: ms_diff.rc == 1
+  when: ms_diff.rc == 1
+
+- name: Wait for metrics-server deployment to become Available
+  ansible.builtin.command: >
+    /usr/local/bin/k3s kubectl wait --for=condition=Available
+    deployment/metrics-server -n kube-system --timeout=180s
+  changed_when: false

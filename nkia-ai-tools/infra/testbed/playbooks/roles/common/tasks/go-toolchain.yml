@@ -1,0 +1,50 @@
+---
+# ARM 타겟에서 KCM lucida-kcmagent 소스 빌드용 Go toolchain 설치.
+# 설치 위치: /usr/local/go (tarball 표준)
+
+- name: Detect Go presence + version
+  ansible.builtin.command: /usr/local/bin/go version
+  register: go_check
+  changed_when: false
+  failed_when: false
+
+- name: Set fact — Go install required
+  ansible.builtin.set_fact:
+    go_install_needed: "{{ (go_check.rc != 0) or (('go' + go_version) not in (go_check.stdout | default(''))) }}"
+
+- name: Download Go {{ go_version }} (linux-arm64 tarball)
+  ansible.builtin.get_url:
+    url: "https://go.dev/dl/go{{ go_version }}.linux-arm64.tar.gz"
+    dest: /tmp/go-{{ go_version }}-arm64.tar.gz
+    mode: '0644'
+  register: go_dl
+  retries: 5
+  delay: 10
+  until: go_dl is succeeded
+  when: go_install_needed
+
+- name: Remove previous Go install dir
+  ansible.builtin.file:
+    path: "{{ go_install_dir }}"
+    state: absent
+  when: go_install_needed
+
+- name: Extract Go to /usr/local
+  ansible.builtin.unarchive:
+    src: /tmp/go-{{ go_version }}-arm64.tar.gz
+    dest: /usr/local
+    remote_src: true
+  when: go_install_needed
+
+- name: Symlink go binary into /usr/local/bin
+  ansible.builtin.file:
+    src: "{{ go_install_dir }}/bin/go"
+    dest: /usr/local/bin/go
+    state: link
+    force: true
+
+- name: Verify Go install
+  ansible.builtin.command: /usr/local/bin/go version
+  register: go_verify
+  changed_when: false
+  failed_when: ('go' + go_version) not in go_verify.stdout

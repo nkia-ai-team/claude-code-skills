@@ -1,0 +1,110 @@
+---
+# Polestar10 collector endpoints — 테스트베드는 104 collector 사용
+polestar10_collector_host: "192.168.230.104"
+# WPM 수집기는 UDP/TCP 두 채널 사용 (109 의 wpmagent-*.conf 검증값)
+polestar10_wpm_collector_udp_port: 31002
+polestar10_wpm_collector_tcp_port: 31005
+# APM (OTel) 은 OTLP gRPC endpoint
+polestar10_apm_collector_otlp_endpoint: "http://192.168.230.104:6565"
+polestar10_kcm_collector_port: 20040
+# SMS 는 AgentInstall.sh 의 -m 인자로 broker_ip:port (MQTT 1883)
+polestar10_sms_broker_port: 1883
+
+# Polestar 조직(테넌트) ID — SaaS 모드 SMS 가 broker publish 시 organizationId 로 필요.
+# 빠지면 polestar-app-sms-1 backend 가 메시지 라우팅 못 해 standby 등록 안 됨.
+# 폴스타10 web 우측 상단 [계정] > 조직명 마우스오버 툴팁의 24자리 hex(ObjectId).
+# 주입: env POLESTAR_ORG_ID 또는 ansible-playbook -e polestar_organization_id=<id>.
+polestar_organization_id: "{{ lookup('env', 'POLESTAR_ORG_ID') | default('', true) }}"
+
+# K3s 설치 옵션
+k3s_version: "v1.32.5+k3s1"
+k3s_install_args: "--disable=traefik --kubelet-arg=anonymous-auth=false --write-kubeconfig-mode=644"
+metrics_server_version: "v0.7.2"
+
+# Go toolchain (ARM KCM 소스 빌드 시에만 설치)
+go_version: "1.22.5"
+go_install_dir: "/usr/local/go"
+
+# ============================================================
+# 테스트베드 정의 — 다른 도메인/서비스 구조 추가 시 inventory 로 override
+# ============================================================
+# 본 ansible 은 빌드 로직을 모름. <app_subdir>/k8s/build-and-deploy.sh 표준
+# 인터페이스만 호출 → 실제 Dockerfile/manifest/script 는 testbed-services repo
+# (NKIAAI-570) 가 책임. "스킬 얇게 / 플레이북 두껍게" 설계 (SoT 542).
+#
+# 새 테스트베드 추가 절차:
+#   1. testbed-services repo 에 새 subdir (예: core-banking/) 추가
+#      — N개 service 폴더 + k8s/build-and-deploy.sh + manifest
+#   2. inventory 신설 (예: inventory/banking-target.yml):
+#        app_namespace: "rca-banking"          # K8s namespace 격리
+#        app_repo: "<위와 같은 repo 또는 다른 repo>"
+#        app_subdir: "core-banking"
+#        testbed_services: [account, transfer, ledger, ...]
+#   3. ansible-playbook -i inventory/banking-target.yml site.yml
+#
+# 같은 K3s 클러스터에 여러 테스트베드 동시 운영 가능 (namespace 격리).
+# 같은 호스트 SMS 1 + 같은 클러스터 KCM 1 자동 공유, WPM/APM jar 도 host
+# /opt/polestar10/{wpm,apm}/ 에 1개씩 공유 (conf 만 service 별 N개).
+#
+# 비-Java 서비스 (Python/Node 등): wpm_enabled=false 로 disable, APM(OTel)
+# 만 사용 (OTel SDK 가 다언어 지원).
+app_namespace: "rca-testbed"               # plopvape-shop 의 00-namespace.yaml
+app_repo: "https://github.com/nkia-ai-team/testbed-services"
+app_version: "main"
+app_subdir: "plopvape-shop"                 # monorepo 내부 testbed 폴더 (NKIAAI-570)
+testbed_services: [order, product, inventory, payment, notification]
+
+# 에이전트 활성화 플래그 (테스트베드는 6종 고정 스택이라 모두 true 가 기본)
+wpm_enabled: true
+apm_enabled: true
+kcm_enabled: true
+sms_enabled: true
+
+# polestar-agents-binaries (private repo) GitHub API 패턴
+agent_release_api_base: "https://api.github.com/repos/nkia-ai-team/polestar-agents-binaries"
+# Token resolution: GITHUB_PAT env > `gh auth token` (if user did `gh auth login`) > empty
+github_pat: >-
+  {{ lookup('env', 'GITHUB_PAT')
+     | default(lookup('pipe', 'gh auth token 2>/dev/null || true'), true)
+     | default('', true) }}
+
+# WPM
+wpm_agent_version: "8.1.1"
+wpm_release_tag: "wpm-v8.1.1"
+wpm_asset_name: "WPMAgent_8.1.1_20250403.zip"
+
+# APM (plopvape-shop manifest 가 OTel 모드 사용 — 폴스타 자체 APM 대신 opentelemetry-javaagent.jar)
+apm_agent_version: "10.2.2"
+apm_release_tag: "apm-v10.2.2"
+apm_asset_name: "opentelemetry-javaagent.jar"
+
+# KCM (AMD64 이미지 자산은 미정 — ARM 은 source build)
+kcm_agent_version: "TBD"
+kcm_image_url_amd64: ""
+
+# SMS (Linux x86_64; ARM 은 동일 AMD 바이너리를 qemu-user-static 으로 실행)
+sms_agent_version: "10.0.0_18"
+sms_release_tag: "sms-linux-v10.0.0_18"
+sms_asset_name: "polestar10_SMS_Linux64_3.4_10.0.0_18.tar.gz"
+# SMS 는 호스트 systemd 에 이미 깔려 있을 가능성이 높아 사전 감지 후 skip 이 기본.
+# 강제 재설치하려면 inventory 또는 --extra-vars 로 sms_force_reinstall=true.
+sms_force_reinstall: false
+
+# 에이전트 호스트 설치 경로 — NKIAAI-570 표준 (testbed-services/README.md §3 명세).
+# 모든 testbed manifest 가 이 경로를 hostPath 로 마운트한다고 가정.
+agent_install_root: "/opt/polestar10"
+wpm_install_dir: "{{ agent_install_root }}/wpm"
+apm_install_dir: "{{ agent_install_root }}/apm"
+wpm_jar_name: "wpmagent.jar"
+apm_jar_name: "opentelemetry-javaagent.jar"
+
+# KCM ARM 소스 빌드 (target-source-build 방식)
+# kcm_source_repo: 사내 GitLab 의 lucida-kcmagent. public 노출 회피로 default 비움.
+# ARM 타겟에서 KCM 사용 시 inventory 또는 -e 로 override 또는 env KCM_SOURCE_REPO.
+# AMD64 는 kcm_image_url_amd64 (polestar-agents-binaries 후속, NKIAAI-537) 로 우회.
+kcm_source_repo: "{{ lookup('env', 'KCM_SOURCE_REPO') | default('', true) }}"
+kcm_source_branch: "main"
+kcm_image_name: "polestar10-kcm"
+
+# SMS 설치 경로
+sms_install_dir: "/opt/polestar10/sms"

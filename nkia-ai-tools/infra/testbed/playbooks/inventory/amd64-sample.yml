@@ -1,0 +1,22 @@
+---
+# AMD64 검증용 inventory 샘플
+#
+# 자격증명을 git에 박지 않기 위해 모든 connection 변수를 환경변수에서 받음.
+# 자세한 사용법은 arm64-sample.yml 헤더 참조.
+all:
+  children:
+    testbed:
+      hosts:
+        amd64-target:
+          ansible_host: "{{ lookup('env', 'TESTBED_HOST') }}"
+          ansible_user: "{{ lookup('env', 'TESTBED_USER') }}"
+          ansible_password: "{{ lookup('env', 'TESTBED_PASSWORD') | default(omit, true) }}"
+          ansible_become_password: "{{ lookup('env', 'TESTBED_BECOME_PASSWORD') | default(lookup('env', 'TESTBED_PASSWORD'), true) }}"
+          ansible_ssh_private_key_file: "{{ lookup('env', 'TESTBED_SSH_KEY') | default(omit, true) }}"
+          ansible_python_interpreter: /usr/bin/python3
+      vars:
+        # testbed-services monorepo (NKIAAI-570) — <app_subdir>/k8s/build-and-deploy.sh 가 5 service build + apply
+        app_repo: "https://github.com/nkia-ai-team/testbed-services"
+        app_version: main
+        app_subdir: plopvape-shop
+        app_namespace: rca-testbed

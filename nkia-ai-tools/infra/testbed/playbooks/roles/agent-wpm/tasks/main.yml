@@ -1,0 +1,79 @@
+---
+- name: WPM disabled notice
+  ansible.builtin.debug:
+    msg: "WPM agent disabled (wpm_enabled=false)"
+  when: not (wpm_enabled | default(true) | bool)
+
+- name: Install WPM agent
+  when:
+    - wpm_enabled | default(true) | bool
+    - github_pat | length > 0
+  block:
+    - name: Ensure WPM install dir
+      ansible.builtin.file:
+        path: "{{ wpm_install_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Fetch WPM release metadata (private repo via API)
+      ansible.builtin.uri:
+        url: "{{ agent_release_api_base }}/releases/tags/{{ wpm_release_tag }}"
+        headers:
+          Authorization: "Bearer {{ github_pat }}"
+          Accept: "application/vnd.github+json"
+        return_content: true
+      register: wpm_release_meta
+      no_log: true
+
+    - name: Resolve WPM asset id
+      ansible.builtin.set_fact:
+        wpm_asset_id: "{{ (wpm_release_meta.json.assets | selectattr('name', 'equalto', wpm_asset_name) | map(attribute='id') | list | first) }}"
+
+    - name: Download WPM agent archive (octet-stream)
+      ansible.builtin.get_url:
+        url: "{{ agent_release_api_base }}/releases/assets/{{ wpm_asset_id }}"
+        headers:
+          Authorization: "Bearer {{ github_pat }}"
+          Accept: "application/octet-stream"
+        dest: "/tmp/{{ wpm_asset_name }}"
+        mode: '0644'
+      register: wpm_dl
+      retries: 5
+      delay: 10
+      until: wpm_dl is succeeded
+      no_log: true
+
+    - name: Extract WPM archive
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ wpm_asset_name }}"
+        dest: "{{ wpm_install_dir }}"
+        remote_src: true
+
+    - name: Locate WPM jar in extracted archive (largest jar)
+      ansible.builtin.find:
+        paths: "{{ wpm_install_dir }}"
+        patterns: "wpmagent*.jar"
+        recurse: true
+      register: wpm_jars
+
+    - name: Copy WPM jar to install root as {{ wpm_jar_name }}
+      ansible.builtin.copy:
+        src: "{{ (wpm_jars.files | sort(attribute='size') | reverse | first).path }}"
+        dest: "{{ wpm_install_dir }}/{{ wpm_jar_name }}"
+        remote_src: true
+        mode: '0644'
+      when: wpm_jars.matched > 0
+
+    - name: Generate WPM service-specific config (one per testbed service)
+      ansible.builtin.template:
+        src: wpmagent-service.conf.j2
+        dest: "{{ wpm_install_dir }}/wpmagent-{{ item }}.conf"
+        mode: '0644'
+      loop: "{{ testbed_services }}"
+
+- name: WPM skip notice (GITHUB_PAT not set)
+  ansible.builtin.debug:
+    msg: "WPM agent skipped — set GITHUB_PAT (or 'gh auth login') on the controller to download from polestar-agents-binaries."
+  when:
+    - wpm_enabled | default(true) | bool
+    - github_pat | length == 0
