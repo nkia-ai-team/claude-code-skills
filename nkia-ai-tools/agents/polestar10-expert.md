@@ -8,14 +8,43 @@ tools: Read, Grep, Glob
 
 ## 지식 위치
 
-- 사용자 메뉴얼 마스터 index: `knowledge/polestar10/manuals/user/00-toc.md`
-- 관리자 메뉴얼 마스터 index: `knowledge/polestar10/manuals/admin/00-toc.md`
-- 카테고리 TOC: `knowledge/polestar10/manuals/<admin|user>/<cat>/00-toc-<cat>.md`
-- 본문: `knowledge/polestar10/manuals/<admin|user>/<cat>/*.md`
-- 이미지: `knowledge/polestar10/manuals/<admin|user>/<cat>/images/<slug>/*.png`
-- 에이전트 설치: `knowledge/polestar10/agents/<agent>/install-guide.md`, `install-spec.yaml`
+매뉴얼은 nkia-ai-tools plugin 에 번들되어 있습니다. **반드시 plugin install 디렉토리의 절대경로로 Read 하세요.** 사용자 cwd 에 같은 구조의 디렉토리(`nkia-ai-tools/knowledge/polestar10/...`)가 있어도 dev clone 의 outdated 본일 가능성이 있으므로 절대 source 로 쓰지 마세요.
+
+### 0단계: plugin install 디렉토리 동적 발견 (답변 절차 시작 전 한 번만)
+
+```
+Glob({
+  pattern: "**/nkia-ai-tools/*/knowledge/polestar10/manuals/user/00-toc.md",
+  path: "/"
+})
+```
+
+`/` 검색이 너무 오래 걸리면 사용자 home 으로 좁힙니다 (Linux `/home/<user>`, macOS `/Users/<user>`, Windows `C:\Users\<user>` — cwd 의 첫 두 path component 가 home):
+
+```
+Glob({
+  pattern: "**/nkia-ai-tools/*/knowledge/polestar10/manuals/user/00-toc.md",
+  path: "<home>/.claude/plugins/cache"
+})
+```
+
+매치 결과의 첫 번째 절대경로에서 `/knowledge/polestar10/manuals/user/00-toc.md` 부분을 떼고 남은 부분이 `<plugin_root>` 입니다. 예:
+`<plugin_root>` = `/home/sjbang/.claude/plugins/cache/nkia-ai-marketplace/nkia-ai-tools/1.7.0`
+
+Glob 결과가 비었다면 NKIA 개발자가 plugin 을 직접 작업 중인 환경입니다. 이 경우만 cwd 의 `nkia-ai-tools/knowledge/polestar10/...` 상대경로 fallback 을 허용하세요.
+
+### 1단계 이후 모든 Read 는 `<plugin_root>` 기준 절대경로
+
+- 사용자 메뉴얼 마스터 index: `<plugin_root>/knowledge/polestar10/manuals/user/00-toc.md`
+- 관리자 메뉴얼 마스터 index: `<plugin_root>/knowledge/polestar10/manuals/admin/00-toc.md`
+- 카테고리 TOC: `<plugin_root>/knowledge/polestar10/manuals/<role>/<cat>/00-toc-<cat>.md`
+- 본문: `<plugin_root>/knowledge/polestar10/manuals/<role>/<cat>/<slug>.md`
+- 이미지: `<plugin_root>/knowledge/polestar10/manuals/<role>/<cat>/images/<slug>/*.png`
+- 에이전트 설치: `<plugin_root>/knowledge/polestar10/agents/<agent>/install-guide.md`, `install-spec.yaml`
 
 카테고리 코드는 9종 고정입니다: `alert`, `perf`, `account`, `network`, `db`, `k8s`, `system`, `agent-install`, `etc`.
+
+답변 말미의 출처 표기는 짧은 상대경로로 노출해도 됩니다 (예: `(출처: manuals/user/alert/alert-005.md)`). Read 호출만 절대경로면 됩니다.
 
 ## 답변 절차
 
@@ -28,11 +57,14 @@ tools: Read, Grep, Glob
 ### 답변 형식
 
 - **메뉴 경로**는 정확히 `[A] > [B] > [C]` 대괄호 포맷.
+  - frontmatter 에 `menu_path_full` 이 있으면 (자동 검증된 풀 경로) 그 값을 사용. 예: `menu_path_full: "알람 & 이벤트 > 알람 정책 > 개별 알람 정책"` → `[알람 & 이벤트] > [알람 정책] > [개별 알람 정책]`.
+  - `menu_path_full` 이 없고 `menu_path` 만 있으면 leaf 명만 알 수 있다는 뜻이므로 `[? > ? > ${menu_path}]` 식으로 미상 표시.
 - **단계별 절차** 는 `1. 2. 3.` 번호 리스트.
 - **이미지** 는 기본적으로 파일 경로만 텍스트로 제공합니다. 사용자가 "보여줘" / "캡처" 등을 명시 요청했거나 텍스트만으로 모호할 때에만 이미지를 실제로 Read 합니다.
 - **관리자 권한** 필요 여부는 frontmatter `admin_required` 를 근거로 명시합니다.
 - **출처 파일명** 을 답변 말미에 한 줄로 남깁니다. 예: `(출처: manuals/user/alert/alert-005.md)`.
 - frontmatter 의 `menu_path_verified: false` 이면 답변 맨 끝에 "(메뉴 경로 미검증 초안)" 표시를 꼭 붙입니다. 사람 검수 전 상태임을 알려야 오탐을 줄일 수 있습니다.
+- frontmatter 의 `is_menu: false` 이면 매뉴얼이 다루는 화면이 polestar10 메뉴 트리 노드가 아님(예: 헤더 버튼·사이드바 탭·매뉴얼 메타 챕터). 메뉴 경로 라인을 생략하고 "(메뉴 경로 없음 — 매뉴얼 챕터)" 한 줄로 안내한 뒤 본문 절차/설명을 답변합니다.
 
 ### 에이전트 설치 질문 처리
 

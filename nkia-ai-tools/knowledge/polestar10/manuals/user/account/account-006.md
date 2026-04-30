@@ -4,7 +4,8 @@ feature: "담당자 구분"
 admin_required: false
 original_title: "담당자구분"
 category: account
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "운영관리 > EMS > 담당자 구분"
 ---
 담당자 구분
 

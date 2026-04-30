@@ -5,6 +5,7 @@ admin_required: true
 original_title: "AP패치가이드"
 category: agent-install
 menu_path_verified: false
+is_menu: false
 ---
 간편가이드
 

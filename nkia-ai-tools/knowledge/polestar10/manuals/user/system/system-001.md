@@ -4,7 +4,8 @@ feature: "웹 URL 목록"
 admin_required: false
 original_title: "WebURL목록"
 category: system
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "전체구성 > 관리대상 > 웹 URL"
 ---
 웹 URL 목록
 

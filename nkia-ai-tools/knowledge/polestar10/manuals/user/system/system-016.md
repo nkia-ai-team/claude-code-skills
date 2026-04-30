@@ -4,7 +4,8 @@ feature: "위젯 대시보드 뷰어"
 admin_required: false
 original_title: "위젯대시보드뷰어"
 category: system
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "대시보드 > 대시보드 > 위젯 대시보드"
 ---
 위젯 대시보드 뷰어
 

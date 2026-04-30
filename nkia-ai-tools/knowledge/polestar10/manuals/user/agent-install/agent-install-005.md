@@ -4,7 +4,8 @@ feature: "서버 에이전트 관리"
 admin_required: false
 original_title: "서버에이전트관리"
 category: agent-install
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "운영관리 > EMS > 서버 에이전트 관리"
 ---
 서버 에이전트 관리
 

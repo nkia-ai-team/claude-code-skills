@@ -5,6 +5,7 @@ admin_required: false
 original_title: "비밀번호찾기"
 category: account
 menu_path_verified: false
+is_menu: false
 ---
 비밀번호찾기
 

@@ -4,7 +4,8 @@ feature: "Syslog 목록"
 admin_required: false
 original_title: "사용자정의항목_SYSLOG"
 category: account
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "전체구성 > 사용자 정의 항목 > Syslog"
 ---
 Syslog 목록
 

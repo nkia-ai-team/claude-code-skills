@@ -4,7 +4,8 @@ feature: "로그 감시"
 admin_required: false
 original_title: "로그감시"
 category: alert
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "전체구성 > 사용자 정의 항목 > 로그"
 ---
 로그 감시
 

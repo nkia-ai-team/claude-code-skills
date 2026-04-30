@@ -4,7 +4,8 @@ feature: "서버목록"
 admin_required: false
 original_title: "서버목록"
 category: perf
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "전체구성 > 관리대상 > 서버"
 ---
 서버목록
 

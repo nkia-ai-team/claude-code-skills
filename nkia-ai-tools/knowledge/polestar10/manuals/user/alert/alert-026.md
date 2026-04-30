@@ -4,7 +4,8 @@ feature: "통합 로그"
 admin_required: false
 original_title: "통합로그"
 category: alert
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "통합 로그"
 ---
 통합 로그
 

@@ -4,7 +4,8 @@ feature: "프로세스 감시"
 admin_required: false
 original_title: "프로세스감시"
 category: perf
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "전체구성 > 사용자 정의 항목 > 프로세스"
 ---
 프로세스 감시
 

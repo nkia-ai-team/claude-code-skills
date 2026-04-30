@@ -4,7 +4,8 @@ feature: "기능 관리"
 admin_required: false
 original_title: "기능관리"
 category: account
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "운영관리 > 기본 설정 > 기능 관리"
 ---
 기능 관리
 

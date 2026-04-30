@@ -4,7 +4,8 @@ feature: "서비스포트폴리오 – 서비스도메인 관리"
 admin_required: false
 original_title: "서비스포트폴리오"
 category: account
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "서비스포트폴리오"
 ---
 서비스포트폴리오 – 서비스도메인 관리
 

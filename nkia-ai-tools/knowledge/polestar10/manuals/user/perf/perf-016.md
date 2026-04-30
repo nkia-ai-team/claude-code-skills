@@ -4,7 +4,8 @@ feature: "성능 조회"
 admin_required: false
 original_title: "성능조회"
 category: perf
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "성능 조회"
 ---
 성능 조회
 

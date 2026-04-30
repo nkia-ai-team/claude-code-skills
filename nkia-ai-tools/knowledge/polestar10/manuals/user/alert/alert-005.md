@@ -4,7 +4,8 @@ feature: "개별 알람 정책"
 admin_required: false
 original_title: "개별알람정책"
 category: alert
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "알람 & 이벤트 > 알람 정책 > 개별 알람 정책"
 ---
 개별 알람 정책
 
@@ -85,7 +86,7 @@ menu_path_verified: false
 
 개별 알람 정책 등록
 
-테이블 우측 상단의 \[개별 알람 정책 등록\]버튼을 선택하여 새로운 개별 알람 정책을 추가할 수 있습니다.
+테이블 우측 상단의 \[+\] 아이콘 버튼(클릭 시 "개별 알람 정책 등록" 화면 진입)을 선택하여 새로운 개별 알람 정책을 추가할 수 있습니다.
 
 알람 정책 추가 시 입력 항목이 많고 선택에 따른 화면 변경이 있으므로 화면의 영역별로 설명합니다
 

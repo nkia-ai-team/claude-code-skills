@@ -4,7 +4,8 @@ feature: "SLO 목록"
 admin_required: false
 original_title: "SLO"
 category: alert
-menu_path_verified: false
+menu_path_verified: true
+menu_path_full: "전체구성 > 사용자 정의 항목 > SLO"
 ---
 SLO 목록
 
