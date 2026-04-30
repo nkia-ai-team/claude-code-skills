@@ -137,3 +137,82 @@ SMS 만 호스트 systemd 라 다른 시스템에서 깔려 있을 가능성이 
 | `agent-apm` | 동일 | 동일 | 동일 |
 | `agent-kcm` | RBAC + DaemonSet apply | ARM = lucida-kcmagent 소스 scp → 타겟 빌드 (Go) → docker build → ctr import | metrics-server 미설치 시 KCM 메트릭 빈 값 |
 | `agent-sms` | tarball install + systemd unit | ARM = qemu-user-static + binfmt-support → AMD 바이너리 동일 사용 | **사전 감지** (`pgrep sms-agent` / `systemctl is-active`) → 이미 있으면 skip. `sms_force_reinstall=true` 로 우회. report_interval 60s (qemu 부하 완화) |
+
+## 다른 테스트베드 추가하기 (NKIAAI-540 후속 작업자용)
+
+ansible playbook 본체는 **테스트베드 도메인을 모름** — 어떤 서비스/구조든 처리. testbed-services repo 가 빌드/배포 로직을 책임. 다른 도메인의 테스트베드 (예: 은행 시스템) 추가 시:
+
+### 절차
+
+1. **testbed-services repo 에 새 subdir 추가**
+   ```
+   testbed-services/  (NKIAAI-570)
+   ├── plopvape-shop/         ← 기존
+   └── core-banking/          ← 새 testbed
+       ├── account-service/Dockerfile
+       ├── transfer-service/Dockerfile
+       ├── ledger-service/Dockerfile
+       └── k8s/
+           ├── build-and-deploy.sh   ← 표준 인터페이스 (필수)
+           └── *.yaml                 ← namespace/secret/configmap/deploy/svc
+   ```
+
+2. **새 inventory 작성** (`inventory/banking-target.yml`):
+   ```yaml
+   all:
+     children:
+       testbed:
+         hosts:
+           banking-target:
+             ansible_host: <target ip>
+             ansible_user: <user>
+             ...
+         vars:
+           app_namespace: "rca-banking"        # K8s namespace 격리
+           app_repo: "https://github.com/nkia-ai-team/testbed-services"
+           app_subdir: "core-banking"          # repo 내 subdir
+           testbed_services: [account, transfer, ledger]
+   ```
+
+3. **단발 실행** (ansible playbook 본체 그대로):
+   ```sh
+   export GITHUB_PAT=<token>
+   export POLESTAR_ORG_ID=<24-hex tenant id>   # SMS install 필수
+   ansible-playbook -i inventory/banking-target.yml site.yml
+   ```
+
+### 변경 영역 매트릭스
+
+| 변경 종류 | 어디서 변경? | 예시 |
+|---|---|---|
+| 서비스 개수 / 이름 | inventory + testbed-services repo | `testbed_services: [...]` + Dockerfile 추가 |
+| 언어 (Java→Python/Node) | testbed-services repo | Dockerfile 의 base image 만 |
+| DB 종류 (PG→MariaDB) | testbed-services repo | `k8s/10-mariadb.yaml` 로 매니페스트 교체 |
+| 도메인 (e-commerce→banking) | testbed-services repo | 새 subdir |
+| K8s namespace | inventory | `app_namespace: "rca-xxx"` |
+| 사용 안 할 에이전트 | inventory | `wpm_enabled: false` (Python only 등) |
+| 폴스타10 조직 | env | `POLESTAR_ORG_ID=...` |
+| 타겟 호스트 | inventory | `ansible_host: ...` |
+
+**ansible playbook 본체 (이 디렉토리) 변경 X**. 한 번 깔면 모든 테스트베드 처리.
+
+### 같은 호스트/클러스터 다중 테스트베드 시 에이전트 공유
+
+같은 109 + 같은 K3s 에 plopvape-shop + core-banking 두 테스트베드 운영:
+
+| 에이전트 | 단위 | 동일 호스트/클러스터에 N testbed | 다른 호스트/클러스터 |
+|---|---|---|---|
+| **SMS** | 호스트 1대 | **공유 — 1개로 충분** | 호스트마다 별도 |
+| **KCM** | K8s 클러스터 1개 | **공유 — DaemonSet 1개**가 모든 namespace 통합 | 다른 K3s 면 별도 |
+| **WPM** | JVM 단위 | jar 1개 (`/opt/polestar10/wpm/wpmagent.jar`) 공유, conf 만 service 별 N개 | 호스트마다 별도 jar |
+| **APM (OTel)** | JVM 단위 | jar 1개 (`opentelemetry-javaagent.jar`) 모든 service 공유 | 호스트마다 별도 |
+
+→ N testbed 운영해도 SMS 1 + KCM 1 + WPM/APM jar 1개씩, conf 만 testbed_services 합본만큼.
+
+### Caveats — 알려진 한계
+
+1. **폴스타10 standby DB drift**: pod rolling update 로 옛 agent ID 의 K8s pod 이 죽어도 폴스타10 backend "관리대상 추가 → 애플리케이션" 큐에서 stale standby record 가 자동 cleanup 되지 않음. broker 연결도 끊긴 상태인데 web UI 에 계속 남음. **540 자동화 코드와 무관 — 폴스타10 자체 한계**. delete API 가 standby record 를 안 지우는 듯. 운영팀 확인 또는 backend DB 직접 청소가 진짜 해결.
+2. **`testbed_services` 배열 + repo 내 SERVICES 배열 이중 정의**: 어긋나면 WPM conf vs 실제 service 불일치. 향후 generator 로 단일 정의 통합 가능.
+3. **KCM 사내 GitLab 의존 (ARM)**: `lucida-kcmagent` 소스 빌드 경로. 외부 환경에선 안 됨. polestar-agents-binaries 에 KCM ARM 빌드도 publish 필요 (NKIAAI-537 후속).
+4. **DPM (DB) / NMS (네트워크 장비)**: SoT 6 종 스택 중 540 본체에 없음. testbed-build 스킬 후속 sub-skill 영역.
+

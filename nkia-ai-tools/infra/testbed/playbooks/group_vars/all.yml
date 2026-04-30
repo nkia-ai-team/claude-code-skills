@@ -25,10 +25,29 @@ metrics_server_version: "v0.7.2"
 go_version: "1.22.5"
 go_install_dir: "/usr/local/go"
 
-# 서비스 배포 — testbed-services monorepo 패턴 (NKIAAI-570)
-# 자체 k8s/ manifest + 5 service docker build 가정.
-# 본 ansible 은 git clone + <app_subdir>/k8s/build-and-deploy.sh 호출만 책임.
-# DB/app manifest 는 monorepo 가 보유.
+# ============================================================
+# 테스트베드 정의 — 다른 도메인/서비스 구조 추가 시 inventory 로 override
+# ============================================================
+# 본 ansible 은 빌드 로직을 모름. <app_subdir>/k8s/build-and-deploy.sh 표준
+# 인터페이스만 호출 → 실제 Dockerfile/manifest/script 는 testbed-services repo
+# (NKIAAI-570) 가 책임. "스킬 얇게 / 플레이북 두껍게" 설계 (SoT 542).
+#
+# 새 테스트베드 추가 절차:
+#   1. testbed-services repo 에 새 subdir (예: core-banking/) 추가
+#      — N개 service 폴더 + k8s/build-and-deploy.sh + manifest
+#   2. inventory 신설 (예: inventory/banking-target.yml):
+#        app_namespace: "rca-banking"          # K8s namespace 격리
+#        app_repo: "<위와 같은 repo 또는 다른 repo>"
+#        app_subdir: "core-banking"
+#        testbed_services: [account, transfer, ledger, ...]
+#   3. ansible-playbook -i inventory/banking-target.yml site.yml
+#
+# 같은 K3s 클러스터에 여러 테스트베드 동시 운영 가능 (namespace 격리).
+# 같은 호스트 SMS 1 + 같은 클러스터 KCM 1 자동 공유, WPM/APM jar 도 host
+# /opt/polestar10/{wpm,apm}/ 에 1개씩 공유 (conf 만 service 별 N개).
+#
+# 비-Java 서비스 (Python/Node 등): wpm_enabled=false 로 disable, APM(OTel)
+# 만 사용 (OTel SDK 가 다언어 지원).
 app_namespace: "rca-testbed"               # plopvape-shop 의 00-namespace.yaml
 app_repo: "https://github.com/nkia-ai-team/testbed-services"
 app_version: "main"
