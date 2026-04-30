@@ -28,24 +28,33 @@ paths:
 
 ## ⚠️ 두 서버 개념 — 사용자에게 명확히 안내
 
-testbed-build 는 **두 개의 서로 다른 서버** 를 다룸. 인터뷰 시작 전 한 줄 안내 필수:
+인터뷰 시작 전 한 줄 안내 필수:
 
 ```
 === testbed-build 환영합니다 ===
 
-이 스킬은 두 개의 서버를 사용합니다:
+테스트베드 구축을 위해서는 두 개의 서버가 필요합니다:
 
-  1. 타겟 서버 (Target Host)
-     테스트베드가 깔릴 곳. K3s + 5 services + 폴스타10 에이전트
-     4종이 설치됨. SSH 접근 가능해야 함.
+  1. 타겟 서버 (Target Host) — SSH 접근 필요
+     테스트베드가 깔릴 곳. K3s + 5 services + Polestar10 에이전트
+     4종 (KCM/APM/WPM/SMS) + rca-scenario-runner 가 설치됨.
      예: 109 DGX Spark (192.168.200.109)
 
-  2. Polestar10 모니터링 서버 (Polestar10 instance)
-     RCA 분석을 위한 모니터링 백엔드. 자원 등록 / 알람 정책 /
-     메트릭 시계열 API 가 여기로 호출됨.
+  2. Polestar10 모니터링 서버 (Polestar10 instance) — HTTP(S) 접근 필요
+     RCA 분석 백엔드. 자원 등록 / 알람 정책 / 메트릭 시계열 API
+     가 여기로 호출됨. 사용자 ID/PW 도 함께 필요.
      예: NKIA 96 demo (https://192.168.230.96)
 
-bootstrap 단계에서 둘 다의 자격증명/주소를 한 번에 캐시.
+  ※ 두 서버가 동일 호스트여도 OK (예: 같은 서버에 K3s + Polestar10).
+    분리 운영이 더 일반적이지만 강제 X.
+
+이번 단계에서는 양쪽 자격증명/주소를 한 번에 받아 ~/.testbed-build/
++ ~/.polestar10rc 에 캐시. 다음 호출부터 묻지 않음.
+
+또한 NMS (네트워크 장비 SNMP 모니터링) 는 default 비활성. 일반 K8s
+테스트베드 환경에는 네트워크 장비가 없어 무관. 별도 라우터/스위치 등
+이 있어 모니터링 추가하고 싶으면 testbed-polestar10-register 의
+시나리오 1 안에서 NMS 분기로 별도 진행.
 ```
 
 이 안내를 인터뷰 첫 화면에 출력 후 AskUserQuestion 호출.
@@ -89,10 +98,33 @@ AskUserQuestion(questions=[
 ```
 
 자유 입력 슬롯 (텍스트 prompt — 위 카드와 별도로):
+- 타겟 서버 IP 주소 (예: `192.168.200.109`)
 - 타겟 서버 SSH user (default `nkia`) — *109/96/104 공통 user 가 nkia 라 default*
-- (SSH key 선택 시) SSH key 경로 (default `~/.ssh/id_rsa`)
+- 타겟 서버 SSH password 또는 key 경로 (선택한 인증 방식 따라)
 - (Polestar10 Other 선택 시) Polestar10 base_url 직접 입력 (`https://...` 형식, self-signed cert 일반)
+- **Polestar10 사용자 ID** (자원 등록·알람·메트릭 API 호출 권한 있는 계정. 보통 `admin`)
+- **Polestar10 password**
 - (레포 no 선택 시) testbed-services / rca-scenario-runner 경로 각각 직접 입력
+
+> Polestar10 ID/PW 는 `~/.polestar10rc` (chmod 600) 에 저장돼 testbed-polestar10-register 와 공유됨. 이미 파일이 있으면 재사용 (재인터뷰 X).
+
+### 자유 입력 흐름 (텍스트 prompt 순서)
+
+```
+1. "타겟 서버 IP/hostname?" → 192.168.200.109 (default 109)
+2. "타겟 서버 SSH user?" → nkia (default)
+3. (인증 방식이 password 면) "타겟 서버 SSH password?" → ****
+4. (인증 방식이 ssh_key 면) "SSH key 경로?" → ~/.ssh/id_rsa (default)
+5. (Polestar10 instance 가 Other 면) "Polestar10 base_url?" → https://...
+6. ~/.polestar10rc 부재 시:
+     "Polestar10 사용자 ID?" → admin (default)
+     "Polestar10 password?" → ****
+7. (레포 clone 이 no 면)
+     "testbed-services 레포 경로?" → ~/dev/testbed-services (default)
+     "rca-scenario-runner 레포 경로?" → ~/dev/rca-scenario-runner (default)
+```
+
+→ 모든 답변 종합 → `~/.testbed-build/bootstrap.yaml` (chmod 600) + `~/.polestar10rc` (chmod 600). 다음 호출부터 묻지 않음. 자격증명 변경 시 사용자가 직접 yaml 편집 또는 파일 삭제 후 재인터뷰.
 
 → 답변 종합 → `~/.testbed-build/bootstrap.yaml` 생성 + `chmod 600`. 다음 호출부터 묻지 않음.
 

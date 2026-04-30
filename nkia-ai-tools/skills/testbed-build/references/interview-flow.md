@@ -22,7 +22,9 @@ testbed-build Phase 1 에서 사용. 인터뷰 답은 `runs/<RUN_ID>/interview.y
 
 ---
 
-## 추천 호출: Phase 1-A 묶음 (옵션 2/3/4 한 번에)
+## 추천 호출: Phase 1-A 묶음 (배포 앱 + Polestar10 모드)
+
+NMS 질문 제거 — default 비활성 (bootstrap 안내 박스 참조). 사용자가 명시적으로 NMS 가 필요하면 testbed-polestar10-register 시나리오 1 의 NMS 분기로 별도 진행.
 
 ```python
 AskUserQuestion(questions=[
@@ -34,15 +36,6 @@ AskUserQuestion(questions=[
       {"label": "plopvape-shop (Recommended)", "description": "레퍼런스 e-commerce 5 services + postgres. 가장 검증된 경로."},
       {"label": "기존 다른 변형", "description": "testbed-services 레포 안의 다른 변형 (스캔 결과 표시)"},
       {"label": "신규 도메인 변형", "description": "services-author 가 LLM 으로 새 코드 자동 생성 (deep interview 진입)"}
-    ]
-  },
-  {
-    "question": "NMS 모니터링 대상 네트워크 장비가 있나요?",
-    "header": "NMS",
-    "multiSelect": False,
-    "options": [
-      {"label": "없음 (Recommended)", "description": "skip — 일반적인 K8s 테스트베드는 NMS 불필요"},
-      {"label": "있음 — IP+SNMP 입력 필요", "description": "장비 IP, SNMP version (v2c/v3), community string 추가 인터뷰"}
     ]
   },
   {
@@ -412,14 +405,18 @@ app:
 
 ---
 
-## 단계 (c): NMS 모니터링 — Phase 1-A 묶음에 포함됨
+## 단계 (c): NMS 모니터링 — default 비활성, 인터뷰 제거
 
-위 Phase 1-A 의 두 번째 질문 ("NMS 모니터링 대상 네트워크 장비?") 으로 처리. yes 선택 시에만 추가 자유 입력 prompt:
+본 스킬은 **NMS 를 default 비활성**. 일반 K8s + microservices 테스트베드 환경에는 SNMP 모니터링 대상 네트워크 장비가 없으므로 묻지 않음 (사용자 피로 감소).
 
-```
-질문: "장비 IP?"
-질문: "SNMP version (v2c/v3, default v2c)?"
-질문: "community string (default public)?"
+별도 라우터/스위치/방화벽 등이 있어 NMS 도 함께 모니터링하고 싶으면:
+- testbed-build 완료 후 `/testbed-polestar10-register` 단독 호출 → 시나리오 1 의 NMS 분기로 추가 등록
+- 또는 testbed-polestar10-register 시나리오 1 (full testbed) 에 자원 타입 = NMS 추가
+
+interview.yaml 산출:
+```yaml
+nms:
+  enabled: false   # 항상 default. 사용자가 별도 단독 호출로 추가.
 ```
 
 산출:
