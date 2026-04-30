@@ -83,7 +83,7 @@ AskUserQuestion(questions=[
     ]
   },
   {
-    "question": "Polestar10 서버는 어디로?",
+    "question": "Polestar10 서버는 어디로 사용하시겠어요?",
     "header": "P10 서버",
     "multiSelect": False,
     "options": [
