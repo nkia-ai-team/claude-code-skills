@@ -14,6 +14,41 @@ testbed-build Phase 1 에서 사용. 인터뷰 답은 `runs/<RUN_ID>/interview.y
 - 권고 옵션은 `(Recommended)` suffix + 첫 번째 위치
 - header 12자 이내 (chip/tag)
 
+## 🚫 강제 규칙 — 자유 입력 + AskUserQuestion 동시 발사 금지
+
+**같은 턴에 AskUserQuestion 카드와 자유 입력 텍스트 prompt 를 동시에 보내지 X**. 사용자는 카드 UI 만 보이거나, 자유 입력 prompt 만 답하거나 — 둘 다 동시에 인지 못 함. 한 메커니즘은 다른 것 응답 후 별 턴에.
+
+### 위반 예시 (실제 발생한 버그)
+
+deep interview 진행 시:
+```
+[같은 턴에] 다음 4개를 동시 출력:
+  1. 자유 입력 prompt: "새 testbed 이름?" (→ 사용자 못 봄)
+  2. AskUserQuestion 카드: 도메인 / DB / 스키마
+
+→ 사용자가 카드 3개만 클릭. 이름 입력 누락. 다음 단계 입력 부족.
+```
+
+### 올바른 흐름 (강제)
+
+```
+[턴 1] 자유 입력 prompt 만:
+  "새 testbed 이름 (영문 kebab-case): _"
+
+[턴 2 — 사용자 응답 후] AskUserQuestion 묶음:
+  도메인 + DB + 스키마 (max 4 questions)
+
+[턴 3 — 카드 답변 후] 다음 자유 입력 prompt:
+  "스키마 수동 입력 시 SQL: _"
+```
+
+### 룰
+
+1. **자유 입력 슬롯은 단독 턴**. 다른 자유 입력 슬롯 묶음은 OK (예: IP + user 동시 prompt)
+2. **AskUserQuestion 호출 후 같은 턴에 다른 prompt X**. 카드 답변 받고 다음 턴 진행
+3. 흐름 문서 (deep interview 단계) 에서도 turn boundary 명확히 표시
+4. 어떤 종류든 한 턴에 사용자 응답이 필요한 input mechanism 은 1개
+
 ## 슬롯 캐싱
 
 같은 세션 안에서 이미 답한 슬롯은 재질문 X. bootstrap.yaml 에 영구 저장된 값도 default 로 표시.
@@ -139,9 +174,12 @@ app:
 
 옵션 3 선택 시 다음 deep interview 진행. 결과는 services-author 가 코드 생성 입력으로 사용.
 
-### 2-d-a. 새 testbed 이름
+> 🚫 **턴 분리 강제**: 아래 단계들 (이름 자유 입력 → 도메인+DB+스키마 카드 → 서비스 분할 LLM 제안 + 승인 카드) 을 절대 한 턴에 묶어 발사 X. 각 단계 사용자 응답 받은 후 다음 턴에 진행. 위 § 강제 규칙 참조.
+
+### 2-d-a. 새 testbed 이름 (턴 1 — 자유 입력 단독)
 
 ```
+[이 턴에는 텍스트 prompt 만]
 새 testbed 이름 (영문 kebab-case, 예: "core-banking", "iot-platform"):
 _
 ```
@@ -152,7 +190,9 @@ _
 - 8~40자
 - 충돌 시 다시 prompt + LLM 이 이름 제안 (`-v2`, `-banking-v2`)
 
-### 2-d-b. 도메인 분야 (AskUserQuestion)
+→ **사용자 응답 받은 후 다음 턴**에 2-d-b/c/d 묶음 발사. 같은 턴에 카드 동봉 X.
+
+### 2-d-b. 도메인 분야 (턴 2 — AskUserQuestion)
 
 AskUserQuestion 은 옵션 max 4개. 인기 4개를 명시 + Other 가 자동으로 자유 입력 fallback:
 
@@ -229,7 +269,7 @@ AskUserQuestion(questions=[
 
 `edit` 선택 시 추가 자유 입력으로 변경사항 받음 (서비스 add/rename/remove, endpoint 추가/제거, depends_on 그래프).
 
-### 2-d-d. DB 선택 (DPM 지원 7종) — AskUserQuestion 두 묶음
+### 2-d-d. DB 선택 (DPM 지원 7종) — 도메인 응답과 같은 턴 묶음 OK
 
 DPM 지원 7종 중 4개 옵션 + Other (Tibero/CUBRID/SQL Server 등은 Other 자유 입력):
 
