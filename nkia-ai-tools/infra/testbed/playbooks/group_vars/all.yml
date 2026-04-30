@@ -108,3 +108,21 @@ kcm_image_name: "polestar10-kcm"
 
 # SMS 설치 경로
 sms_install_dir: "/opt/polestar10/sms"
+
+# ============================================================
+# rca-scenario-runner — 장애 시나리오 실행 웹 서비스 (FastAPI + React, docker-compose)
+# ============================================================
+# testbed-build 스킬의 진정한 end-to-end: 사용자가 109 에 별도 ssh 들어가
+# 띄우지 않아도 되도록 ansible 이 자동 배포.
+#
+# 비활성화 (이미 사람이 수동 운영 중이거나 별 호스트에 있을 때):
+#   inventory 또는 -e 로 scenario_runner_enabled=false
+#
+# 다른 branch / port 사용:
+#   scenario_runner_branch=develop
+#   scenario_runner_port=8092
+scenario_runner_enabled: true
+scenario_runner_repo_url: "https://github.com/BangSungjoon/rca-scenario-runner.git"
+scenario_runner_branch: "main"
+scenario_runner_install_dir: "/home/{{ ansible_user_id }}/rca-scenario-runner"
+scenario_runner_port: 8091
