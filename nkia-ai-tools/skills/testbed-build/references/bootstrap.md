@@ -110,7 +110,7 @@ AskUserQuestion(questions=[
 ```python
 AskUserQuestion(questions=[
   {
-    "question": "타겟 서버 (테스트베드 깔릴 곳) SSH 인증 방식?",
+    "question": "타겟 서버 (테스트베드 깔릴 곳) SSH 인증 방식은 무엇인가요?",
     "header": "타겟 SSH",
     "multiSelect": False,
     "options": [
@@ -119,22 +119,19 @@ AskUserQuestion(questions=[
     ]
   },
   {
-    "question": "Polestar10 모니터링 서버 (자원 등록·알람 API) 주소?",
+    "question": "Polestar10 모니터링 서버 (자원 등록·알람 API) 주소를 알려주세요",
     "header": "P10 서버",
     "multiSelect": False,
     "options": [
       {"label": "104 운영 (Recommended)", "description": "https://192.168.230.104 — NKIA 운영 환경 (기본)"},
-      {"label": "96 demo", "description": "https://192.168.230.96 — NKIA 외부 데모"},
-      {"label": "NKIA dev", "description": "사내 dev Polestar10 instance"}
     ]
   },
   {
-    "question": "외부 레포 자동 clone 진행?",
+    "question": "테스트베드 구축에 필요한 외부 레포를 clone해도 괜찮을까요?",
     "header": "레포 clone",
     "multiSelect": False,
     "options": [
       {"label": "yes (Recommended)", "description": "testbed-services + rca-scenario-runner 둘 다 ~/dev/ 에 자동 clone"},
-      {"label": "no — 직접 경로 입력", "description": "기존 다른 위치 사용"}
     ]
   }
 ])
