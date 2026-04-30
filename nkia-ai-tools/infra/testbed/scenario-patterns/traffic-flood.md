@@ -84,7 +84,7 @@ echo "[OK] done"
 - **부작용 3**: 일부 in-flight 트랜잭션은 실패 응답으로 종료 (의도된 동작)
 - 주의: SIGKILL 시 trap 미동작 → 자식 프로세스 잔존 가능. 수동 `pkill -f curl` 정리.
 
-## 변형 포인트
+## 치환 슬롯
 - `STAGES` — 단계별 (concurrency, duration). 환경에 맞게 조정
 - `LOAD_ENDPOINT` — 진입 endpoint (가장 비용 높은 transaction 경로 권장)
-- 부하 도구 변형: `curl` 대신 `hey` / `wrk` / `vegeta` (정밀 RPS 제어 시)
+- 부하 도구 옵션: `curl` 대신 `hey` / `wrk` / `vegeta` (정밀 RPS 제어 시)

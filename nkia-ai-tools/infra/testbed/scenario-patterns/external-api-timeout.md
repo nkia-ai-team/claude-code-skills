@@ -80,8 +80,8 @@ echo "[OK] done"
 - 부작용: 부하 동안 들어온 요청 중 일부는 실패 응답으로 사용자에게 반환됨 (의도된 동작)
 - 주의: SIGKILL 시 trap 미동작 → 외부 mock 이 정지된 채 남음. 수동 `docker start` 필요.
 
-## 변형 포인트
+## 치환 슬롯
 - `EXTERNAL_CONTAINER` — 외부 의존성 mock 컨테이너 이름
 - `LOAD_ENDPOINT` — 외부를 호출하는 API
 - `LOAD_DURATION_SEC` — 부하 지속 시간
-- 차단 방식 변형: `docker stop` 대신 `iptables -A INPUT -p tcp --dport <port> -j DROP` (TCP blackhole, RST 도 안 보냄)
+- 차단 방식 옵션: `docker stop` 대신 `iptables -A INPUT -p tcp --dport <port> -j DROP` (TCP blackhole, RST 도 안 보냄)

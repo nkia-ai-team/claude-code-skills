@@ -43,7 +43,7 @@ paths:
   2. Polestar10 모니터링 서버 (Polestar10 instance) — HTTP(S) 접근 필요
      RCA 분석 백엔드. 자원 등록 / 알람 정책 / 메트릭 시계열 API
      가 여기로 호출됨. 사용자 ID/PW 도 함께 필요.
-     예: NKIA 96 demo (https://192.168.230.96)
+     예: NKIA 104 운영 (https://192.168.230.104)
 
   ※ 두 서버가 동일 호스트여도 OK (예: 같은 서버에 K3s + Polestar10).
     분리 운영이 더 일반적이지만 강제 X.
@@ -65,7 +65,11 @@ default. 타겟 서버가 속한 네트워크에서 SNMP 응답하는 장비
 
 ## 인터뷰 (없으면 수행) — AskUserQuestion 활용
 
-**텍스트 prompt 가 아니라 `AskUserQuestion` 도구 사용** — 카드형 UI. multi-choice 가 있는 슬롯들을 한 묶음에:
+**텍스트 prompt 가 아니라 `AskUserQuestion` 도구 사용** — 카드형 UI. ~/.polestar10rc 캐시 유무 따라 두 시나리오 분기.
+
+### 캐시 (~/.polestar10rc) 가 이미 있을 때
+
+캐시된 자격증명 사용이 default. 다른 서버 등록 케이스는 별 옵션:
 
 ```python
 AskUserQuestion(questions=[
@@ -79,11 +83,48 @@ AskUserQuestion(questions=[
     ]
   },
   {
+    "question": "Polestar10 서버는 어디로?",
+    "header": "P10 서버",
+    "multiSelect": False,
+    "options": [
+      {"label": "캐시된 서버 사용 (Recommended)", "description": "~/.polestar10rc 의 base_url + 자격증명 그대로 (예: 104 운영)"},
+      {"label": "다른 서버에 등록", "description": "새 base_url + 사용자 ID/PW 직접 입력. 캐시는 보존, 이번 run 만 override"}
+    ]
+  },
+  {
+    "question": "외부 레포 자동 clone 진행?",
+    "header": "레포 clone",
+    "multiSelect": False,
+    "options": [
+      {"label": "yes (Recommended)", "description": "testbed-services + rca-scenario-runner 둘 다 ~/dev/ 에 자동 clone"},
+      {"label": "no — 직접 경로 입력", "description": "기존 다른 위치 사용"}
+    ]
+  }
+])
+```
+
+"다른 서버에 등록" 선택 시 자유 입력 prompt 로 base_url + ID + PW 받음. 이번 run 만 사용 (캐시 보존). 사용자가 영구 변경하려면 ~/.polestar10rc 직접 편집.
+
+### 캐시 (~/.polestar10rc) 가 없을 때 — 첫 실행
+
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "타겟 서버 (테스트베드 깔릴 곳) SSH 인증 방식?",
+    "header": "타겟 SSH",
+    "multiSelect": False,
+    "options": [
+      {"label": "Password (Recommended)", "description": "매 호출마다 password 입력. 가장 단순."},
+      {"label": "SSH key", "description": "~/.ssh/id_rsa 또는 사용자 지정 경로"}
+    ]
+  },
+  {
     "question": "Polestar10 모니터링 서버 (자원 등록·알람 API) 주소?",
     "header": "P10 서버",
     "multiSelect": False,
     "options": [
-      {"label": "96 demo (Recommended)", "description": "https://192.168.230.96 — NKIA 외부 데모 환경"},
+      {"label": "104 운영 (Recommended)", "description": "https://192.168.230.104 — NKIA 운영 환경 (기본)"},
+      {"label": "96 demo", "description": "https://192.168.230.96 — NKIA 외부 데모"},
       {"label": "NKIA dev", "description": "사내 dev Polestar10 instance"}
     ]
   },
@@ -98,6 +139,8 @@ AskUserQuestion(questions=[
   }
 ])
 ```
+
+`Other` 선택 시 자유 입력. 첫 실행이라 사용자 ID/PW 도 자유 입력 prompt 로 받음.
 
 자유 입력 슬롯 (텍스트 prompt — 위 카드와 별도로):
 - 타겟 서버 IP 주소 (예: `192.168.200.109`)
@@ -178,13 +221,52 @@ git clone 실패: <error>
 
 ## 부트스트랩 검증
 
-매 호출 진입 시 sanity check (인터뷰 unnecessarily 다시 안 하기 위해):
+매 호출 진입 시 sanity check.
+
+⚠️ **bootstrap.yaml 부재 → 인터뷰 무조건 실행**. 다른 캐시 파일 (`~/.polestar10rc` / 레포 디렉토리 / `~/.git-credentials`) 이 모두 존재하더라도 skip 금지. 캐시는 인터뷰 옵션의 default value 자동 채우기에만 사용.
 
 ```bash
-[ -f ~/.testbed-build/bootstrap.yaml ] || run_bootstrap_interview
+if [ ! -f ~/.testbed-build/bootstrap.yaml ]; then
+  # 1. 캐시 파일 스캔 — default value 후보 확보 (인터뷰 skip 용이 아님)
+  P10_DEFAULT_URL=$(grep -E '^export POLESTAR10_BASE_URL' ~/.polestar10rc 2>/dev/null | sed 's/.*="\(.*\)"/\1/')
+  P10_DEFAULT_USER=$(grep -E '^export POLESTAR10_USER' ~/.polestar10rc 2>/dev/null | sed 's/.*="\(.*\)"/\1/')
+  TESTBED_SVC_DEFAULT="$HOME/dev/testbed-services"
+  RUNNER_DEFAULT="$HOME/dev/rca-scenario-runner"
+
+  # 2. AskUserQuestion 인터뷰 — 캐시된 값을 첫 옵션 (Recommended) 으로 제시
+  run_bootstrap_interview_with_defaults_from_cache \
+    --p10-url-default "$P10_DEFAULT_URL" \
+    --p10-user-default "$P10_DEFAULT_USER" \
+    --testbed-svc-default "$TESTBED_SVC_DEFAULT" \
+    --runner-default "$RUNNER_DEFAULT"
+fi
+
+# 추가 sanity check (bootstrap.yaml 이 있는 정상 케이스)
 [ -f ~/.polestar10rc ] || trigger_polestar10_bootstrap
 [ -d "$TESTBED_SVC_PATH/.git" ] || prompt_clone_testbed_services
 [ -d "$RUNNER_PATH/.git" ] || prompt_clone_runner
 
 # polestar10 connectivity 사전 체크 (Phase 2 에서)
 ```
+
+## 인터뷰 슬롯 정책 표
+
+bootstrap.yaml 부재 시 인터뷰에서 어떤 슬롯이 **always ask** / **default from cache** / **skip if cached** 인지 명시:
+
+| 슬롯 | 정책 | 캐시 소스 | 비고 |
+|---|---|---|---|
+| SSH 인증 방식 | always ask | — | default 없음. password vs ssh_key 매 호출 결정 |
+| 타겟 SSH default_user | always ask | bootstrap.yaml 또는 `nkia` | default 표시 후 confirm |
+| Polestar10 base_url | always ask (default 표시) | ~/.polestar10rc | 캐시값을 (Recommended) 옵션으로 |
+| Polestar10 user | always ask (default 표시) | ~/.polestar10rc | 캐시값을 (Recommended) 옵션으로 |
+| Polestar10 password | **skip if cached** | ~/.polestar10rc | rc 파일 있으면 인터뷰 자체 생략 |
+| 레포 clone yes/no | **skip if 디렉토리 존재** | filesystem | 둘 다 있으면 자동 yes |
+| 레포 경로 | always ask (default 표시) | bootstrap.yaml 또는 `~/dev/...` | 디렉토리 존재 시 그 경로가 default |
+| git PAT 입력 | **skip if cached** | ~/.git-credentials | 파일 있으면 PAT 인터뷰 skip |
+| 분기 전략 | always ask (default 표시) | bootstrap.yaml 또는 `feature-pr` | feature-pr / direct-develop |
+
+규칙:
+- **always ask** = 캐시 파일이 있어도 AskUserQuestion 의 첫 옵션 (Recommended) 으로 표시한 후 사용자 confirm 필요. "확인 없이 캐시값 그대로 yaml 작성" 은 금지.
+- **skip if cached** = 해당 캐시 파일이 있으면 인터뷰 자체를 생략. 부재 시에만 인터뷰 트리거.
+
+위 규칙은 첫 호출 (bootstrap.yaml 부재) 에만 해당. bootstrap.yaml 이 있으면 모든 인터뷰 skip (값 변경은 사용자가 yaml 직접 편집 또는 파일 삭제 후 재인터뷰).

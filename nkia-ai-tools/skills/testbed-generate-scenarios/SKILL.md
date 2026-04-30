@@ -71,7 +71,7 @@ ls "$RUNNER_ROOT/scenarios/services/"
 
 ### 3. 패턴 카드 → 인스턴스 변환
 
-선택된 패턴 카드 read (예: `<patterns_root>/db-lock-contention.md`). 카드의 `## 변형 포인트` 섹션 변수 들에 대해 사용자 인터뷰 또는 자동 추론:
+선택된 패턴 카드 read (예: `<patterns_root>/db-lock-contention.md`). 카드의 `## 치환 슬롯` 섹션 변수 들에 대해 사용자 인터뷰 또는 자동 추론:
 
 - service-spec.yaml 의 service.namespace → `NAMESPACE`
 - service.api_base → `SERVICE_API`
@@ -177,7 +177,7 @@ esac
      [추가 가능 패턴: template-generic (사용자 정의 필요)]
      [신규 패턴 메모리 누수 — 카탈로그에 없음. template-generic 으로 작성?]
   3. 사용자: "yes, template-generic 사용. java heap 누수 시나리오"
-  4. LLM: heap 누수 시나리오 골격 작성 (template-generic 변형)
+  4. LLM: heap 누수 시나리오 골격 작성 (template-generic 응용)
   5. 미리보기 + 승인
   6. commit + PR
 ```

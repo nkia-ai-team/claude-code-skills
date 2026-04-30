@@ -24,7 +24,7 @@ testbed-build Phase 1 에서 사용. 인터뷰 답은 `runs/<RUN_ID>/interview.y
 
 ## 추천 호출: Phase 1-A 묶음 (배포 앱 + Polestar10 모드)
 
-NMS 질문 제거 — default 비활성 (bootstrap 안내 박스 참조). 사용자가 명시적으로 NMS 가 필요하면 testbed-polestar10-register 시나리오 1 의 NMS 분기로 별도 진행.
+NMS 는 자동 감지 + 자동 등록 흐름이라 인터뷰 묶음에서 제외 (단계 (c) 참조). Phase 1-A 는 사용자 의사 결정이 필요한 두 가지에 집중.
 
 ```python
 AskUserQuestion(questions=[
@@ -34,16 +34,16 @@ AskUserQuestion(questions=[
     "multiSelect": False,
     "options": [
       {"label": "plopvape-shop (Recommended)", "description": "레퍼런스 e-commerce 5 services + postgres. 가장 검증된 경로."},
-      {"label": "기존 다른 변형", "description": "testbed-services 레포 안의 다른 변형 (스캔 결과 표시)"},
-      {"label": "신규 도메인 변형", "description": "services-author 가 LLM 으로 새 코드 자동 생성 (deep interview 진입)"}
+      {"label": "다른 기존 testbed", "description": "testbed-services 레포에 이미 있는 다른 디렉토리 (스캔 결과 동적 표시)"},
+      {"label": "새 testbed 생성", "description": "services-author 가 LLM 으로 새 도메인 코드 자동 생성 (deep interview 진입)"}
     ]
   },
   {
-    "question": "Polestar10 자원 등록을 어떻게 진행할까요?",
-    "header": "P10 모드",
+    "question": "Polestar10에 Agent를 어떻게 등록할까요?",
+    "header": "Agent 등록",
     "multiSelect": False,
     "options": [
-      {"label": "자동 (Recommended)", "description": "testbed-polestar10-register 스킬이 API 로 일괄 등록"},
+      {"label": "자동 (Recommended)", "description": "testbed-polestar10-register 스킬이 API 로 6종 Agent 일괄 등록"},
       {"label": "직접 (수동)", "description": "사용자가 Polestar10 web UI 로 수동 등록 후 진행"}
     ]
   }
@@ -135,7 +135,7 @@ app:
 
 ---
 
-## 단계 (b-deep): 새 도메인 변형 (옵션 3 선택 시)
+## 단계 (b-deep): 새 testbed 생성 (옵션 3 선택 시)
 
 옵션 3 선택 시 다음 deep interview 진행. 결과는 services-author 가 코드 생성 입력으로 사용.
 
@@ -150,7 +150,7 @@ _
 - testbed-services 레포에 같은 이름 디렉토리 X
 - kebab-case 정규식 매치 (`^[a-z][a-z0-9-]*$`)
 - 8~40자
-- 충돌 시 다시 prompt + LLM 이 변형 제안 (`-v2`, `-banking-v2`)
+- 충돌 시 다시 prompt + LLM 이 이름 제안 (`-v2`, `-banking-v2`)
 
 ### 2-d-b. 도메인 분야 (AskUserQuestion)
 
@@ -174,7 +174,7 @@ AskUserQuestion(questions=[
 
 `Other` 선택 시 자유 입력 → 사용자가 도메인 한 줄 설명 (예: "음식 배달 주문 처리 / 의료 예약").
 
-기존 testbed-services 레포의 다른 변형과 도메인 충돌 검사 — 같은 분야면 LLM 이 차별점 제안 ("plopvape-shop 이 e-commerce 라 충돌. multi-tenant 변형으로?").
+기존 testbed-services 레포의 다른 testbed 와 도메인 충돌 검사 — 같은 분야면 LLM 이 차별점 제안 ("plopvape-shop 이 e-commerce 라 충돌. multi-tenant 분기로?").
 
 ### 2-d-c. 서비스 분할 LLM 제안
 
@@ -329,7 +329,7 @@ default 는 4개 모두 선택 (= 기본 plopvape-shop 패턴). 부분 선택 �
 deep interview 결과 종합 표시 후:
 
 ```
-=== 새 testbed 변형 요약 ===
+=== 새 testbed 요약 ===
 
 이름:    core-banking
 도메인:  은행/금융
