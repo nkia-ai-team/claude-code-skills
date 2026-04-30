@@ -405,19 +405,115 @@ app:
 
 ---
 
-## 단계 (c): NMS 모니터링 — default 비활성, 인터뷰 제거
+## 단계 (c): NMS 모니터링 — 자동 감지 후 사용자 confirm
 
-본 스킬은 **NMS 를 default 비활성**. 일반 K8s + microservices 테스트베드 환경에는 SNMP 모니터링 대상 네트워크 장비가 없으므로 묻지 않음 (사용자 피로 감소).
+NMS = Network Management System. SNMP v2c/v3 응답하는 장비 (라우터/스위치/방화벽/AP/UPS 등) 를 Polestar10 에서 폴링 모니터링. 환경에 따라 있을 수도 없을 수도 있으므로 **자동 감지 후 결과 따라 분기**.
 
-별도 라우터/스위치/방화벽 등이 있어 NMS 도 함께 모니터링하고 싶으면:
-- testbed-build 완료 후 `/testbed-polestar10-register` 단독 호출 → 시나리오 1 의 NMS 분기로 추가 등록
-- 또는 testbed-polestar10-register 시나리오 1 (full testbed) 에 자원 타입 = NMS 추가
+### Step 1: 자동 감지 시도
 
-interview.yaml 산출:
+타겟 서버 SSH 접속 가능 후 다음 순서로 스캔 (best-effort):
+
+```bash
+# 1. 타겟 서버의 default gateway IP 추출 (라우터일 가능성 높음)
+GW=$(ssh "$TESTBED_USER@$TESTBED_HOST" 'ip route | awk "/^default/ {print \$3}"' | head -1)
+
+# 2. 타겟 서버의 같은 subnet 추출
+SUBNET=$(ssh "$TESTBED_USER@$TESTBED_HOST" \
+  'ip -o -f inet addr show | awk "/scope global/ {print \$4}"' | head -1)
+# 예: 192.168.200.109/24
+
+# 3. (방법 A) gateway 에 SNMP probe (community public, sysDescr OID)
+SNMP_RESULT=$(timeout 3 ssh "$TESTBED_USER@$TESTBED_HOST" \
+  "snmpwalk -v 2c -c public -t 1 -r 0 $GW .1.3.6.1.2.1.1.1.0" 2>/dev/null)
+
+# 4. (방법 B, more comprehensive — nmap 가 깔려있으면)
+NMAP_RESULT=$(ssh "$TESTBED_USER@$TESTBED_HOST" \
+  "command -v nmap >/dev/null && sudo nmap -sU -p 161 --open -oG - $SUBNET 2>/dev/null | grep '161/open'")
+
+# 5. (방법 C) Polestar10 에 이미 등록된 NMS 자원 조회 — 재인식 후보
+ALREADY_REGISTERED=$(curl -sS --cookie-jar "$JAR" \
+  "$POLESTAR10_BASE_URL/api/nms/v1/resources?testbed=$TESTBED_NAME" \
+  | jq -r '.data[].host')
+```
+
+### Step 2: 결과 분기
+
+#### Case A: 1+ 장비 발견
+
+```python
+# 발견된 장비 리스트를 옵션으로 표시 (max 4개, 더 많으면 truncate + Other)
+AskUserQuestion(questions=[
+  {
+    "question": "다음 SNMP 장비가 자동 감지됐습니다. NMS 자원으로 등록할까요?",
+    "header": "NMS 등록",
+    "multiSelect": True,
+    "options": [
+      {"label": "192.168.200.1 (가능: 라우터)", "description": "sysDescr: Cisco IOS XE 17.x — gateway"},
+      {"label": "192.168.200.10 (가능: 스위치)", "description": "sysDescr: Juniper EX2300"},
+      {"label": "192.168.200.20 (가능: 방화벽)", "description": "sysDescr: Palo Alto PA-220"},
+      {"label": "다 등록 (Recommended)", "description": "발견된 장비 모두 NMS 자원으로 등록"}
+    ]
+  }
+])
+```
+
+선택된 장비마다 추가 자유 입력 (community string, SNMP version) prompt.
+
+#### Case B: 0 장비 발견 또는 스캔 실패 (snmpwalk/nmap 부재 또는 권한 없음)
+
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "SNMP 장비가 자동 감지되지 않았습니다. NMS 등록을 어떻게 진행할까요?",
+    "header": "NMS",
+    "multiSelect": False,
+    "options": [
+      {"label": "Skip (Recommended)", "description": "이 환경에 SNMP 장비 없음. NMS 등록 안 함."},
+      {"label": "직접 입력", "description": "사용자가 SNMP 장비 IP + community string + version 직접 입력"}
+    ]
+  }
+])
+```
+
+`직접 입력` 시 자유 입력 prompt:
+```
+"장비 IP?" (예: 192.168.200.1)
+"SNMP version (v2c/v3, default v2c)?"
+"community string (default public)?"
+```
+
+#### Case C: 자동 감지 도구 부재 (snmpwalk + nmap 둘 다 없음)
+
+타겟 서버에 추가 설치 권하지 않고 fallback:
+```
+"자동 감지 불가 — 타겟 서버에 snmpwalk/nmap 미설치. SNMP 장비가 있는지
+ 사용자께서 알고 계신가요? 있으면 IP 입력 (없으면 Enter)."
+```
+
+### interview.yaml 산출
+
 ```yaml
 nms:
-  enabled: false   # 항상 default. 사용자가 별도 단독 호출로 추가.
+  enabled: true | false   # 발견 + 사용자 confirm 시 true
+  detection_method: "snmpwalk" | "nmap" | "manual" | "none"
+  devices:
+    - host: "192.168.200.1"
+      snmp_version: "v2c"
+      community: "public"
+      sysDescr: "Cisco IOS XE 17.x"
+      role: "router"
 ```
+
+### Phase 1-A 묶음과의 관계
+
+이 단계는 Phase 1-A (배포 앱 + Polestar10 모드) **이후**에 별도로 실행. 자동 감지가 SSH 접속 가능 시점 (= target host 확정 후) 에만 가능하므로 묶음에 못 들어감.
+
+순서:
+1. Phase 1-A 묶음 (배포 앱 + P10 모드)
+2. target host 자유 입력 (IP/user/password)
+3. SSH ping 확인
+4. **NMS 자동 감지** (이 섹션) → 결과 따라 인터뷰
+5. Phase 1 완료 → architecture-draft
 
 산출:
 ```yaml
