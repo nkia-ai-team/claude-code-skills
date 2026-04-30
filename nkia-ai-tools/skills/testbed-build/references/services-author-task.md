@@ -121,7 +121,7 @@ testbed-engineer 가 반환한 JSON:
    ```python
    AskUserQuestion(questions=[
      {
-       "question": "PR 머지 후 Phase 7 (ansible deploy) 진행 가능. 어떻게?",
+       "question": "PR 머지 후 Phase 7 (ansible deploy) 진행을 어떻게 하시겠어요?",
        "header": "PR 머지",
        "multiSelect": False,
        "options": [
