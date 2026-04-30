@@ -209,36 +209,64 @@ AskUserQuestion(questions=[
 - clone 케이스: `git clone https://github.com/nkia-ai-team/<repo>.git <chosen_path>` 실행
 - bootstrap.yaml 의 `paths.testbed_services_repo` / `paths.scenario_runner_repo` 에 영구 저장 → **다음 호출부터 발견/clone 단계 자체 skip** (paths 가 가리키는 디렉토리에 .git 있는지만 확인)
 
-자유 입력 슬롯 (텍스트 prompt — 위 카드와 별도로):
-- 타겟 서버 IP 주소 (예: `192.168.200.109`)
-- 타겟 서버 SSH user (default `nkia`) — *109/96/104 공통 user 가 nkia 라 default*
-- 타겟 서버 SSH password 또는 key 경로 (선택한 인증 방식 따라)
-- (Polestar10 Other 선택 시) Polestar10 base_url 직접 입력 (`https://...` 형식, self-signed cert 일반)
-- **Polestar10 사용자 ID** (자원 등록·알람·메트릭 API 호출 권한 있는 계정. 보통 `admin`)
-- **Polestar10 password**
-- (레포 no 선택 시) testbed-services / rca-scenario-runner 경로 각각 직접 입력
+### 추가 슬롯 — 가능한 한 카드형 (default-present), 비밀만 텍스트 prompt
 
 > Polestar10 ID/PW 는 `~/.polestar10rc` (chmod 600) 에 저장돼 testbed-polestar10-register 와 공유됨. 이미 파일이 있으면 재사용 (재인터뷰 X).
 
-### 자유 입력 흐름 (텍스트 prompt 순서)
+#### 카드형 (default-present 슬롯) — 묶음 AskUserQuestion
 
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "타겟 서버 IP/hostname 은 어떤 걸 사용하시겠어요?",
+    "header": "타겟 IP",
+    "multiSelect": False,
+    "options": [
+      {"label": "192.168.200.109 (Recommended)", "description": "109 DGX Spark — 기존 RCA 테스트베드 위치"}
+    ]
+  },
+  {
+    "question": "타겟 서버 SSH user 는 누구로 사용하시겠어요?",
+    "header": "SSH user",
+    "multiSelect": False,
+    "options": [
+      {"label": "nkia (Recommended)", "description": "109/96/104 공통 user. 일반적으로 nkia."}
+    ]
+  },
+  {
+    "question": "Polestar10 사용자 ID 는 누구인가요? (자원 등록·알람·메트릭 API 호출 권한 있는 계정)",
+    "header": "P10 user",
+    "multiSelect": False,
+    "options": [
+      {"label": "admin (Recommended)", "description": "보통 admin 계정이 모든 권한 가짐"}
+    ]
+  }
+])
+# Other 가 자동 추가되어 자유 입력 가능 (예: 다른 IP, 다른 user)
 ```
-1. "타겟 서버 IP/hostname?" → 192.168.200.109 (default 109)
-2. "타겟 서버 SSH user?" → nkia (default)
-3. (인증 방식이 password 면) "타겟 서버 SSH password?" → ****
-4. (인증 방식이 ssh_key 면) "SSH key 경로?" → ~/.ssh/id_rsa (default)
-5. (Polestar10 instance 가 Other 면) "Polestar10 base_url?" → https://...
-6. ~/.polestar10rc 부재 시:
-     "Polestar10 사용자 ID?" → admin (default)
-     "Polestar10 password?" → ****
-7. (레포 clone 이 no 면)
-     "testbed-services 레포 경로?" → ~/dev/testbed-services (default)
-     "rca-scenario-runner 레포 경로?" → ~/dev/rca-scenario-runner (default)
-```
+
+> ⚠️ **Polestar10 base_url 의 Other 케이스**: 첫 인터뷰의 P10 서버 카드에서 Other 선택 시 위 묶음과 별 턴에 자유 입력 prompt: "Polestar10 base_url 을 직접 입력해 주세요 (`https://...` 형식)".
+
+#### 비밀 입력 — 단독 턴 텍스트 prompt (보안상 카드 X)
+
+각 비밀은 한 번에 하나씩 (위 § 강제 규칙: 자유 입력 단독 턴):
+
+1. **타겟 서버 SSH password** (인증 방식이 password 일 때만)
+   ```
+   타겟 서버 SSH password 를 입력해 주세요:
+   ```
+2. **SSH key 경로** (인증 방식이 ssh_key 일 때만, default `~/.ssh/id_rsa`)
+   ```
+   SSH key 경로를 입력해 주세요 (default ~/.ssh/id_rsa, Enter 로 default 사용):
+   ```
+3. **Polestar10 password** (~/.polestar10rc 부재 시)
+   ```
+   Polestar10 password 를 입력해 주세요:
+   ```
+
+> 🚫 **출력 가이드**: prompt 안에 "예시 답변 형식" / "다음과 같이 입력" 식으로 sample value (특히 자격증명) 절대 박지 말 것. LLM 이 메모리에서 본 자격증명을 sample 로 가져오면 화면 노출 사고 (PR #30 참조).
 
 → 모든 답변 종합 → `~/.testbed-build/bootstrap.yaml` (chmod 600) + `~/.polestar10rc` (chmod 600). 다음 호출부터 묻지 않음. 자격증명 변경 시 사용자가 직접 yaml 편집 또는 파일 삭제 후 재인터뷰.
-
-→ 답변 종합 → `~/.testbed-build/bootstrap.yaml` 생성 + `chmod 600`. 다음 호출부터 묻지 않음.
 
 ## Polestar10 자격증명 — 2층 구조
 
