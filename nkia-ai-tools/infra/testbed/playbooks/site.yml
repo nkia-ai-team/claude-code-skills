@@ -29,14 +29,15 @@
     # Polestar10 controller-side reachability — POLESTAR10_BASE_URL 가 설정된 경우만 검사.
     # SMS 설치 (POLESTAR_ORG_ID 사용) + agent install 단계에서 Polestar10 도달 필수.
     # 미설정이면 사용자가 testbed-build 스킬 외부에서 ansible 만 돌리는 케이스로 간주, skip.
-    - name: Polestar10 connectivity precheck (when POLESTAR10_BASE_URL set)
+    # Reachability 만 검사 — Polestar10 서버 버전마다 auth path 가 다를 수 있음 (예: 96 데모 = /api/sso/preLogin,
+    # 104 운영 = /api/account/pre-login). 실제 auth 검증은 testbed-polestar10-register 의 login.md recipe 가 처리.
+    # 본 task 는 "controller → polestar10 host 도달 가능?" 만 확인.
+    - name: Polestar10 reachability precheck (root URL, when POLESTAR10_BASE_URL set)
       ansible.builtin.uri:
-        url: "{{ lookup('env', 'POLESTAR10_BASE_URL') }}/api/sso/preLogin"
-        method: POST
-        body_format: json
-        body: {}
+        url: "{{ lookup('env', 'POLESTAR10_BASE_URL') }}/"
+        method: GET
         validate_certs: false
-        status_code: [200, 400]
+        status_code: [200, 301, 302, 303, 307, 308, 401, 403, 404]
         timeout: 10
       when:
         - lookup('env', 'POLESTAR10_BASE_URL') | length > 0
