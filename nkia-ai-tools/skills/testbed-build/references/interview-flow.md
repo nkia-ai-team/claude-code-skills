@@ -109,7 +109,7 @@ AskUserQuestion(questions=[
 ```python
 AskUserQuestion(questions=[
   {
-    "question": "SSH 인증 방식?",
+    "question": "SSH 인증 방식은 어떤 걸 사용하시겠어요?",
     "header": "SSH 인증",
     "multiSelect": False,
     "options": [
@@ -199,7 +199,7 @@ AskUserQuestion 은 옵션 max 4개. 인기 4개를 명시 + Other 가 자동으
 ```python
 AskUserQuestion(questions=[
   {
-    "question": "어떤 도메인의 testbed?",
+    "question": "어떤 도메인의 testbed 를 만드시겠어요?",
     "header": "도메인",
     "multiSelect": False,
     "options": [
@@ -276,7 +276,7 @@ DPM 지원 7종 중 4개 옵션 + Other (Tibero/CUBRID/SQL Server 등은 Other �
 ```python
 AskUserQuestion(questions=[
   {
-    "question": "DB 종류 (Polestar10 DPM 모니터링 지원)?",
+    "question": "DB 종류는 어떤 걸 사용하시겠어요? (Polestar10 DPM 모니터링 지원)",
     "header": "DB 종류",
     "multiSelect": False,
     "options": [
@@ -287,7 +287,7 @@ AskUserQuestion(questions=[
     ]
   },
   {
-    "question": "DB 스키마 자동 생성?",
+    "question": "DB 스키마를 자동 생성할까요?",
     "header": "스키마",
     "multiSelect": False,
     "options": [
@@ -347,7 +347,7 @@ CREATE TABLE audit_events (
 ```python
 AskUserQuestion(questions=[
   {
-    "question": "이 testbed 가 시연할 장애 패턴? (다중 선택 가능)",
+    "question": "이 testbed 가 시연할 장애 패턴을 선택해 주세요 (다중 선택 가능)",
     "header": "장애 패턴",
     "multiSelect": True,
     "options": [
@@ -388,7 +388,7 @@ services-author 가 testbed-services 레포에 다음 작업:
 ```python
 AskUserQuestion(questions=[
   {
-    "question": "위 spec 으로 services-author 진행?",
+    "question": "위 spec 으로 services-author 를 진행할까요?",
     "header": "최종 승인",
     "multiSelect": False,
     "options": [
