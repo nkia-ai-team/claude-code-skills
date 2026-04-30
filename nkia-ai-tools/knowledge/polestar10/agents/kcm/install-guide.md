@@ -24,11 +24,12 @@ ARM 전용 클러스터(예: Ampere, AWS Graviton, NVIDIA Grace) 에서는 **타
 
 ### 소스 및 빌드 절차
 
-소스 URL: `https://cims2.nkia.net:8443/gitlab/lucida-kcmagent` *(사내 GitLab — 외부 미러 없음)*
+소스 URL: 사내 GitLab의 `lucida-kcmagent` 저장소 *(외부 미러 없음, 사내망 only)*. 정확한 URL은 운영팀 또는 사내 위키 참조 (보안상 본 문서엔 미기재). ansible 사용 시 env `KCM_SOURCE_REPO` 또는 inventory `kcm_source_repo` 로 주입.
 
 ```sh
 # 1) 운영 PC 에서 git clone (사내 GitLab 인증 필요)
-git clone https://cims2.nkia.net:8443/gitlab/lucida-kcmagent.git
+export KCM_SOURCE_REPO=<internal gitlab url>
+git clone "${KCM_SOURCE_REPO}.git"
 scp -r lucida-kcmagent <arm-target>:/tmp/
 
 # 2) ARM 타겟에서 빌드 (10~15분)

@@ -99,7 +99,10 @@ wpm_jar_name: "wpmagent.jar"
 apm_jar_name: "opentelemetry-javaagent.jar"
 
 # KCM ARM 소스 빌드 (target-source-build 방식)
-kcm_source_repo: "https://cims2.nkia.net:8443/gitlab/lucida-kcmagent"
+# kcm_source_repo: 사내 GitLab 의 lucida-kcmagent. public 노출 회피로 default 비움.
+# ARM 타겟에서 KCM 사용 시 inventory 또는 -e 로 override 또는 env KCM_SOURCE_REPO.
+# AMD64 는 kcm_image_url_amd64 (polestar-agents-binaries 후속, NKIAAI-537) 로 우회.
+kcm_source_repo: "{{ lookup('env', 'KCM_SOURCE_REPO') | default('', true) }}"
 kcm_source_branch: "main"
 kcm_image_name: "polestar10-kcm"
 

@@ -10,23 +10,33 @@
     state: directory
     mode: '0755'
 
-- name: Clone testbed-services monorepo
-  ansible.builtin.git:
-    repo: >-
-      {%- if github_pat | length > 0 and app_repo is match('^https://') -%}
-      {{ app_repo | regex_replace('^https://', 'https://oauth2:' ~ github_pat ~ '@') }}
-      {%- else -%}
-      {{ app_repo }}
-      {%- endif -%}
-    dest: "/opt/{{ app_namespace }}/src"
-    version: "{{ app_version }}"
-    force: false
+# PAT 를 git URL 에 박으면 .git/config 의 remote.origin.url 에 영구 저장 →
+# 타겟 호스트 SSH 가능자에게 PAT 노출. http.extraheader 는 per-command flag 라
+# disk 에 안 남음. fetch + reset --hard 로 멱등성도 동시 보장.
+- name: Clone or update testbed-services monorepo (PAT via http.extraheader, no on-disk leak)
+  ansible.builtin.shell: |
+    set -eu
+    SRC="/opt/{{ app_namespace }}/src"
+    HEADER="AUTHORIZATION: bearer ${GITHUB_PAT}"
+    if [ -d "${SRC}/.git" ]; then
+      OLD=$(git -C "${SRC}" rev-parse HEAD 2>/dev/null || echo none)
+      git -C "${SRC}" -c http.extraheader="${HEADER}" fetch --quiet origin {{ app_version }}
+      git -C "${SRC}" checkout --quiet {{ app_version }}
+      git -C "${SRC}" reset --hard --quiet FETCH_HEAD
+      NEW=$(git -C "${SRC}" rev-parse HEAD)
+      [ "${OLD}" = "${NEW}" ] && echo UNCHANGED || echo "UPDATED ${OLD} -> ${NEW}"
+    else
+      git -c http.extraheader="${HEADER}" clone --quiet --branch {{ app_version }} {{ app_repo }} "${SRC}"
+      echo "CLONED $(git -C ${SRC} rev-parse HEAD)"
+    fi
+  args:
+    executable: /bin/bash
   environment:
-    # Prevent git from prompting for credentials when PAT-less / wrong PAT —
-    # otherwise ansible.git hangs forever.
+    GITHUB_PAT: "{{ github_pat }}"
     GIT_TERMINAL_PROMPT: "0"
     GIT_ASKPASS: "/bin/true"
   register: app_clone
+  changed_when: "'CLONED' in (app_clone.stdout | default('')) or 'UPDATED' in (app_clone.stdout | default(''))"
   no_log: true
 
 - name: Stat build-and-deploy.sh
@@ -41,14 +51,41 @@
       testbed-services monorepo standard requires this script (NKIAAI-570).
   when: not bds_stat.stat.exists
 
-- name: Run build-and-deploy.sh (5 service docker build + ctr import + kubectl apply)
+# 멱등성 — 같은 repo rev 가 이미 deploy 됐으면 build-and-deploy.sh 재실행 skip.
+# rev sentinel 을 /opt/<ns>/.applied_rev 에 보관. testbed-build 스킬 호출 시
+# 매번 changed=1 보고하던 노이즈 제거 + ARM 빌드 시간 절약.
+- name: Get current repo rev
+  ansible.builtin.command: git -C /opt/{{ app_namespace }}/src rev-parse HEAD
+  register: current_rev
+  changed_when: false
+
+- name: Read previously-applied repo rev sentinel
+  ansible.builtin.slurp:
+    src: "/opt/{{ app_namespace }}/.applied_rev"
+  register: applied_rev_b64
+  failed_when: false
+
+- name: Set applied_rev fact
+  ansible.builtin.set_fact:
+    applied_rev: "{{ (applied_rev_b64.content | b64decode | trim) if (applied_rev_b64 is not failed and applied_rev_b64.content is defined) else '' }}"
+
+- name: Run build-and-deploy.sh (only when repo rev changed or first run)
   ansible.builtin.shell: bash k8s/build-and-deploy.sh
   args:
     chdir: "/opt/{{ app_namespace }}/src/{{ app_subdir }}"
     executable: /bin/bash
   register: bds_run
   changed_when: bds_run.rc == 0
-  when: bds_stat.stat.exists
+  when:
+    - bds_stat.stat.exists
+    - applied_rev != current_rev.stdout
+
+- name: Persist applied rev sentinel
+  ansible.builtin.copy:
+    content: "{{ current_rev.stdout }}"
+    dest: "/opt/{{ app_namespace }}/.applied_rev"
+    mode: '0644'
+  when: bds_run is changed
 
 - name: Wait for all testbed deployments to be Available
   ansible.builtin.command: >

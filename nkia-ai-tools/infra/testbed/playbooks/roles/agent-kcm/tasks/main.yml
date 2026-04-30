@@ -25,10 +25,24 @@
       register: kcm_import_amd
       changed_when: "'unpacked' in kcm_import_amd.stderr or 'unpacked' in kcm_import_amd.stdout"
 
+- name: Fail fast if kcm_source_repo missing (ARM64 source-build requires it)
+  ansible.builtin.fail:
+    msg: |
+      kcm_source_repo is required for ARM64 KCM source build but not set.
+      Set via: export KCM_SOURCE_REPO=<internal gitlab url>  또는  -e kcm_source_repo=<url>
+      또는 inventory vars 에 kcm_source_repo 정의.
+      AMD64 prebuilt image 사용 시 kcm_enabled=true + kcm_image_url_amd64 사용 (NKIAAI-537 publish 시).
+      KCM 자체 disable 시 kcm_enabled=false.
+  when:
+    - kcm_enabled | default(true) | bool
+    - target_arch == 'arm64'
+    - kcm_source_repo | default('') | length == 0
+
 - name: ARM64 — build KCM from source (lucida-kcmagent)
   when:
     - kcm_enabled | default(true) | bool
     - target_arch == 'arm64'
+    - kcm_source_repo | default('') | length > 0
   block:
     - name: Ensure source dir
       ansible.builtin.file:

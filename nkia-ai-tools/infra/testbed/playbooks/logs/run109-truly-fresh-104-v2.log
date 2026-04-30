@@ -1,0 +1,523 @@
+
+PLAY [RCA Testbed bootstrap — common stack + agents + service] *****************
+
+TASK [Gathering Facts] *********************************************************
+ok: [arm64-target]
+
+TASK [Pre-flight OS check (Linux + systemd required)] **************************
+[WARNING]: Deprecation warnings can be disabled by setting `deprecation_warnings=False` in ansible.cfg.
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/site.yml:15:19
+
+13           - ansible_os_family in ['Debian', 'RedHat', 'Rocky']
+14           - ansible_service_mgr == 'systemd'
+15         fail_msg: |
+                     ^ column 19
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/site.yml:12:13
+
+10       ansible.builtin.assert:
+11         that:
+12           - ansible_system == 'Linux'
+               ^ column 13
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/site.yml:13:13
+
+11         that:
+12           - ansible_system == 'Linux'
+13           - ansible_os_family in ['Debian', 'RedHat', 'Rocky']
+               ^ column 13
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/site.yml:14:13
+
+12           - ansible_system == 'Linux'
+13           - ansible_os_family in ['Debian', 'RedHat', 'Rocky']
+14           - ansible_service_mgr == 'systemd'
+               ^ column 13
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+ok: [arm64-target] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Echo target architecture] ************************************************
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/site.yml:7:18
+
+5   gather_facts: true
+6   vars:
+7     target_arch: "{{ 'arm64' if ansible_architecture in ['aarch64', 'arm64'] else 'amd64' }}"
+                   ^ column 18
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+ok: [arm64-target] => {
+    "msg": "Target arch: arm64 (ansible_architecture=aarch64, os=Ubuntu 24.04)"
+}
+
+TASK [common : ARM + SMS prerequisites — amd64 multi-arch + apt sources split] ***
+included: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/arm-sms-prereq.yml for arm64-target
+
+TASK [common : Enable amd64 multi-arch] ****************************************
+ok: [arm64-target]
+
+TASK [common : Pin ports.ubuntu.com sources to arm64 only] *********************
+ok: [arm64-target]
+
+TASK [common : Detect existing amd64 source files (shell grep)] ****************
+ok: [arm64-target]
+
+TASK [common : Add amd64 sources (only when no amd64 list exists yet)] *********
+skipping: [arm64-target]
+
+TASK [common : Refresh apt cache after sources change (tolerate third-party repo errors)] ***
+skipping: [arm64-target]
+
+TASK [common : Install archive utilities (unzip for zip-format agent archives)] ***
+ok: [arm64-target]
+
+TASK [common : Apply firewall rules (no-op if disabled)] ***********************
+included: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/firewall.yml for arm64-target
+
+TASK [common : Detect ufw status (Debian family)] ******************************
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/firewall.yml:9:9
+
+7   changed_when: false
+8   failed_when: false
+9   when: ansible_os_family == 'Debian'
+          ^ column 9
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+ok: [arm64-target]
+
+TASK [common : Open K3s ports via ufw] *****************************************
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/firewall.yml:24:7
+
+22     - { port: '30000:32767', proto: tcp }     # NodePort range
+23   when:
+24     - ansible_os_family == 'Debian'
+         ^ column 7
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+skipping: [arm64-target] => (item={'port': '6443', 'proto': 'tcp'}) 
+skipping: [arm64-target] => (item={'port': '10250', 'proto': 'tcp'}) 
+skipping: [arm64-target] => (item={'port': '8472', 'proto': 'udp'}) 
+skipping: [arm64-target] => (item={'port': '51820', 'proto': 'udp'}) 
+skipping: [arm64-target] => (item={'port': '51821', 'proto': 'udp'}) 
+skipping: [arm64-target] => (item={'port': '30000:32767', 'proto': 'tcp'}) 
+skipping: [arm64-target]
+
+TASK [common : Detect firewalld status (RHEL family)] **************************
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/firewall.yml:32:9
+
+30   changed_when: false
+31   failed_when: false
+32   when: ansible_os_family in ['RedHat', 'Rocky']
+           ^ column 9
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+skipping: [arm64-target]
+
+TASK [common : Open K3s ports via firewalld] ***********************************
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/firewall.yml:48:7
+
+46     - "30000-32767/tcp"
+47   when:
+48     - ansible_os_family in ['RedHat', 'Rocky']
+         ^ column 7
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+skipping: [arm64-target] => (item=6443/tcp) 
+skipping: [arm64-target] => (item=10250/tcp) 
+skipping: [arm64-target] => (item=8472/udp) 
+skipping: [arm64-target] => (item=51820/udp) 
+skipping: [arm64-target] => (item=51821/udp) 
+skipping: [arm64-target] => (item=30000-32767/tcp) 
+skipping: [arm64-target]
+
+TASK [common : Install / configure Docker] *************************************
+included: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/docker.yml for arm64-target
+
+TASK [common : Detect Docker presence] *****************************************
+ok: [arm64-target]
+
+TASK [common : Best-effort apt update (tolerate third-party repo errors)] ******
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/docker.yml:20:7
+
+18   when:
+19     - docker_check.rc != 0
+20     - ansible_os_family == 'Debian'
+         ^ column 7
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+ok: [arm64-target]
+
+TASK [common : Install Docker prerequisites (Debian)] **************************
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/docker.yml:28:7
+
+26   when:
+27     - docker_check.rc != 0
+28     - ansible_os_family == 'Debian'
+         ^ column 7
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+ok: [arm64-target]
+
+TASK [common : Add Docker GPG key (Debian)] ************************************
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/docker.yml:40:7
+
+38   when:
+39     - docker_check.rc != 0
+40     - ansible_os_family == 'Debian'
+         ^ column 7
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/docker.yml:31:26
+
+29
+30 - name: Add Docker GPG key (Debian)
+31   ansible.builtin.shell: |
+                            ^ column 26
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+ok: [arm64-target]
+
+TASK [common : Add Docker apt repository (Debian)] *****************************
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/docker.yml:53:7
+
+51   when:
+52     - docker_check.rc != 0
+53     - ansible_os_family == 'Debian'
+         ^ column 7
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+ok: [arm64-target]
+
+TASK [common : Best-effort apt update after Docker repo add (tolerate)] ********
+skipping: [arm64-target]
+
+TASK [common : Install Docker engine (Debian)] *********************************
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/docker.yml:69:7
+
+67   when:
+68     - docker_check.rc != 0
+69     - ansible_os_family == 'Debian'
+         ^ column 7
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+ok: [arm64-target]
+
+TASK [common : Install Docker engine (RHEL family)] ****************************
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/docker.yml:77:7
+
+75   when:
+76     - docker_check.rc != 0
+77     - ansible_os_family in ['RedHat', 'Rocky']
+         ^ column 7
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+skipping: [arm64-target]
+
+TASK [common : Ensure /etc/docker exists] **************************************
+ok: [arm64-target]
+
+TASK [common : Configure Docker daemon (cgroupdriver=systemd, log rotation)] ***
+ok: [arm64-target]
+
+TASK [common : Enable + start Docker] ******************************************
+ok: [arm64-target]
+
+TASK [common : Install K3s (single-node)] **************************************
+included: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/k3s.yml for arm64-target
+
+TASK [common : Detect K3s service status] **************************************
+ok: [arm64-target]
+
+TASK [common : Download K3s installer] *****************************************
+skipping: [arm64-target]
+
+TASK [common : Install K3s] ****************************************************
+skipping: [arm64-target]
+
+TASK [common : Wait for K3s API socket] ****************************************
+ok: [arm64-target]
+
+TASK [common : Wait for K3s kubeconfig] ****************************************
+ok: [arm64-target]
+
+TASK [common : Ensure kubeconfig is world-readable] ****************************
+ok: [arm64-target]
+
+TASK [common : Wait for default ServiceAccount] ********************************
+ok: [arm64-target]
+
+TASK [common : Install metrics-server with --kubelet-insecure-tls] *************
+included: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/metrics-server.yml for arm64-target
+
+TASK [common : Download metrics-server upstream manifest] **********************
+ok: [arm64-target]
+
+TASK [common : Check whether metrics-server YAML already patched] **************
+ok: [arm64-target]
+
+TASK [common : Patch metrics-server — inject --kubelet-insecure-tls (only when missing)] ***
+skipping: [arm64-target]
+
+TASK [common : Diff metrics-server manifest against cluster state] *************
+ok: [arm64-target]
+
+TASK [common : Apply patched metrics-server manifest (server-side, only when diff)] ***
+skipping: [arm64-target]
+
+TASK [common : Wait for metrics-server deployment to become Available] *********
+ok: [arm64-target]
+
+TASK [common : Install Go toolchain (ARM only — needed for KCM source build)] ***
+included: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/common/tasks/go-toolchain.yml for arm64-target
+
+TASK [common : Detect Go presence + version] ***********************************
+ok: [arm64-target]
+
+TASK [common : Set fact — Go install required] *********************************
+ok: [arm64-target]
+
+TASK [common : Download Go 1.22.5 (linux-arm64 tarball)] ***********************
+skipping: [arm64-target]
+
+TASK [common : Remove previous Go install dir] *********************************
+skipping: [arm64-target]
+
+TASK [common : Extract Go to /usr/local] ***************************************
+skipping: [arm64-target]
+
+TASK [common : Symlink go binary into /usr/local/bin] **************************
+ok: [arm64-target]
+
+TASK [common : Verify Go install] **********************************************
+ok: [arm64-target]
+
+TASK [agent-wpm : WPM disabled notice] *****************************************
+skipping: [arm64-target]
+
+TASK [agent-wpm : Ensure WPM install dir] **************************************
+ok: [arm64-target]
+
+TASK [agent-wpm : Fetch WPM release metadata (private repo via API)] ***********
+ok: [arm64-target]
+
+TASK [agent-wpm : Resolve WPM asset id] ****************************************
+ok: [arm64-target]
+
+TASK [agent-wpm : Download WPM agent archive (octet-stream)] *******************
+ok: [arm64-target]
+
+TASK [agent-wpm : Extract WPM archive] *****************************************
+changed: [arm64-target]
+
+TASK [agent-wpm : Locate WPM jar in extracted archive (largest jar)] ***********
+ok: [arm64-target]
+
+TASK [agent-wpm : Copy WPM jar to install root as wpmagent.jar] ****************
+changed: [arm64-target]
+
+TASK [agent-wpm : Generate WPM service-specific config (one per testbed service)] ***
+changed: [arm64-target] => (item=order)
+changed: [arm64-target] => (item=product)
+changed: [arm64-target] => (item=inventory)
+changed: [arm64-target] => (item=payment)
+changed: [arm64-target] => (item=notification)
+
+TASK [agent-wpm : WPM skip notice (GITHUB_PAT not set)] ************************
+skipping: [arm64-target]
+
+TASK [agent-apm : APM disabled notice] *****************************************
+skipping: [arm64-target]
+
+TASK [agent-apm : Ensure APM install dir] **************************************
+changed: [arm64-target]
+
+TASK [agent-apm : Fetch APM release metadata (private repo via API)] ***********
+ok: [arm64-target]
+
+TASK [agent-apm : Resolve APM asset id (opentelemetry-javaagent.jar)] **********
+ok: [arm64-target]
+
+TASK [agent-apm : Download APM jar directly (octet-stream — bare .jar, no zip)] ***
+changed: [arm64-target]
+
+TASK [agent-apm : APM skip notice (GITHUB_PAT not set)] ************************
+skipping: [arm64-target]
+
+TASK [service-k8s : Deploy testbed-services monorepo] **************************
+included: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/service-k8s/tasks/monorepo.yml for arm64-target
+
+TASK [service-k8s : Ensure git installed] **************************************
+ok: [arm64-target]
+
+TASK [service-k8s : Ensure source dir parent] **********************************
+changed: [arm64-target]
+
+TASK [service-k8s : Clone testbed-services monorepo] ***************************
+changed: [arm64-target]
+
+TASK [service-k8s : Stat build-and-deploy.sh] **********************************
+ok: [arm64-target]
+
+TASK [service-k8s : Fail when build-and-deploy.sh is missing] ******************
+skipping: [arm64-target]
+
+TASK [service-k8s : Run build-and-deploy.sh (5 service docker build + ctr import + kubectl apply)] ***
+changed: [arm64-target]
+
+TASK [service-k8s : Wait for all testbed deployments to be Available] **********
+ok: [arm64-target]
+
+TASK [service-k8s : Wait for all testbed statefulsets to be ready] *************
+ok: [arm64-target]
+
+TASK [service-k8s : Skip notice (app_repo empty)] ******************************
+skipping: [arm64-target]
+
+TASK [agent-kcm : KCM disabled notice] *****************************************
+ok: [arm64-target] => {
+    "msg": "KCM agent disabled (kcm_enabled=false)"
+}
+
+TASK [agent-kcm : Download KCM image tarball] **********************************
+skipping: [arm64-target]
+
+TASK [agent-kcm : Import KCM image into K3s containerd] ************************
+skipping: [arm64-target]
+
+TASK [agent-kcm : Ensure source dir] *******************************************
+skipping: [arm64-target]
+
+TASK [agent-kcm : Clone lucida-kcmagent (사내 GitLab — credentials may be required)] ***
+skipping: [arm64-target]
+
+TASK [agent-kcm : Build kcm-agent binary (Go) on target] ***********************
+skipping: [arm64-target]
+
+TASK [agent-kcm : Build container image] ***************************************
+skipping: [arm64-target]
+
+TASK [agent-kcm : Import KCM ARM image into K3s containerd] ********************
+skipping: [arm64-target]
+
+TASK [agent-kcm : AMD64 KCM URL not configured — skip apply] *******************
+skipping: [arm64-target]
+
+TASK [agent-kcm : Check KCM image present in containerd] ***********************
+ok: [arm64-target]
+
+TASK [agent-kcm : Render KCM RBAC manifest] ************************************
+skipping: [arm64-target]
+
+TASK [agent-kcm : Render KCM DaemonSet manifest] *******************************
+skipping: [arm64-target]
+
+TASK [agent-kcm : Diff KCM manifests against cluster state] ********************
+skipping: [arm64-target]
+
+TASK [agent-kcm : Apply KCM manifests (server-side, only when diff)] ***********
+skipping: [arm64-target]
+
+TASK [agent-kcm : Wait for KCM DaemonSet rollout] ******************************
+skipping: [arm64-target]
+
+TASK [agent-sms : SMS disabled notice] *****************************************
+skipping: [arm64-target]
+
+TASK [agent-sms : Detect existing Polestar SMS daemons] ************************
+ok: [arm64-target]
+
+TASK [agent-sms : SMS already running — skip install (set sms_force_reinstall=true to override)] ***
+skipping: [arm64-target]
+
+TASK [agent-sms : ARM only — install qemu-user-static + binfmt-support + amd64 libs] ***
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /home/sjbang/dev/claude-code-skills-540/nkia-ai-tools/infra/testbed/playbooks/roles/agent-sms/tasks/main.yml:45:7
+
+43     - sms_enabled | default(true) | bool
+44     - target_arch == 'arm64'
+45     - ansible_os_family == 'Debian'
+         ^ column 7
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+changed: [arm64-target]
+
+TASK [agent-sms : ARM only — verify binfmt registration] ***********************
+ok: [arm64-target]
+
+TASK [agent-sms : Ensure SMS install dir] **************************************
+changed: [arm64-target]
+
+TASK [agent-sms : Fetch SMS release metadata (private repo via API)] ***********
+ok: [arm64-target]
+
+TASK [agent-sms : Resolve SMS asset id] ****************************************
+ok: [arm64-target]
+
+TASK [agent-sms : Download SMS tarball (octet-stream)] *************************
+changed: [arm64-target]
+
+TASK [agent-sms : Extract SMS tarball] *****************************************
+changed: [arm64-target]
+
+TASK [agent-sms : Run Polestar AgentInstall.sh (config + binfmt registration)] ***
+changed: [arm64-target]
+
+TASK [agent-sms : Patch Brokerinfo.conf — match 109 reference (NULL agent_ip + null creds)] ***
+ok: [arm64-target] => (item={'key': 'BROKER1_AGENT_IP', 'value': 'NULL'})
+changed: [arm64-target] => (item={'key': 'BROKER1_USER_ID', 'value': 'NULL'})
+changed: [arm64-target] => (item={'key': 'BROKER1_USER_PWD', 'value': 'NULL'})
+
+TASK [agent-sms : Stop magentctl if running (so it reloads patched conf)] ******
+changed: [arm64-target]
+
+TASK [agent-sms : Start Polestar Master Agent (magentctl -start; forks SMSAGENTL)] ***
+changed: [arm64-target]
+
+TASK [agent-sms : Verify SMS daemons started] **********************************
+ok: [arm64-target]
+
+TASK [agent-sms : SMS skip notice (GITHUB_PAT not set + not running)] **********
+skipping: [arm64-target]
+
+PLAY RECAP *********************************************************************
+arm64-target               : ok=71   changed=16   unreachable=0    failed=0    skipped=36   rescued=0    ignored=0   
+

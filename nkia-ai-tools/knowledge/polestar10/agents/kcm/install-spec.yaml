@@ -8,7 +8,9 @@ arch_support:
     asset_url: "TBD"
   arm64:
     method: target-source-build
-    source_repo: "https://cims2.nkia.net:8443/gitlab/lucida-kcmagent"
+    # source_repo: 사내 GitLab의 lucida-kcmagent. 보안상 placeholder.
+    # 실제 URL은 inventory 또는 env(KCM_SOURCE_REPO)로 주입.
+    source_repo: "<INTERNAL_GITLAB_LUCIDA_KCMAGENT_URL>"
     asset_url: "N/A (built from source on the target host — no prebuilt binary)"
 detection_command: "kubectl get ds -A -o name 2>/dev/null | grep -i kcm || echo 'no kcm DaemonSet'"
 prerequisites:
