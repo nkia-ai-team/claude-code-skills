@@ -152,19 +152,27 @@ verifier 가 내부에서 Polestar10 알람 history API 5xx 만나면:
 - agent 가 verdict 에 `error: "polestar10 alarm-history API 5xx. 호출자가 ask-polestar10 권고."` 담아서 반환
 - 오케스트레이터가 verdict 보고 ask-polestar10 dispatch
 
-## 사용자 force-pass
+## 사용자 force-pass (AskUserQuestion)
 
-3회 모두 실패 + 사용자가 "수동 분석 후 force-pass":
+3회 모두 실패 후 사용자에게:
 
 ```
 === Verify max attempts 도달 ===
 attempt 3 verdict: PARTIAL
 missed alarms: ...
+```
 
-옵션:
-  1) finalize 진행 (PARTIAL 결과로 보고서)
-  2) 수동 분석 권고 (run 보존, 종료)
-  3) 강제 PASS 마킹 (테스트만 — production 권장 X)
-
-선택 [1]:
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "verify max attempts 도달. 어떻게 진행할까요?",
+    "header": "verify 결과",
+    "multiSelect": False,
+    "options": [
+      {"label": "PARTIAL 로 finalize (Recommended)", "description": "현재 결과 그대로 보고서 작성, 한계 섹션에 missed 명시"},
+      {"label": "수동 분석 권고", "description": "run 보존 + 종료. 사용자가 직접 분석 후 재실행"},
+      {"label": "강제 PASS", "description": "테스트 목적. production 권장 X"}
+    ]
+  }
+])
 ```

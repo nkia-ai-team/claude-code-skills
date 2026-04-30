@@ -114,12 +114,24 @@ testbed-engineer 가 반환한 JSON:
    - `auth-failed` → git push 인증 실패. PAT 점검 안내.
    - `unknown` → 사용자 prompt + 보존.
 
-2. **PR 머지 대기 (push_mode=pr 시)**:
+2. **PR 머지 대기 (push_mode=pr 시)** — AskUserQuestion:
    ```
    PR 생성됨: $PR_URL
-   PR 머지 후 Phase 7 (ansible deploy) 진행. 머지 완료? [Y/n/wait]
    ```
-   `wait` 선택 시 60초마다 폴링하여 PR 머지 상태 자동 감지.
+   ```python
+   AskUserQuestion(questions=[
+     {
+       "question": "PR 머지 후 Phase 7 (ansible deploy) 진행 가능. 어떻게?",
+       "header": "PR 머지",
+       "multiSelect": False,
+       "options": [
+         {"label": "머지 완료 — 진행 (Recommended)", "description": "사용자가 PR 직접 머지 후 클릭"},
+         {"label": "자동 폴링 wait", "description": "60초마다 PR 머지 상태 polling, 머지되면 자동 진행"},
+         {"label": "취소", "description": "phase 미완 상태로 종료, run 보존"}
+       ]
+     }
+   ])
+   ```
 
 3. **scenario_hints 저장**:
    ```bash
