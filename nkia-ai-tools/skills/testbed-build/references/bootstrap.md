@@ -90,16 +90,8 @@ AskUserQuestion(questions=[
       {"label": "캐시된 서버 사용 (Recommended)", "description": "~/.polestar10rc 의 base_url + 자격증명 그대로 (예: 104 운영)"},
       {"label": "다른 서버에 등록", "description": "새 base_url + 사용자 ID/PW 직접 입력. 캐시는 보존, 이번 run 만 override"}
     ]
-  },
-  {
-    "question": "외부 레포 자동 clone 진행?",
-    "header": "레포 clone",
-    "multiSelect": False,
-    "options": [
-      {"label": "yes (Recommended)", "description": "testbed-services + rca-scenario-runner 둘 다 ~/dev/ 에 자동 clone"},
-      {"label": "no — 직접 경로 입력", "description": "기존 다른 위치 사용"}
-    ]
   }
+  # 외부 레포 clone 은 자동 발견 후 분기 (아래 별 섹션 참조)
 ])
 ```
 
@@ -125,19 +117,97 @@ AskUserQuestion(questions=[
     "options": [
       {"label": "104 운영 (Recommended)", "description": "https://192.168.230.104 — NKIA 운영 환경 (기본)"},
     ]
-  },
-  {
-    "question": "테스트베드 구축에 필요한 외부 레포를 clone해도 괜찮을까요?",
-    "header": "레포 clone",
-    "multiSelect": False,
-    "options": [
-      {"label": "yes (Recommended)", "description": "testbed-services + rca-scenario-runner 둘 다 ~/dev/ 에 자동 clone"},
-    ]
   }
+  # 외부 레포 clone 은 자동 발견 후 분기 (아래 별 섹션 참조)
 ])
 ```
 
 `Other` 선택 시 자유 입력. 첫 실행이라 사용자 ID/PW 도 자유 입력 prompt 로 받음.
+
+---
+
+## 외부 레포 — 자동 발견 우선, 부재 시에만 인터뷰
+
+`testbed-services` / `rca-scenario-runner` 두 레포는 **항상 묻기 전에 자동 발견** 시도. 발견되면 그대로 사용. 없을 때만 prompt.
+
+### Step 1: cwd (Claude Code 작업 폴더) 우선 검사
+
+```bash
+# $PWD = Claude Code 가 켜져있는 작업 폴더
+for repo in testbed-services rca-scenario-runner; do
+  for candidate in "./$repo" "../$repo"; do
+    [ -d "${candidate}/.git" ] && echo "FOUND_CWD $repo: $(realpath $candidate)" && break
+  done
+done
+```
+
+### Step 2: 부재 시 — 외부 영역 fallback
+
+홈 디렉토리 일반적 위치 순회 (depth 1):
+```bash
+for repo in testbed-services rca-scenario-runner; do
+  for path in ~/dev/$repo ~/projects/$repo ~/workspace/$repo ~/$repo; do
+    [ -d "$path/.git" ] && echo "FOUND_HOME $repo: $path" && break
+  done
+done
+```
+
+### Step 3: 결과 따라 분기
+
+#### Case A: 둘 다 발견 (cwd 또는 home)
+
+**인터뷰 없이 자동 진행** — 발견된 경로 사용 + 알림만:
+```
+[레포 자동 발견 결과]
+  ✓ testbed-services       → /home/sjbang/dev/claude-code-skills/testbed-services (cwd)
+  ✓ rca-scenario-runner   → /home/sjbang/dev/rca-scenario-runner (home)
+
+위 경로 그대로 사용합니다.
+```
+
+#### Case B: 둘 중 하나만 발견
+
+발견된 건 자동 사용 + 미발견 건만 prompt:
+
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "rca-scenario-runner 레포가 없습니다. 어디에 clone 할까요?",
+    "header": "레포 clone",
+    "multiSelect": False,
+    "options": [
+      {"label": "현재 작업 폴더 아래 (Recommended)", "description": "$PWD/rca-scenario-runner — Claude Code 작업 폴더 직속"},
+      {"label": "$HOME/dev/", "description": "~/dev/rca-scenario-runner — 사용자 평소 작업 위치 패턴"}
+    ]
+  }
+])
+# Other 선택 시 직접 경로 입력
+```
+
+#### Case C: 둘 다 부재
+
+같은 옵션으로 두 레포 묶음 prompt:
+
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "두 외부 레포가 없습니다. 어디에 clone 할까요?",
+    "header": "레포 clone",
+    "multiSelect": False,
+    "options": [
+      {"label": "현재 작업 폴더 아래 (Recommended)", "description": "$PWD/{testbed-services,rca-scenario-runner} — Claude Code 작업 폴더 직속"},
+      {"label": "$HOME/dev/", "description": "~/dev/ 두 레포 모두"}
+    ]
+  }
+])
+# Other 선택 시 각 레포 경로 따로 자유 입력
+```
+
+### Step 4: 결정된 경로로 진행
+
+- 발견 케이스: 그대로 사용
+- clone 케이스: `git clone https://github.com/nkia-ai-team/<repo>.git <chosen_path>` 실행
+- bootstrap.yaml 의 `paths.testbed_services_repo` / `paths.scenario_runner_repo` 에 영구 저장 → **다음 호출부터 발견/clone 단계 자체 skip** (paths 가 가리키는 디렉토리에 .git 있는지만 확인)
 
 자유 입력 슬롯 (텍스트 prompt — 위 카드와 별도로):
 - 타겟 서버 IP 주소 (예: `192.168.200.109`)
