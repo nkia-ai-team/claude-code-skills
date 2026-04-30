@@ -74,7 +74,7 @@ default. 타겟 서버가 속한 네트워크에서 SNMP 응답하는 장비
 ```python
 AskUserQuestion(questions=[
   {
-    "question": "타겟 서버 (테스트베드 깔릴 곳) SSH 인증 방식?",
+    "question": "타겟 서버 (테스트베드 깔릴 곳) SSH 인증 방식은 무엇인가요?",
     "header": "타겟 SSH",
     "multiSelect": False,
     "options": [
