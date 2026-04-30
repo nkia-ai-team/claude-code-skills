@@ -61,14 +61,20 @@ AskUserQuestion(questions=[
 
 ## 단계 (a): 타겟 서버 — 자유 입력 + multi-choice 혼합
 
+> **타겟 서버 = 테스트베드 (K3s + 서비스 + 4 host 에이전트) 가 설치될 호스트**. Polestar10 모니터링 서버 (96/dev) 와 분리. 사용자가 헷갈리지 않게 명시.
+
 ### 1-a, 1-b: target host + user (자유 입력 — 텍스트 프롬프트)
 
 ```
-질문: "타겟 서버 IP/hostname (default: 192.168.200.109)?"
-질문: "SSH user (default: nkia)?"
+=== Step 1: 타겟 서버 (테스트베드가 배포될 곳) ===
+
+질문: "타겟 서버 IP/hostname? (default: 192.168.200.109 — 109 DGX Spark, ARM64)"
+질문: "SSH user? (default: nkia)"
 ```
 
 이 두 슬롯은 자유 입력이라 AskUserQuestion 부적합. 일반 텍스트 프롬프트.
+
+> 타겟 = 109 면 default 그대로. 다른 호스트 (예: Mac multipass 또는 다른 서버) 에 깔 거면 IP 직접 입력.
 
 ### 1-c: SSH 인증 방식 (AskUserQuestion)
 
