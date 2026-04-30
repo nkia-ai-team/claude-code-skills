@@ -154,7 +154,7 @@ graph TB
 | Phase | 작업 | 주요 컴포넌트 |
 |---|---|---|
 | 1 | 인터뷰 4단계 (+ 새 testbed 시 deep interview) | 인라인 |
-| 2 | Polestar10 연결 사전 체크 | curl preLogin |
+| 2 | Polestar10 도달성 precheck | curl root URL — auth path 는 server 버전마다 다름, login.md 가 처리 |
 | 3 | 아키텍처 v1 작성 | 인라인 (이 문서) |
 | 4 | 사용자 승인 ⛔ | — |
 | 5 | Concurrency lock | flock |
