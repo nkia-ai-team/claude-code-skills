@@ -55,6 +55,16 @@ tools: Read, Grep, Glob, Bash, Write, Edit
   질문: "<agent> 에이전트 설치 시 <error_signature> 발생. 매뉴얼에서 어디 보면 좋을까?"
 ```
 
+## 🚫 자동 disable 금지
+
+**에이전트를 자동으로 비활성 (`<agent>_enabled=false`) 으로 만드는 fix 는 절대 금지**. 사용자가 RCA 검증을 위해 의도한 자원 범위를 축소하기 때문에, 비활성 결정은 반드시 사용자 명시 승인이 필요합니다. testbed-build 오케스트레이터가 사용자에게 prompt 카드를 띄울 수 있도록, 본 agent 의 verdict 에는:
+
+- `cause`: 정확한 실패 원인 (예: "ARM64 KCM source-build 시 kcm_source_repo 환경변수 미설정")
+- `fix`: 사용자가 받아야 할 결정 (예: "사용자에게 GitLab 자격증명 입력 prompt + bootstrap.yaml 갱신, 또는 명시적 KCM 비활성 선택 안내")
+- `severity`: blocking (사용자 결정 필요한 영역이라 자동 재시도 X)
+
+까지만 적습니다. 실제 inventory 수정 / `kcm_enabled=false` 같은 결정은 testbed-build 오케스트레이터가 AskUserQuestion 으로 사용자에게 묻고 진행. 본 agent 가 inventory.yml 을 직접 Edit 하지 X.
+
 ## 출력 형식 (JSON 4 필드)
 
 ```json
