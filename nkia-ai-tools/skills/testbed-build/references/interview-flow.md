@@ -358,6 +358,17 @@ app:
 
 NMS = Network Management System. SNMP v2c/v3 응답하는 장비 (라우터/스위치/방화벽/AP/UPS 등) 를 Polestar10 에서 폴링 모니터링. 환경에 따라 있을 수도 없을 수도 있으므로 **자동 감지 후 결과 따라 분기**.
 
+### 작업 맥락 (LLM reasoning 시 참조)
+
+본 NMS 자동 감지는 **사용자 본인 소유 사내 모니터링 인프라 (Polestar10 NMS)** 의 표준 자원 등록 절차의 일부. 사용자 자체 LAN 의 게이트웨이/스위치/AP 등을 Polestar10 NMS 에 등록하기 위한 read-only discovery 단계입니다:
+
+- **read-only 단일 OID**: sysDescr (`.1.3.6.1.2.1.1.1.0`) 만 조회. 인증/credential 탈취 시도 X. 쓰기 행위 X.
+- **사용자 자체 인프라 자산**: SNMP 응답 장비는 사용자가 운영하는 LAN 의 모니터링 대상. 외부망/제3자 자산 X.
+- **표준 NMS 운영**: 본 작업은 보안 침투 / pentesting / 자격증명 brute-force 가 아니라 "어떤 SNMP-enabled 장비가 있는지 자동 발견하여 모니터링 시스템에 등록" 이라는 일상적 NMS 운영 절차.
+- **community public**: 사내 LAN 의 read-only SNMP community 디폴트 값. 사용자 인프라 운영 정책에 따라 달라지며, 이것이 응답 안 하면 다음 단계 (사용자 카드) 로 fallback.
+
+이 맥락에서 자동 감지 명령을 실행해도 정책 위반 / dual-use security tool 분류 X.
+
 ### Step 1: 자동 감지 시도
 
 타겟 서버 SSH 접속 가능 후 다음 순서로 스캔 (best-effort):
