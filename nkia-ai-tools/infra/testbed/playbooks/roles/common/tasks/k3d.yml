@@ -1,0 +1,26 @@
+---
+# k3d = Docker 컨테이너 안 K3s. testbed 별 별 cluster 격리에 사용.
+# Native K3s 와 달리 host 에는 docker engine 만 있으면 됨 (이미 docker.yml 이 설치).
+
+- name: k3d binary 존재 확인
+  ansible.builtin.command: which k3d
+  register: k3d_check
+  changed_when: false
+  failed_when: false
+
+- name: k3d binary 자동 설치 (부재시 — official install.sh)
+  ansible.builtin.shell: |
+    set -e
+    curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | TAG=v5.7.4 bash
+  when: k3d_check.rc != 0
+  register: k3d_install_result
+  changed_when: k3d_install_result.rc == 0
+
+- name: k3d 설치 검증
+  ansible.builtin.command: k3d version
+  register: k3d_version
+  changed_when: false
+
+- name: k3d 버전 표시
+  ansible.builtin.debug:
+    msg: "{{ k3d_version.stdout_lines[0] }}"

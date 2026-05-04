@@ -32,6 +32,18 @@ paths:
   testbed_services_repo: ""             # 자동 발견 결과 또는 인터뷰. 비우면 cwd → ~/dev → ~/projects → ~ 순회
   scenario_runner_repo: ""              # 동일
   ansible_playbook_root: ""             # 비우면 plugin install 디렉토리 발견
+
+cluster:
+  # production 모사 — testbed 별 별 K8s cluster 격리 (default: k3d).
+  # k3d (default) = Docker 컨테이너 안 K3s. 한 호스트에 N 개 testbed 동시 운영 가능.
+  # k3s (legacy)  = native single-K3s + namespace 격리 (자원/노이즈 분리 X, 권장 X).
+  kind: "k3d"
+  # cluster_name 은 testbed 이름 (= app_subdir) 으로 자동 도출 — 본 yaml 에 박지 X.
+  # 다중 testbed 동시 운영 시 각 testbed 별 별 host port 가 inventory host vars 에 박힘:
+  #   k3d_api_port (default 6443) / k3d_node_http_port (8080) / k3d_node_https_port (8443)
+  #   k3d_node_nodeport_offset (30000) / k3d_node_nodeport_max (30100)
+  #   scenario_runner_port (8091)
+  # default 는 single-testbed 가정. 사용자가 두 번째 testbed 만들 때 인터뷰에서 다른 port 받음.
 ```
 
 ## ⚠️ Step 0 — 컨트롤러 도구 사전 검증

@@ -47,7 +47,12 @@
       PORT={{ scenario_runner_port | default(8091) }}
       SCRIPTS_HOST_PATH=./scenarios/services/{{ app_subdir }}/scripts
       LOGS_HOST_PATH=./logs
-      KUBECONFIG_HOST_PATH=/home/{{ ansible_user }}/.kube
+      # testbed 별 별 kubeconfig 사용 (cluster_kind=k3d 의 testbed-별 cluster).
+      # rca-scenario-runner 의 docker-compose 가 KUBECONFIG_HOST_PATH 디렉토리를 mount.
+      KUBECONFIG_HOST_PATH={{ kubeconfig_path | dirname }}
+      KUBECONFIG_FILE={{ kubeconfig_path | basename }}
+      # testbed 별 별 docker-compose project (concurrent testbed 격리)
+      COMPOSE_PROJECT_NAME=rca-scenario-runner-{{ cluster_name }}
   become: false
   when:
     - scenario_runner_enabled | default(true)
@@ -95,6 +100,8 @@
   become: false
   environment:
     PATH: "/usr/local/bin:/usr/bin:/bin"
+    # testbed 별 별 docker-compose project 보장 (concurrent testbed 격리)
+    COMPOSE_PROJECT_NAME: "rca-scenario-runner-{{ cluster_name }}"
   when:
     - scenario_runner_enabled | default(true)
   register: runner_deploy

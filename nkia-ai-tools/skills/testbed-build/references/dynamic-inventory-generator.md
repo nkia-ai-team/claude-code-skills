@@ -50,8 +50,24 @@ all:
           # host-level 로 override. 빈값/누락이면 SMS/KCM standby 미감지 → PARTIAL.
           polestar10_collector_host: "{{POLESTAR10_COLLECTOR_HOST}}"   # bootstrap.polestar10.base_url 의 hostname
           polestar_organization_id: "{{POLESTAR_ORGANIZATION_ID}}"     # bootstrap.polestar10.organization_id (24-hex SAAS_TENANT_ID)
-          polestar10_kcm_collector_port: {{POLESTAR10_KCM_COLLECTOR_PORT}}   # default 20040 (group_vars 의 값을 그대로 또는 인터뷰에서 override)
+          polestar10_kcm_collector_port: {{POLESTAR10_KCM_COLLECTOR_PORT}}   # default 7575 (KCM helm chart의 kcm.addr port)
           polestar10_sms_broker_port: {{POLESTAR10_SMS_BROKER_PORT}}        # default 1883
+
+          # === Cluster 격리 (production 모사 — testbed 별 별 K8s cluster) ===
+          # default cluster_kind=k3d. 한 호스트에 여러 testbed 동시 운영 시 cluster_name + 모든 k3d_*_port 가
+          # testbed 마다 달라야 충돌 회피.
+          cluster_kind: "{{CLUSTER_KIND}}"                    # k3d (default) | k3s (legacy)
+          cluster_name: "{{CLUSTER_NAME}}"                    # 보통 testbed 이름 = app_subdir
+          kubeconfig_path: "{{KUBECONFIG_PATH}}"              # /home/<user>/.kube/<cluster_name>.yaml
+          k3d_api_port: {{K3D_API_PORT}}                      # cluster API server (default 6443; 다중 testbed 시 6444, 6445)
+          k3d_node_http_port: {{K3D_NODE_HTTP_PORT}}          # default 8080
+          k3d_node_https_port: {{K3D_NODE_HTTPS_PORT}}        # default 8443
+          k3d_node_nodeport_offset: {{K3D_NODE_NODEPORT_OFFSET}}   # default 30000 (NodePort range 시작)
+          k3d_node_nodeport_max: {{K3D_NODE_NODEPORT_MAX}}        # default 30100 (NodePort range 끝)
+
+          # === scenario-runner (testbed 별 별 인스턴스) ===
+          scenario_runner_port: {{SCENARIO_RUNNER_PORT}}           # default 8091 (다중 testbed 시 8092, 8093)
+          # scenario_runner_install_dir 는 group_vars 의 default 가 cluster_name 기반이라 별도 override 불필요
 
           # === 신규 testbed 시 services-author 가 만든 정보 ===
           # is_new_variant=true 면 Phase 6 산출 (manifest.scenario_hints) 도 vars 로 흘려보내
@@ -114,6 +130,13 @@ all:
 | `SMS_ENABLED` | true | 동일 |
 | `KCM_LOCAL_PATH` | bootstrap.paths.kcm_local_source | ARM64 + KCM enabled 인 경우만. controller 의 lucida-kcmagent 절대 경로 (인터뷰 / cwd 검색 / 자동 clone 결과). AMD64 면 빈값 OK. **role 의 fail-fast 는 본 변수만 검사 — `kcm_source_repo` 는 별 변수로 남아있으나 controller 자동 clone 시점에만 사용** |
 | `KCM_SOURCE_BRANCH` | bootstrap.agents.kcm_source_branch | default `develop`. controller 에서 git checkout/pull 시 사용 |
+| `CLUSTER_KIND` | bootstrap.cluster.kind | `k3d` (default — Docker 안 K3s) | `k3s` (legacy — native K3s) |
+| `CLUSTER_NAME` | interview.app.app_subdir | testbed 이름 (예: `social-feed`). k3d cluster name + KCM helm release 의 clusterName. testbed 별로 unique |
+| `KUBECONFIG_PATH` | derived from `/home/<user>/.kube/<cluster_name>.yaml` | cluster-manager role 이 export. 모든 K8s 관련 task 가 이 KUBECONFIG 사용 |
+| `K3D_API_PORT` | interview / 6443 default | k3d API server host port. 다중 testbed 시 6444, 6445 등 |
+| `K3D_NODE_HTTP_PORT` / `K3D_NODE_HTTPS_PORT` | 8080 / 8443 default | k3d ingress port. 다중 testbed 시 8081/8444 등 |
+| `K3D_NODE_NODEPORT_OFFSET` / `K3D_NODE_NODEPORT_MAX` | 30000 / 30100 default | NodePort range. 다중 testbed 시 testbed 마다 다른 range (예: 30000-30100, 30200-30300) |
+| `SCENARIO_RUNNER_PORT` | interview / 8091 default | rca-scenario-runner web port. 다중 testbed 시 8091, 8092, 8093 등 |
 
 ## 환경 변수 export (ansible-playbook 호출 직전)
 

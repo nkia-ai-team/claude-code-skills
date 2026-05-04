@@ -175,39 +175,43 @@ AskUserQuestion(questions=[
 ])
 ```
 
-### [Phase 4.5] 기존 testbed 감지 게이트
+### [Phase 4.5] 기존 testbed 감지 게이트 (cluster 단위)
 
-타겟 서버에 같은 namespace 의 서비스가 이미 떠있는지 사전 감지. 떠있으면 사용자 의도 확인.
+타겟 서버에 **같은 이름의 cluster** (cluster_kind=k3d 면 k3d cluster, k3s legacy 면 같은 namespace) 가 이미 떠있는지 사전 감지. 떠있으면 사용자 의도 확인.
 
 ```bash
-# secrets.env 의 SSH 자격증명 + become 비번 재사용 (Phase 1 인터뷰에서 이미 받음)
-# sudo -S 로 stdin 비번 전달 — 명령행 노출 X, hang X.
 source ~/.testbed-build/runs/$RUN_ID/secrets.env
-EXISTING_NS_CHECK=$(sshpass -e ssh -o ConnectTimeout=5 \
-  "${TARGET_USER}@${TARGET_HOST}" \
-  "echo '${TESTBED_BECOME_PASSWORD}' | sudo -S /usr/local/bin/k3s kubectl get ns ${APP_NAMESPACE} -o name 2>/dev/null && \
-   echo '${TESTBED_BECOME_PASSWORD}' | sudo -S /usr/local/bin/k3s kubectl get deploy -n ${APP_NAMESPACE} -o name 2>/dev/null | wc -l")
+CLUSTER_NAME="${APP_SUBDIR}"   # = bootstrap.cluster.name 도출 (testbed 이름)
 
-# 결과: namespace 존재 + deployment N 개 → 이미 떠있음
-NS_EXISTS=$(echo "$EXISTING_NS_CHECK" | grep -c "^namespace/${APP_NAMESPACE}$" || echo 0)
-DEPLOY_COUNT=$(echo "$EXISTING_NS_CHECK" | tail -1)
+# k3d cluster 단위 검사 (default cluster_kind=k3d)
+EXISTING_CLUSTER=$(sshpass -e ssh -o ConnectTimeout=5 \
+  "${TARGET_USER}@${TARGET_HOST}" \
+  "k3d cluster list -o json 2>/dev/null | jq -r '.[].name' | grep -Fx '${CLUSTER_NAME}' || true")
+
+CLUSTER_EXISTS=$([ -n "$EXISTING_CLUSTER" ] && echo 1 || echo 0)
+
+# (k3s legacy 케이스) — cluster_kind=k3s 면 namespace 검사 (이전 패턴 유지)
+if [ "$CLUSTER_KIND" = "k3s" ]; then
+  EXISTING_NS=$(sshpass -e ssh -o ConnectTimeout=5 \
+    "${TARGET_USER}@${TARGET_HOST}" \
+    "echo '${TESTBED_BECOME_PASSWORD}' | sudo -S /usr/local/bin/k3s kubectl get ns ${APP_NAMESPACE} -o name 2>/dev/null")
+  CLUSTER_EXISTS=$([ -n "$EXISTING_NS" ] && echo 1 || echo 0)
+fi
 ```
 
-비번이 인터뷰에서 캡처되지 않은 케이스 (ssh_key 인증 + sudoers NOPASSWD) 는 `${TESTBED_BECOME_PASSWORD}` 가 빈 문자열 → `sudo -S` 가 stdin 빈값 → NOPASSWD 면 정상 통과, 아니면 즉시 fail (hang X). 양쪽 케이스 모두 안전.
-
-`NS_EXISTS=1 && DEPLOY_COUNT > 0` 인 경우만 사용자 카드:
+`CLUSTER_EXISTS=1` 인 경우만 사용자 카드:
 
 ```python
 AskUserQuestion(questions=[
   {
-    "question": f"{TARGET_HOST} 의 {APP_NAMESPACE} namespace 에 이미 {DEPLOY_COUNT} 개 deployment 가 떠있습니다. 어떻게 진행할까요?",
+    "question": f"{TARGET_HOST} 에 이미 cluster '{CLUSTER_NAME}' 이 존재합니다. 어떻게 진행할까요?",
     "header": "기존 testbed 감지",
     "multiSelect": False,
     "options": [
       {"label": "장애 시나리오만 추가", "description": "deploy/agent install 모두 skip — testbed-generate-scenarios 단독 호출로 분기"},
-      {"label": "다른 testbed 만들기", "description": "Phase 1 인터뷰 다시 (다른 namespace 또는 다른 service)"},
-      {"label": "기존 삭제 후 새로", "description": "kubectl delete ns 후 정상 진행 — 데이터 / DB 모두 사라짐 ⚠️"},
-      {"label": "그대로 재배포 (idempotent)", "description": "현재 상태 위에 ansible apply — 변경 없으면 ok=N changed=0"}
+      {"label": "다른 testbed 만들기", "description": "Phase 1 인터뷰 다시 (다른 cluster_name = 다른 testbed 이름)"},
+      {"label": "기존 cluster 삭제 후 새로", "description": "k3d cluster delete <name> (또는 k3s 면 kubectl delete ns) 후 정상 진행 — 데이터 / DB 모두 사라짐 ⚠️"},
+      {"label": "그대로 재배포 (idempotent)", "description": "현재 cluster 위에 ansible apply — helm upgrade --install 이 변경분만 적용"}
     ]
   }
 ])
@@ -216,14 +220,27 @@ AskUserQuestion(questions=[
 선택별 분기:
 - (1) → Phase 5~9 skip, Phase 10 (generate-scenarios) 로 점프
 - (2) → Phase 1 으로 복귀
-- (3) → `kubectl delete ns ${APP_NAMESPACE} --wait=true` 후 Phase 5 진행
-- (4) → 그대로 Phase 5 진행 (default behavior)
+- (3) → k3d: `sshpass -e ssh ${TARGET_USER}@${TARGET_HOST} "k3d cluster delete ${CLUSTER_NAME}"` 후 Phase 5 / k3s: `kubectl delete ns ${APP_NAMESPACE} --wait=true`
+- (4) → 그대로 Phase 5 진행 (helm upgrade --install 이 idempotent)
 
-`NS_EXISTS=0` (깨끗) 이면 카드 자체 skip → Phase 5 직행.
+`CLUSTER_EXISTS=0` (깨끗) 이면 카드 자체 skip → Phase 5 직행.
 
-### [Phase 5] Lock 획득
+⚠️ **port 충돌 사전 점검 (다중 testbed 동시 운영 시)**: 같은 호스트에 다른 testbed 가 떠있는데 cluster_name 만 다르면 — k3d_api_port (6443) / scenario_runner_port (8091) 등이 충돌 가능. 인터뷰가 다른 port 받지 않았다면 사용자에게 안내:
+```bash
+PORTS_IN_USE=$(sshpass -e ssh ${TARGET_USER}@${TARGET_HOST} "ss -tlnp 2>/dev/null | grep -E ':6443|:8091' | wc -l")
+[ "$PORTS_IN_USE" -gt 0 ] && warn "host port 충돌 가능 — 다른 cluster 가 같은 port 사용 중. 인터뷰 다시 + 다른 port 입력 필요"
+```
 
-target_host 확정됐으니 [references/concurrency-lock.md](references/concurrency-lock.md) 의 flock 획득.
+### [Phase 5] Lock 획득 (cluster 단위)
+
+target_host + cluster_name 확정됐으니 [references/concurrency-lock.md](references/concurrency-lock.md) 의 flock 획득. lock key 는 `<target_host>_<cluster_name>` — 같은 호스트의 **다른** testbed 는 동시 빌드 가능 (k3d cluster 단위 격리), 같은 cluster 의 동시 빌드만 차단.
+
+```bash
+LOCK_KEY="${TARGET_HOST}_${CLUSTER_NAME}"
+LOCK_FILE="$HOME/.testbed-build/.locks/${LOCK_KEY}.lock"
+exec 200>"$LOCK_FILE"
+flock -n 200 || { echo "FATAL: 이미 ${LOCK_KEY} 빌드 진행 중"; exit 1; }
+```
 
 ### [Phase 6] Services-Author (조건부 — 새 testbed 생성 시만)
 

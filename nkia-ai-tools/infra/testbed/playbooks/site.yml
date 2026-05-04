@@ -78,12 +78,13 @@
       ansible.builtin.debug:
         msg: "Target arch: {{ target_arch }} (ansible_architecture={{ ansible_architecture }}, os={{ ansible_distribution }} {{ ansible_distribution_version }})"
   # Role order rationale:
-  #   1. common — Docker / K3s / metrics-server / firewall / Go (ARM)
+  #   1. common — Docker / k3d (또는 native K3s legacy) / firewall / Go (ARM)
   #   2. agent-wpm, agent-apm — JVM agent jars must exist on host BEFORE service-k8s mounts them
-  #   3. service-k8s — Spring boot + DB; mounts wpm/apm jars via hostPath
-  #   4. agent-kcm — DaemonSet over the running K3s cluster
-  #   5. agent-sms — host-level systemd; independent of K3s
-  #   6. scenario-runner — RCA 장애 시나리오 실행 웹 서비스 (docker-compose). Polestar10 무관.
+  #   3. cluster-manager — testbed 별 별 K8s cluster 생성 (k3d) + KUBECONFIG export + metrics-server
+  #   4. service-k8s — Spring boot + DB; mounts wpm/apm jars via hostPath; KUBECONFIG=testbed cluster
+  #   5. agent-kcm — helm chart 로 master + node 배포 (testbed 별 cluster 안)
+  #   6. agent-sms — host-level systemd; independent of K8s
+  #   7. scenario-runner — RCA 장애 시나리오 실행 웹 서비스 (docker-compose), testbed 별 별 인스턴스
   # SoT 10-step view orders agents AFTER service deploy. Implementation order differs for technical reasons (mount sequencing).
   roles:
     - role: common
@@ -92,6 +93,8 @@
       tags: [agents, wpm]
     - role: agent-apm
       tags: [agents, apm]
+    - role: cluster-manager
+      tags: [cluster]
     - role: service-k8s
       tags: [service]
     - role: agent-kcm

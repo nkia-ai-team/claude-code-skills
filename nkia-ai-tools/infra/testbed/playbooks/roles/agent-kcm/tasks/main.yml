@@ -131,15 +131,24 @@
       register: kcm_build_arm
       changed_when: "'writing image' in kcm_build_arm.stderr or 'Successfully built' in kcm_build_arm.stdout"
 
-    - name: Import KCM ARM image into K3s containerd
+    - name: Import KCM ARM image into k3d cluster ({{ cluster_name }})
+      ansible.builtin.command: >
+        k3d image import {{ kcm_image_name }}:{{ kcm_agent_version }}-arm64
+        -c {{ cluster_name }}
+      when: cluster_kind | default('k3d') == 'k3d'
+      register: kcm_import_arm_k3d
+      changed_when: kcm_import_arm_k3d.rc == 0
+
+    - name: Import KCM ARM image into native K3s containerd (legacy)
       ansible.builtin.shell: |
         set -o pipefail
         docker save {{ kcm_image_name }}:{{ kcm_agent_version }}-arm64 \
           | /usr/local/bin/k3s ctr -n k8s.io images import -
       args:
         executable: /bin/bash
-      register: kcm_import_arm
-      changed_when: "'unpacked' in kcm_import_arm.stderr or 'unpacked' in kcm_import_arm.stdout"
+      when: cluster_kind | default('k3d') == 'k3s'
+      register: kcm_import_arm_k3s
+      changed_when: "'unpacked' in kcm_import_arm_k3s.stderr or 'unpacked' in kcm_import_arm_k3s.stdout"
 
 - name: AMD64 KCM URL not configured — skip apply
   ansible.builtin.debug:
@@ -149,12 +158,26 @@
     - target_arch == 'amd64'
     - kcm_image_url_amd64 | length == 0
 
-- name: Check KCM image present in containerd
+- name: Check KCM image present (k3d cluster)
   ansible.builtin.shell: |
-    /usr/local/bin/k3s ctr -n k8s.io images ls -q | grep -q "{{ kcm_image_name }}"
-  register: kcm_image_present
+    docker exec k3d-{{ cluster_name }}-server-0 ctr -n k8s.io images ls -q | grep -q "{{ kcm_image_name }}"
+  when: cluster_kind | default('k3d') == 'k3d'
+  register: kcm_image_present_k3d
   changed_when: false
   failed_when: false
+
+- name: Check KCM image present (native K3s containerd, legacy)
+  ansible.builtin.shell: |
+    /usr/local/bin/k3s ctr -n k8s.io images ls -q | grep -q "{{ kcm_image_name }}"
+  when: cluster_kind | default('k3d') == 'k3s'
+  register: kcm_image_present_k3s
+  changed_when: false
+  failed_when: false
+
+- name: Unify image-present rc into kcm_image_present
+  ansible.builtin.set_fact:
+    kcm_image_present:
+      rc: "{{ kcm_image_present_k3d.rc | default(kcm_image_present_k3s.rc | default(1)) }}"
 
 # KCM 배포는 lucida-kcmagent 레포의 자체 Helm chart (deploy/kcm-agent) 를 사용.
 # Chart 가 master Deployment + Service (NATS server) + node DaemonSet + ConfigMap
@@ -205,18 +228,22 @@
         -f /tmp/kcm-values.yaml
         --wait --timeout 5m
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: "{{ kubeconfig_path }}"
       register: kcm_helm_result
       changed_when: "'STATUS: deployed' in kcm_helm_result.stdout"
 
     - name: Wait for KCM master Deployment rollout
       ansible.builtin.command: >
-        /usr/local/bin/k3s kubectl -n {{ kcm_namespace | default('kcm-monitoring') }}
+        kubectl -n {{ kcm_namespace | default('kcm-monitoring') }}
         rollout status deployment/kcm-master-agent --timeout=300s
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
       changed_when: false
 
     - name: Wait for KCM node DaemonSet rollout
       ansible.builtin.command: >
-        /usr/local/bin/k3s kubectl -n {{ kcm_namespace | default('kcm-monitoring') }}
+        kubectl -n {{ kcm_namespace | default('kcm-monitoring') }}
         rollout status daemonset/kcm-node-agent --timeout=300s
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
       changed_when: false
