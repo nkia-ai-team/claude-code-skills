@@ -306,6 +306,8 @@ AskUserQuestion(questions=[
 
 #### 카드형 (default-present 슬롯) — 묶음 AskUserQuestion
 
+타겟 서버 IP 와 SSH user 는 default 가 명확해서 카드형이 자연스럽습니다 (109 / nkia). Polestar10 사용자 계정은 환경마다 다양해서 (admin / nkia / 별도 운영 계정) 카드 옵션을 미리 정해두는 가치가 적으므로 다음 단계 비밀 입력 흐름에서 자유 입력으로 받습니다.
+
 ```python
 AskUserQuestion(questions=[
   {
@@ -323,14 +325,6 @@ AskUserQuestion(questions=[
     "options": [
       {"label": "nkia (Recommended)", "description": "109/96/104 공통 user. 일반적으로 nkia."}
     ]
-  },
-  {
-    "question": "Polestar10 사용자 ID 는 누구인가요? (자원 등록·알람·메트릭 API 호출 권한 있는 계정)",
-    "header": "P10 user",
-    "multiSelect": False,
-    "options": [
-      {"label": "admin (Recommended)", "description": "보통 admin 계정이 모든 권한 가짐"}
-    ]
   }
 ])
 # Other 가 자동 추가되어 자유 입력 가능 (예: 다른 IP, 다른 user)
@@ -338,21 +332,29 @@ AskUserQuestion(questions=[
 
 > ⚠️ **Polestar10 base_url 의 Other 케이스**: 첫 인터뷰의 P10 서버 카드에서 Other 선택 시 위 묶음과 별 턴에 자유 입력 prompt: "Polestar10 base_url 을 직접 입력해 주세요 (`https://...` 형식)".
 
-#### 비밀 입력 — 단독 턴 텍스트 prompt (보안상 카드 X)
+#### 자유 입력 — 단독 턴 텍스트 prompt (Polestar10 자격증명 + 비밀)
 
-각 비밀은 한 번에 하나씩 (위 § 강제 규칙: 자유 입력 단독 턴):
+Polestar10 사용자 ID + password, 그리고 SSH 비밀은 카드형 default 가 의미 없거나 보안상 카드 표시 X. 단독 턴 텍스트 prompt 로 한 번에 묶어서 받습니다 (자유 입력끼리 묶음은 위 § 강제 규칙에서 허용).
 
-1. **타겟 서버 SSH password** (인증 방식이 password 일 때만)
+**Polestar10 자격증명** (~/.polestar10rc 부재 시 한 번만):
+```
+Polestar10 사용자 ID 와 password 를 알려주세요. 자원 등록·알람·메트릭
+API 호출 권한이 있는 계정이 필요합니다 (보통 admin 권한 계정). 입력은
+~/.polestar10rc (chmod 600) 에 저장되어 testbed-polestar10-register
+와 공유되며, 다음 호출부터 묻지 않습니다.
+
+  - Polestar10 사용자 ID:
+  - Polestar10 password:
+```
+
+**SSH 비밀** (인증 방식 따라 한 번만):
+1. **타겟 서버 SSH password** (인증 방식이 password 일 때)
    ```
    타겟 서버 SSH password 를 입력해 주세요:
    ```
-2. **SSH key 경로** (인증 방식이 ssh_key 일 때만, default `~/.ssh/id_rsa`)
+2. **SSH key 경로** (인증 방식이 ssh_key 일 때, default `~/.ssh/id_rsa`)
    ```
    SSH key 경로를 입력해 주세요 (default ~/.ssh/id_rsa, Enter 로 default 사용):
-   ```
-3. **Polestar10 password** (~/.polestar10rc 부재 시)
-   ```
-   Polestar10 password 를 입력해 주세요:
    ```
 
 > 🚫 **출력 가이드**: prompt 안에 "예시 답변 형식" / "다음과 같이 입력" 식으로 sample value (특히 자격증명) 절대 박지 말 것. LLM 이 메모리에서 본 자격증명을 sample 로 가져오면 화면 노출 사고 (PR #30 참조).
