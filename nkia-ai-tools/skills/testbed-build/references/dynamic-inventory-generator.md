@@ -38,12 +38,12 @@ all:
           testbed_services: {{TESTBED_SERVICES}} # 예: [post, feed, comment, notification]
           db_kind: "{{DB_KIND}}"
 
-          # === KCM 자격증명 (ARM64 + KCM enabled 시 필수. bootstrap.agents 에서 흘림) ===
-          # KCM_DISABLE_BY_USER_CHOICE 변수: 사용자가 인터뷰에서 명시적으로
-          # "KCM 비활성" 선택했을 때만 true. ansible playbook 이 자동으로
-          # disable 결정하는 흐름은 금지 (사용자 명시 결정만).
-          kcm_enabled: {{KCM_ENABLED}}           # bootstrap.agents 의 사용자 결정. ARM 인터뷰 결과
-          kcm_source_repo: "{{KCM_SOURCE_REPO}}" # 사용자가 인터뷰에서 입력한 GitLab URL (또는 빈값)
+          # === KCM (ARM64 + enabled 시) — controller fetch + scp 패턴 ===
+          # 타겟에는 GitLab 자격증명 없는 게 일반적이라 controller 에서
+          # 소스 확보 후 scp/rsync 로 전달. agent-kcm role 이 사용.
+          kcm_enabled: {{KCM_ENABLED}}           # 사용자 인터뷰 결정 (KCM 비활성 명시 선택 시만 false)
+          kcm_local_path: "{{KCM_LOCAL_PATH}}"   # controller 의 lucida-kcmagent 절대 경로. bootstrap.paths.kcm_local_source.
+          kcm_source_branch: "{{KCM_SOURCE_BRANCH}}"  # default `develop`
 
           # === 신규 testbed 시 services-author 가 만든 정보 ===
           # is_new_variant=true 면 Phase 6 산출 (manifest.scenario_hints) 도 vars 로 흘려보내

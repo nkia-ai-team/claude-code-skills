@@ -38,63 +38,90 @@
     - target_arch == 'arm64'
     - kcm_source_repo | default('') | length == 0
 
-# ARM64 KCM 은 사내 GitLab (cims2.nkia.net) 의 lucida-kcmagent 소스 빌드.
-# 자격증명 없거나 GitLab 도달 불가 시 ansible.builtin.git 모듈이 무한 hang
-# (회고 P1 #6 — 12분+ 대기 케이스 발견). graceful skip 패턴:
-#   - shallow clone (depth=1, single_branch) 으로 데이터량 최소화
-#   - GIT_TERMINAL_PROMPT=0 / GIT_ASKPASS=/bin/true 로 인증 prompt 차단
-#   - timeout=60 으로 hang 방지
-#   - ignore_errors → kcm_clone_succeeded fact 후속 task 가 의존
-#   - 실패 시 사용자에게 명확한 안내 후 KCM 외 나머지 phase 는 정상 진행
-- name: ARM64 — build KCM from source (lucida-kcmagent)
+# ARM64 KCM = 사내 GitLab (cims2.nkia.net) 의 lucida-kcmagent 소스 빌드.
+# 타겟 (109 등) 에는 GitLab 자격증명이 없으므로, controller 에서 git
+# 작업 + scp/rsync 로 소스 전달 → 타겟에서 build 만 수행.
+#
+# 흐름:
+#   1. controller 에서 lucida-kcmagent 소스 확보 (kcm_local_path 변수)
+#      - testbed-build 스킬이 phase 7 직전에 cwd 검색 → 없으면 사용자
+#        path 받음 → 그래도 없으면 controller 에 자동 clone 후 path 결정
+#      - manual ansible 실행 시: -e kcm_local_path=<absolute path> 로 전달
+#   2. controller 에서 develop branch 최신화 (fetch + checkout + pull)
+#   3. ansible.posix.synchronize 로 타겟 staging 에 rsync (become: false)
+#   4. sudo cp 로 /opt/lucida-kcmagent 이동
+#   5. 타겟에서 Go build → docker build → ctr import
+- name: ARM64 — build KCM from source (controller fetch + scp 패턴)
   when:
     - kcm_enabled | default(true) | bool
     - target_arch == 'arm64'
-    - kcm_source_repo | default('') | length > 0
   block:
-    - name: Ensure source dir
+    - name: kcm_local_path 변수 검증 — controller 의 lucida-kcmagent 소스 path
+      ansible.builtin.assert:
+        that:
+          - kcm_local_path is defined
+          - kcm_local_path | length > 0
+        fail_msg: |
+          kcm_local_path 가 미설정. testbed-build 스킬은 phase 7 직전에 cwd 검색
+          + 사용자 path 인터뷰 + (필요 시) controller 자동 clone 으로 이 변수를
+          채워야 합니다. manual ansible 실행 시:
+            ansible-playbook -e kcm_local_path=/path/to/lucida-kcmagent ...
+
+    - name: controller 에서 lucida-kcmagent .git 존재 확인
+      delegate_to: localhost
+      become: false
+      ansible.builtin.stat:
+        path: "{{ kcm_local_path }}/.git"
+      register: kcm_local_git_stat
+
+    - name: controller 의 path 가 git repo 가 아니면 fail-fast
+      ansible.builtin.fail:
+        msg: |
+          {{ kcm_local_path }} 에 .git 이 없음. testbed-build 스킬이 cwd 검색 / 사용자
+          path / 자동 clone 단계에서 잘못된 경로를 결정했거나, manual ansible 호출
+          시 사용자가 잘못된 -e kcm_local_path 를 줬습니다.
+      when: not kcm_local_git_stat.stat.exists
+
+    - name: controller 에서 develop branch 최신화 (fetch + checkout + pull)
+      delegate_to: localhost
+      become: false
+      ansible.builtin.shell: |
+        set -e
+        cd "{{ kcm_local_path }}"
+        git fetch --quiet origin
+        git checkout --quiet "{{ kcm_source_branch | default('develop') }}"
+        git pull --ff-only --quiet origin "{{ kcm_source_branch | default('develop') }}"
+      changed_when: false
+
+    - name: 타겟 의 staging dir 준비
+      become: false
       ansible.builtin.file:
-        path: /opt/lucida-kcmagent
+        path: "/home/{{ ansible_user_id }}/.kcm-staging"
         state: directory
         mode: '0755'
 
-    - name: Clone lucida-kcmagent (사내 GitLab — best-effort, hang 방지)
-      ansible.builtin.git:
-        repo: "{{ kcm_source_repo }}"
-        dest: /opt/lucida-kcmagent
-        version: "{{ kcm_source_branch }}"
-        depth: 1
-        single_branch: true
-        force: false
-      environment:
-        GIT_TERMINAL_PROMPT: "0"
-        GIT_ASKPASS: "/bin/true"
-        GCM_INTERACTIVE: "Never"
-      register: kcm_clone
-      timeout: 60
-      ignore_errors: true
+    - name: lucida-kcmagent 소스 controller → target rsync (no sudo, hang 방지)
+      become: false
+      ansible.posix.synchronize:
+        src: "{{ kcm_local_path }}/"
+        dest: "/home/{{ ansible_user_id }}/.kcm-staging/lucida-kcmagent/"
+        delete: true
+        rsync_opts:
+          - "--exclude=.git"
 
-    - name: Set kcm_clone_succeeded fact
-      ansible.builtin.set_fact:
-        kcm_clone_succeeded: "{{ kcm_clone is succeeded }}"
-
-    - name: KCM clone 실패 안내 (사내 GitLab 자격증명 / 도달성 점검)
-      ansible.builtin.debug:
-        msg: |
-          KCM clone 실패 — 다음 중 하나로 추정:
-            - 사내 GitLab ({{ kcm_source_repo }}) 도달 불가 (VPN / 방화벽)
-            - 자격증명 미설정 (clone 시 prompt 가 차단됐을 가능성)
-            - 레포 경로 오타
-          KCM 외 나머지 phase 는 정상 진행. KCM 필요시 사용자 직접 자격증명
-          설정 후 ansible-playbook 재실행 권장.
-      when: not kcm_clone_succeeded
+    - name: /opt/lucida-kcmagent 으로 sudo cp 이동
+      ansible.builtin.shell: |
+        set -e
+        rm -rf /opt/lucida-kcmagent
+        cp -a "/home/{{ ansible_user_id }}/.kcm-staging/lucida-kcmagent" /opt/lucida-kcmagent
+        chown -R root:root /opt/lucida-kcmagent
+      changed_when: true
 
     - name: Build kcm-agent binary (Go) on target
       ansible.builtin.command: /usr/local/bin/go build -o build/kcm-agent ./cmd/agent
       args:
         chdir: /opt/lucida-kcmagent
         creates: /opt/lucida-kcmagent/build/kcm-agent
-      when: kcm_clone_succeeded
 
     - name: Build container image
       ansible.builtin.command: docker build -t {{ kcm_image_name }}:{{ kcm_agent_version }}-arm64 .
@@ -102,9 +129,6 @@
         chdir: /opt/lucida-kcmagent
       register: kcm_build_arm
       changed_when: "'writing image' in kcm_build_arm.stderr or 'Successfully built' in kcm_build_arm.stdout"
-      when:
-        - kcm_clone_succeeded
-        - kcm_clone.changed or (force_rebuild | default(false))
 
     - name: Import KCM ARM image into K3s containerd
       ansible.builtin.shell: |
@@ -115,9 +139,6 @@
         executable: /bin/bash
       register: kcm_import_arm
       changed_when: "'unpacked' in kcm_import_arm.stderr or 'unpacked' in kcm_import_arm.stdout"
-      when:
-        - kcm_clone_succeeded
-        - kcm_clone.changed or (force_rebuild | default(false))
 
 - name: AMD64 KCM URL not configured — skip apply
   ansible.builtin.debug:
