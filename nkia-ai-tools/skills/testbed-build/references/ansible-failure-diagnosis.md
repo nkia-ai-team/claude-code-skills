@@ -101,6 +101,10 @@ transient 또는 자동 fix 가능. 사용자 prompt:
 ```
 yes → fix 명령 실행 → ansible-playbook 재호출 → 다시 verdict
 
+> 🚫 **자동 disable 금지 룰**: testbed-engineer agent 가 KCM / WPM / APM / SMS 같은 에이전트를 자동으로 비활성 (`<agent>_enabled=false`) 으로 결정하는 fix 는 절대 금지. 에이전트 비활성은 RCA 검증 범위 축소 → 사용자 명시 승인 필수. 사용자가 인터뷰에서 직접 "비활성" 옵션을 선택하지 않았는데 LLM 이 fail-fast 후 알아서 disable 처리하면 ansible 은 통과하지만 사용자가 의도한 RCA 검증을 못 함.
+>
+> KCM 빌드 실패 케이스: 자격증명 누락 / GitLab 도달 X / 빌드 prereq 부족 등은 모두 사용자 인터뷰로 해결할 영역. testbed-engineer 가 verdict 에 fix 권고를 적되, 실제 inventory 수정 / kcm_enabled 변경은 **사용자에게 별 AskUserQuestion 카드로 묻고** 진행.
+
 ```bash
 if [ "$SEVERITY" = "recoverable" ]; then
   read -r -p "fix 적용 후 재시도? [Y/n] " ANS

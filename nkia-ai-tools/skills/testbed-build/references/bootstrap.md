@@ -357,6 +357,37 @@ API 호출 권한이 있는 계정이 필요합니다 (보통 admin 권한 계�
    SSH key 경로를 입력해 주세요 (default ~/.ssh/id_rsa, Enter 로 default 사용):
    ```
 
+#### KCM (사내 GitLab 자격증명) — 타겟 arch 가 ARM64 인 경우만
+
+타겟 서버 SSH 가 통한 직후 `uname -m` 으로 아키텍처를 자동 감지합니다. ARM64 (109 DGX Spark 같은) 인 경우 KCM 에이전트는 사내 GitLab 의 lucida-kcmagent 소스를 타겟에서 직접 빌드하기 때문에 GitLab 자격증명이 필요합니다. AMD64 인 경우는 prebuilt 이미지를 사용하므로 본 단계 skip.
+
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "타겟 서버가 ARM64 (예: 109 DGX Spark) 입니다. KCM 에이전트는 ARM64 에서 사내 GitLab (cims2.nkia.net) 의 lucida-kcmagent 소스를 빌드합니다. 어떻게 진행하시겠어요? 방금 실패한 phase 8 의 회고에서 KCM clone 에 자격증명이 필요했던 걸로 확인됐습니다.",
+    "header": "ARM64 KCM",
+    "multiSelect": False,
+    "options": [
+      {"label": "GitLab 자격증명 직접 입력 (Recommended)", "description": "다음 턴에 GitLab URL (default: https://cims2.nkia.net:8443/gitlab/lucida-kcmagent) + username + token 을 자유 입력으로 받습니다. 입력값은 bootstrap.yaml 에 저장되며 ansible playbook 의 kcm_source_repo 변수로 전달."},
+      {"label": "KCM 만 비활성 (다른 5종 자원만 등록)", "description": "K8s 컨테이너 메트릭은 수집 안 함. SMS / APM / WPM / DPM / NMS 5종으로 RCA 검증. 향후 KCM 추가하려면 ~/.testbed-build/bootstrap.yaml 의 agents.kcm_source_repo 채우고 inventory 의 kcm_enabled=true 로."}
+    ]
+  }
+])
+```
+
+"GitLab 자격증명 직접 입력" 선택 시 다음 턴에 자유 입력 prompt:
+```
+사내 GitLab 의 lucida-kcmagent 자격증명을 입력해 주세요. testbed-build 가
+타겟 서버에서 git clone 시 사용합니다. 자격증명은 bootstrap.yaml (chmod 600)
+에 저장되며 다음 호출부터 묻지 않습니다.
+
+  - GitLab URL (default https://cims2.nkia.net:8443/gitlab/lucida-kcmagent):
+  - GitLab username:
+  - GitLab personal access token:
+```
+
+→ bootstrap.yaml 의 `agents.kcm_source_repo` 와 `agents.kcm_source_credentials` 슬롯에 저장. dynamic-inventory-generator 가 다음 phase 에서 host vars 로 흘려보냄.
+
 > 🚫 **출력 가이드**: prompt 안에 "예시 답변 형식" / "다음과 같이 입력" 식으로 sample value (특히 자격증명) 절대 박지 말 것. LLM 이 메모리에서 본 자격증명을 sample 로 가져오면 화면 노출 사고 (PR #30 참조).
 
 → 모든 답변 종합 → `~/.testbed-build/bootstrap.yaml` (chmod 600) + `~/.polestar10rc` (chmod 600). 다음 호출부터 묻지 않음. 자격증명 변경 시 사용자가 직접 yaml 편집 또는 파일 삭제 후 재인터뷰.
