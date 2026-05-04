@@ -59,8 +59,8 @@ manifest.yaml + register.json + scenarios.json + alarms.json + verify.log 모두
 |---|---|---|
 | SMS | 192.168.200.109 (호스트) | UP |
 | KCM | cluster-abc123 | UP |
-| APM | 5 services (order/product/inventory/payment/notification) | UP |
-| WPM | 5 services (동일) | UP |
+| APM | {{SERVICE_COUNT}} services ({{SERVICE_NAMES_INLINE}}) | UP |
+| WPM | {{SERVICE_COUNT}} services (동일) | UP |
 | DPM | postgres@rca-testbed-v2 | UP |
 | NMS | (skip — interview.nms.enabled=false) | — |
 -->

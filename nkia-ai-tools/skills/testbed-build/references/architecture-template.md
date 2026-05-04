@@ -6,6 +6,8 @@ testbed-build Phase 3 에서 인라인으로 채워 사용자 승인 받는 문�
 
 interview.yaml 의 답변으로 다음 변수 채움:
 - `{{TESTBED_NAME}}` — interview.app.testbed_name
+- `{{SERVICE_COUNT}}` — interview.app.services 의 길이 (예: 4, 5, 6)
+- `{{SERVICE_NAMES_INLINE}}` — services[].name 을 슬래시로 join (예: `account/transfer/ledger/audit`)
 - `{{TARGET_HOST}}` — interview.target.host
 - `{{TARGET_USER}}` — interview.target.user
 - `{{TARGET_ARCH}}` — interview.target.arch
@@ -90,7 +92,7 @@ graph TB
   subgraph "{{TARGET_HOST}} ({{TARGET_ARCH}})"
     K3s[K3s 클러스터]
     subgraph "Namespace: {{NAMESPACE}}"
-      App[5 Microservices<br/>(order/product/inventory/payment/notification)]
+      App[{{SERVICE_COUNT}} Microservices<br/>({{SERVICE_NAMES_INLINE}})]
       DB[({{DB_KIND}})]
     end
     K3s --> App
@@ -130,8 +132,8 @@ graph TB
 |---|---|---|---|
 | SMS | ✅ systemd | 호스트 1개 ({{TARGET_HOST}}) | qemu-user-static (ARM 시) |
 | KCM | ✅ DaemonSet | 클러스터 1개 | ARM 은 lucida-kcmagent 소스 빌드 |
-| APM | ✅ JVM agent | 5 services | OTLP collector |
-| WPM | ✅ JVM agent | 5 services | UDP/TCP collector |
+| APM | ✅ JVM agent | {{SERVICE_COUNT}} services | OTLP collector |
+| WPM | ✅ JVM agent | {{SERVICE_COUNT}} services | UDP/TCP collector |
 | DPM | ❌ (DB-direct) | 1 자원 ({{DB_KIND}}@{{NAMESPACE}}) | Polestar10 backend 직접 접속 |
 | NMS | ❌ (SNMP polling) | {{#if NMS_ENABLED}}<장비 N개>{{else}}skip{{/if}} | SNMP v2c/v3 |
 
