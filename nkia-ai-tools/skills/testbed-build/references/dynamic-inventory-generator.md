@@ -113,7 +113,8 @@ all:
 | `APM_ENABLED` | true | 동일 |
 | `KCM_ENABLED` | true (default) | ARM64 인터뷰에서 사용자가 "KCM 비활성" 명시 선택 시만 false |
 | `SMS_ENABLED` | true | 동일 |
-| `KCM_SOURCE_REPO` | bootstrap.agents.kcm_source_repo | ARM64 + KCM enabled 인 경우 인터뷰에서 입력 받음. AMD64 면 빈값 OK |
+| `KCM_LOCAL_PATH` | bootstrap.paths.kcm_local_source | ARM64 + KCM enabled 인 경우만. controller 의 lucida-kcmagent 절대 경로 (인터뷰 / cwd 검색 / 자동 clone 결과). AMD64 면 빈값 OK. **role 의 fail-fast 는 본 변수만 검사 — `kcm_source_repo` 는 별 변수로 남아있으나 controller 자동 clone 시점에만 사용** |
+| `KCM_SOURCE_BRANCH` | bootstrap.agents.kcm_source_branch | default `develop`. controller 에서 git checkout/pull 시 사용 |
 
 ## 환경 변수 export (ansible-playbook 호출 직전)
 

@@ -47,7 +47,7 @@
       PORT={{ scenario_runner_port | default(8091) }}
       SCRIPTS_HOST_PATH=./scenarios/services/{{ app_subdir }}/scripts
       LOGS_HOST_PATH=./logs
-      KUBECONFIG_HOST_PATH=/home/{{ ansible_user_id }}/.kube
+      KUBECONFIG_HOST_PATH=/home/{{ ansible_user }}/.kube
   become: false
   when:
     - scenario_runner_enabled | default(true)

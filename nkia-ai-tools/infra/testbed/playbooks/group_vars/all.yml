@@ -124,5 +124,5 @@ sms_install_dir: "/opt/polestar10/sms"
 scenario_runner_enabled: true
 scenario_runner_repo_url: "https://github.com/nkia-ai-team/rca-scenario-runner.git"
 scenario_runner_branch: "main"
-scenario_runner_install_dir: "/home/{{ ansible_user_id }}/rca-scenario-runner"
+scenario_runner_install_dir: "/home/{{ ansible_user }}/rca-scenario-runner"
 scenario_runner_port: 8091

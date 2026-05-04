@@ -83,33 +83,9 @@ AskUserQuestion(questions=[
 
 ---
 
-## ⚠️ Step 0.5 — 첫 호출 권한 prompt 안내 (sshpass / ansible-playbook)
+## Step 0.5 — 권한 prompt 발생 시 (조건부)
 
-testbed-build 가 처음 SSH precheck 또는 ansible 단계에 들어가면 Claude Code 가 권한 prompt 를 띄웁니다. **plugin 자체로 wildcard 권한을 자동 부여할 공식 메커니즘이 없으므로** (settings.json 의 `permissions` 키는 plugin scope 에서 silently ignored — [공식 docs 확인](https://code.claude.com/docs/en/plugins#ship-default-settings-with-your-plugin)), 사용자가 첫 호출 시 한 번 직접 허용해야 합니다.
-
-인터뷰 진입 직후 사용자에게 다음을 명시 (1회 안내, 매번 X):
-
-```
-=== 권한 안내 (1회) ===
-
-testbed-build 진행 중 다음과 같은 Claude Code 권한 prompt 가 한두 번 뜹니다.
-"Always allow" 의 wildcard prefix 옵션을 선택하시면 다음 호출부터 자동 통과됩니다.
-
-  1. SSH precheck — `sshpass -e ssh ...`
-     → "Always allow Bash(sshpass -e ssh:*)" 선택
-
-  2. Ansible 배포 — `ansible-playbook ...`
-     → "Always allow Bash(ansible-playbook:*)" 선택
-
-비번/PAT 등 비밀 값은 환경변수 (SSHPASS) 로만 전달되며 명령행 / settings.json
-에 평문 저장되지 않습니다 (sshpass `-p '<plain>'` 패턴 X).
-
-권한을 한 번에 거부 (Deny) 하시면 testbed-build 가 phase 1 또는 phase 7 에서 멈춥니다.
-```
-
-**왜 plugin 에 박지 못 하나** — `nkia-ai-tools/settings.json` 에 `{"permissions": {"allow": [...]}}` 박아도 Claude Code 가 무시 (현재 plugin settings.json 에서 지원하는 키는 `agent`, `subagentStatusLine` 두 개뿐). 추후 Claude Code 가 plugin 단위 permission 번들을 지원하면 본 안내는 자동화로 옮길 예정.
-
-**진행 차단 안 함** — 본 안내는 출력만 하고 testbed-build 는 다음 단계로 계속 진행. 사용자가 prompt 를 만났을 때 어떤 옵션을 누를지 미리 알려주는 게 목적.
+testbed-build 가 `sshpass -e ssh ...` 또는 `ansible-playbook ...` 권한 prompt 를 **실제로 띄울 때만** 사용자에게 "Always allow Bash(\<prefix\>:*)" 옵션을 권유 (다음부터 자동 통과). prompt 가 안 뜨면 (이미 룰 박혀있는 상태) 안내 출력 X — 미리 안내 금지.
 
 ---
 
