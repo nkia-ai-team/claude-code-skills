@@ -93,8 +93,10 @@ AskUserQuestion(questions=[
 테스트베드 구축을 위해서는 두 개의 서버가 필요합니다:
 
   1. 타겟 서버 (Target Host) — SSH 접근 필요
-     테스트베드가 깔릴 곳. K3s + 5 services + Polestar10 에이전트
-     4종 (KCM/APM/WPM/SMS) + rca-scenario-runner 가 설치됨.
+     테스트베드가 깔릴 곳. K3s 클러스터 + DB + 여러 microservices
+     (testbed 마다 개수·구성 다름. plopvape-shop 은 5종, social-feed
+     는 4종 등) + Polestar10 에이전트 4종 (KCM/APM/WPM/SMS) +
+     rca-scenario-runner 가 설치됨.
      예: 109 DGX Spark (192.168.200.109)
 
   2. Polestar10 모니터링 서버 (Polestar10 instance) — HTTP(S) 접근 필요
@@ -200,7 +202,8 @@ testbed-build 가 의존하는 두 외부 레포가 있습니다. 사용자가 �
 [외부 레포 역할 안내]
 
   1. testbed-services — RCA 분석 대상이 될 microservices 코드 모음
-     예: plopvape-shop (e-commerce 5 services), social-feed (소셜 피드)
+     예: plopvape-shop (e-commerce, 5종 서비스), social-feed (소셜 피드, 4종)
+     각 testbed 마다 서비스 개수·도메인이 다름 (MSA 구조만 공통).
      이 레포의 한 디렉토리가 K3s 에 배포돼 RCA 검증 시 부하·장애의
      무대가 됩니다. 신규 도메인은 services-author agent 가 자동 생성.
      URL: https://github.com/nkia-ai-team/testbed-services
