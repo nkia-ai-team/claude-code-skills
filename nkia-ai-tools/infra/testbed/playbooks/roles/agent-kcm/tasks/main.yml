@@ -156,59 +156,67 @@
   changed_when: false
   failed_when: false
 
-# ⚠️ TODO (NKIAAI-542 follow-up) — KCM master 배포 누락
-# KCM 아키텍처 = master (NATS server + collector) + per-node agents (DaemonSet).
-# 현재 본 role 은 node agent (DaemonSet) 만 배포. master 가 없어서 node agent 가
-# nats://master 연결 실패 → standby 미감지 → Polestar10 에 자원 자동 등록 X.
+# KCM 배포는 lucida-kcmagent 레포의 자체 Helm chart (deploy/kcm-agent) 를 사용.
+# Chart 가 master Deployment + Service (NATS server) + node DaemonSet + ConfigMap
+# + Secret + RBAC 모두 generate. 직접 manifest 짤 필요 X.
 #
-# 정확한 fix 는 lucida-kcmagent 의 master 컴포넌트 build + K8s Deployment + Service
-# (NATS port 4222 expose) manifest 추가. follow-up issue 에서 처리.
+# 흐름:
+#   1. helm v3 CLI 자동 설치 (부재시)
+#   2. /opt/lucida-kcmagent/deploy/kcm-agent 의 chart path 확인
+#   3. /tmp/kcm-values.yaml 렌더 (clusterName / image / kcm.orgId / kcm.addr / kcm.insecure)
+#   4. helm upgrade --install kcm-agent <chart> -n kcm-monitoring -f /tmp/kcm-values.yaml
+#   5. master + node rollout 대기
 
-- name: Apply KCM RBAC + DaemonSet
+- name: Deploy KCM via helm chart (master + node)
   when:
     - kcm_enabled | default(true) | bool
     - kcm_image_present.rc == 0
   block:
-    - name: Ensure kcm namespace exists (kubectl diff chicken-and-egg fix)
-      # kubectl diff 가 신규 namespace 부재 시 rc=2 (namespace not found) 로 fail.
-      # apply 직전에 ns 를 미리 만들어 두면 diff 도 정상 동작.
-      ansible.builtin.command: /usr/local/bin/k3s kubectl create namespace kcm
-      register: kcm_ns_create
-      changed_when: kcm_ns_create.rc == 0
-      failed_when:
-        - kcm_ns_create.rc != 0
-        - "'AlreadyExists' not in kcm_ns_create.stderr"
-
-    - name: Render KCM RBAC manifest
-      ansible.builtin.template:
-        src: kcm-rbac.yaml.j2
-        dest: /tmp/kcm-rbac.yaml
-        mode: '0644'
-
-    - name: Render KCM DaemonSet manifest
-      ansible.builtin.template:
-        src: kcm-daemonset.yaml.j2
-        dest: /tmp/kcm-daemonset.yaml
-        mode: '0644'
-
-    - name: Diff KCM manifests against cluster state
-      ansible.builtin.command: >
-        /usr/local/bin/k3s kubectl diff
-        --field-manager=ansible-testbed
-        -f /tmp/kcm-rbac.yaml -f /tmp/kcm-daemonset.yaml
-      register: kcm_diff
+    - name: helm v3 binary 존재 확인
+      ansible.builtin.command: which helm
+      register: helm_check
       changed_when: false
-      failed_when: kcm_diff.rc not in [0, 1]
+      failed_when: false
 
-    - name: Apply KCM manifests (server-side, only when diff)
+    - name: helm v3 부재시 자동 설치 (snap)
+      ansible.builtin.shell: |
+        set -e
+        if command -v snap >/dev/null 2>&1; then
+          snap install helm --classic
+        else
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        fi
+      when: helm_check.rc != 0
+      register: helm_install_result
+      changed_when: helm_install_result.rc == 0
+
+    - name: kcm-values.yaml 렌더 (lucida-kcmagent helm chart 의 values 스키마)
+      ansible.builtin.template:
+        src: kcm-values.yaml.j2
+        dest: /tmp/kcm-values.yaml
+        mode: '0644'
+
+    - name: helm upgrade --install kcm-agent (master + node 둘 다 자동 배포)
       ansible.builtin.command: >
-        /usr/local/bin/k3s kubectl apply --server-side
-        --field-manager=ansible-testbed --force-conflicts
-        -f /tmp/kcm-rbac.yaml -f /tmp/kcm-daemonset.yaml
-      register: kcm_apply
-      changed_when: kcm_diff.rc == 1
-      when: kcm_diff.rc == 1
+        helm upgrade --install kcm-agent
+        /opt/lucida-kcmagent/deploy/kcm-agent
+        -n {{ kcm_namespace | default('kcm-monitoring') }}
+        --create-namespace
+        -f /tmp/kcm-values.yaml
+        --wait --timeout 5m
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: kcm_helm_result
+      changed_when: "'STATUS: deployed' in kcm_helm_result.stdout"
 
-    - name: Wait for KCM DaemonSet rollout
-      ansible.builtin.command: /usr/local/bin/k3s kubectl -n kcm rollout status ds/kcm-agent --timeout=300s
+    - name: Wait for KCM master Deployment rollout
+      ansible.builtin.command: >
+        /usr/local/bin/k3s kubectl -n {{ kcm_namespace | default('kcm-monitoring') }}
+        rollout status deployment/kcm-master-agent --timeout=300s
+      changed_when: false
+
+    - name: Wait for KCM node DaemonSet rollout
+      ansible.builtin.command: >
+        /usr/local/bin/k3s kubectl -n {{ kcm_namespace | default('kcm-monitoring') }}
+        rollout status daemonset/kcm-node-agent --timeout=300s
       changed_when: false

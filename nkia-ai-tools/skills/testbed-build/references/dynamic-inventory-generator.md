@@ -106,7 +106,7 @@ all:
 | `NAMESPACE` | interview.app.namespace | 그대로 |
 | `POLESTAR10_COLLECTOR_HOST` | bootstrap.polestar10.base_url 의 hostname | URL parse → hostname only |
 | `POLESTAR_ORGANIZATION_ID` | bootstrap.polestar10.organization_id | 24-hex. **빈값/누락 X** — Phase 1 인터뷰가 이미 받았어야 함. 빈값이면 SMS install role fail-fast |
-| `POLESTAR10_KCM_COLLECTOR_PORT` | bootstrap.polestar10.kcm_collector_port (없으면 group_vars default `20040`) | KCM DaemonSet env 의 KCM_COLLECTOR_PORT 채움 |
+| `POLESTAR10_KCM_COLLECTOR_PORT` | bootstrap.polestar10.kcm_collector_port (없으면 group_vars default `7575`) | KCM helm chart 의 `kcm.addr` (host:port) 의 port 부분. Polestar10 KCM backend 의 정석 port |
 | `POLESTAR10_SMS_BROKER_PORT` | bootstrap.polestar10.sms_broker_port (없으면 group_vars default `1883`) | SMS AgentInstall.sh -m 의 broker port |
 | `WPM_ENABLED` | true (default) | 사용자 인터뷰에서 disable 가능 |
 | `APM_ENABLED` | true | 동일 |

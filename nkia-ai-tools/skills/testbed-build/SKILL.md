@@ -65,7 +65,7 @@ chmod 700 ~/.testbed-build
 - ~/.git-credentials → git PAT 인터뷰 skip
 - bootstrap.yaml 의 polestar10.organization_id 가 비어있지 않음 → organization_id 인터뷰 skip
 
-⚠️ **organization_id 는 bootstrap.yaml 에 비어있으면 인터뷰 강제** — SMS install role 의 fail-fast 가드 + KCM DaemonSet 의 KCM_TENANT_ID env 가 모두 이 값을 참조. 빈값으로 진행하면 6종 자원 등록 시나리오에서 SMS/KCM standby 미감지 → PARTIAL verdict 로 끝남.
+⚠️ **organization_id 는 bootstrap.yaml 에 비어있으면 인터뷰 강제** — SMS install role 의 fail-fast 가드 + KCM helm chart 의 `kcm.orgId` (Secret `KCM_ORG_ID`) 가 모두 이 값을 참조. 빈값으로 진행하면 6종 자원 등록 시나리오에서 SMS/KCM standby 미감지 → PARTIAL verdict 로 끝남.
 
 상세 슬롯 정책 표는 [references/bootstrap.md](references/bootstrap.md) 의 "인터뷰 슬롯 정책 표" 참조.
 
@@ -319,7 +319,7 @@ ANSIBLE_PID=$!
 2. **broker / collector 도달성** (Polestar10 backend → target 의 NodePort 들)
    - DPM (mysql/postgres NodePort) 도달성 — `nc -zv $TARGET_HOST 30432` 또는 `30306`
    - SMS broker (1883) — `nc -zv $POLESTAR10_HOST $POLESTAR10_SMS_BROKER_PORT`
-   - KCM collector (20040) — `nc -zv $POLESTAR10_HOST $POLESTAR10_KCM_COLLECTOR_PORT`
+   - KCM backend (7575) — `nc -zv $POLESTAR10_HOST $POLESTAR10_KCM_COLLECTOR_PORT` (master Pod 가 Polestar10 KCM backend 로 push)
    - 실패 시 사용자에게 표 표시 + dispatch 진행 (각 자원 register 시점에 fail 하면 자동 skip 분기)
 
 3. **agent install 후 standby polling delay**
@@ -345,7 +345,7 @@ testbed-polestar10-register 가 일부 자원 등록 실패 시 PARTIAL 반환. 
 1. register.json 의 자원별 등록 표 사용자에게 표시 (성공 / 실패 / 미시도)
 2. 실패 자원에 대해 가능한 fix 제안:
    - SMS standby 미감지 → broker connectivity 재확인 + agent restart
-   - KCM standby 미감지 → DaemonSet env (KCM_TENANT_ID) 확인 + Pod restart
+   - KCM standby 미감지 → `helm get values kcm-agent -n kcm-monitoring` 으로 orgId / addr 확인 + master/node Pod logs (`kubectl logs -n kcm-monitoring deploy/kcm-master-agent`) 확인 + helm rollback / upgrade
    - APM (OTel) 자동 등록 안 됨 → Polestar10 web UI 직접 안내
    - DPM mysql 도달성 X → NodePort 방화벽 / network policy 확인
 3. 사용자 선택:

@@ -6,7 +6,7 @@ polestar10_wpm_collector_udp_port: 31002
 polestar10_wpm_collector_tcp_port: 31005
 # APM (OTel) 은 OTLP gRPC endpoint
 polestar10_apm_collector_otlp_endpoint: "http://192.168.230.104:6565"
-polestar10_kcm_collector_port: 20040
+polestar10_kcm_collector_port: 7575
 # SMS 는 AgentInstall.sh 의 -m 인자로 broker_ip:port (MQTT 1883)
 polestar10_sms_broker_port: 1883
 
@@ -103,8 +103,19 @@ apm_jar_name: "opentelemetry-javaagent.jar"
 # ARM 타겟에서 KCM 사용 시 inventory 또는 -e 로 override 또는 env KCM_SOURCE_REPO.
 # AMD64 는 kcm_image_url_amd64 (polestar-agents-binaries 후속, NKIAAI-537) 로 우회.
 kcm_source_repo: "{{ lookup('env', 'KCM_SOURCE_REPO') | default('', true) }}"
-kcm_source_branch: "main"
+kcm_source_branch: "develop"
 kcm_image_name: "polestar10-kcm"
+
+# KCM 배포는 lucida-kcmagent 의 자체 helm chart (deploy/kcm-agent) 사용.
+# Chart 가 master Deployment + Service (NATS server) + node DaemonSet + RBAC + ConfigMap + Secret 모두 generate.
+kcm_namespace: "kcm-monitoring"
+
+# KCM helm chart 의 kcm.token / kcm.insecure 매핑.
+# RCA 테스트베드 (internal network) 는 token 빈값 + insecure: true 로 충분.
+# 운영 환경에서는 Polestar10 web UI 의 KCM 메뉴에서 발급된 token 을
+# inventory host vars 로 override.
+polestar10_kcm_token: "{{ lookup('env', 'POLESTAR10_KCM_TOKEN') | default('', true) }}"
+polestar10_kcm_insecure: true
 
 # SMS 설치 경로
 sms_install_dir: "/opt/polestar10/sms"
