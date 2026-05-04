@@ -342,15 +342,31 @@ AskUserQuestion(questions=[
 
 Polestar10 사용자 ID + password, 그리고 SSH 비밀은 카드형 default 가 의미 없거나 보안상 카드 표시 X. 단독 턴 텍스트 prompt 로 한 번에 묶어서 받습니다 (자유 입력끼리 묶음은 위 § 강제 규칙에서 허용).
 
-**Polestar10 자격증명** (~/.polestar10rc 부재 시 한 번만):
+**Polestar10 자격증명 + 조직 ID** (~/.polestar10rc / bootstrap.yaml 둘 다 부재 시 한 번만):
 ```
-Polestar10 사용자 ID 와 password 를 알려주세요. 자원 등록·알람·메트릭
-API 호출 권한이 있는 계정이 필요합니다 (보통 admin 권한 계정). 입력은
-~/.polestar10rc (chmod 600) 에 저장되어 testbed-polestar10-register
-와 공유되며, 다음 호출부터 묻지 않습니다.
+Polestar10 사용자 ID, password, 그리고 조직 (테넌트) ID 를 알려주세요.
+
+  - 사용자 ID + password: 자원 등록·알람·메트릭 API 호출 권한 계정 (보통
+    admin 권한). ~/.polestar10rc (chmod 600) 에 저장되어
+    testbed-polestar10-register 와 공유.
+  - 조직 ID (organization_id, 24자리 hex): SMS/KCM 에이전트가 broker 로
+    publish 할 때 SAAS_TENANT_ID 로 사용. Polestar10 web 우측 상단
+    [계정] > 조직명 마우스오버 시 표시되는 24자리 hex. ~/.testbed-build/
+    bootstrap.yaml 에 저장되어 다음 호출부터 묻지 않음.
+
+다음 호출부터 모두 묻지 않습니다.
 
   - Polestar10 사용자 ID:
   - Polestar10 password:
+  - Polestar10 조직 ID (organization_id, 24자리 hex):
+```
+
+⚠️ **organization_id 가 빈값이면 안 됨** — SMS install role 의 `polestar_organization_id | length == 0` fail-fast 가드 + KCM DaemonSet 의 `KCM_TENANT_ID` env 도 동일 변수 참조. 사용자가 잘 모르겠다고 답하면 Polestar10 web UI 직접 안내:
+
+```
+Polestar10 web (https://<base_url>) 로그인 → 우측 상단 [계정] 아이콘 →
+드롭다운의 조직명 위에 마우스 오버 → tooltip 으로 24자리 hex (예:
+69731678b56620b247fb279a) 가 표시됨. 그 값 그대로 입력.
 ```
 
 **SSH 비밀** (인증 방식 따라 한 번만):
@@ -496,6 +512,7 @@ bootstrap.yaml 부재 시 인터뷰에서 어떤 슬롯이 **always ask** / **de
 | Polestar10 base_url | always ask (default 표시) | ~/.polestar10rc | 캐시값을 (Recommended) 옵션으로 |
 | Polestar10 user | always ask (default 표시) | ~/.polestar10rc | 캐시값을 (Recommended) 옵션으로 |
 | Polestar10 password | **skip if cached** | ~/.polestar10rc | rc 파일 있으면 인터뷰 자체 생략 |
+| Polestar10 organization_id | **skip if cached** | bootstrap.yaml | bootstrap.yaml 의 polestar10.organization_id 가 빈값/누락이면 인터뷰. SMS/KCM 의 SAAS_TENANT_ID 로 사용 — 빈값 진행 X (fail-fast) |
 | 레포 clone yes/no | **skip if 디렉토리 존재** | filesystem | 둘 다 있으면 자동 yes |
 | 레포 경로 | always ask (default 표시) | bootstrap.yaml 또는 `~/dev/...` | 디렉토리 존재 시 그 경로가 default |
 | git PAT 입력 | **skip if cached** | ~/.git-credentials | 파일 있으면 PAT 인터뷰 skip |

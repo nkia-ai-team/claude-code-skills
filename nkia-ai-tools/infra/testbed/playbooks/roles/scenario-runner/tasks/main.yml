@@ -65,6 +65,29 @@
   become: false
   when: scenario_runner_enabled | default(true)
 
+# stale .applied_rev sentinel 제거 — 이전 run 의 sentinel 이 남아있으면
+# build-and-deploy.sh 가 "이미 적용됨" 으로 판단하고 skip → 재배포 안 됨.
+# 매번 새로 적용되도록 sentinel 강제 제거 (ansible 호출 = 명시적 의도).
+- name: scenario-runner — stale .applied_rev sentinel 제거 (chicken-and-egg fix)
+  ansible.builtin.file:
+    path: "{{ scenario_runner_install_dir }}/.applied_rev"
+    state: absent
+  become: false
+  when: scenario_runner_enabled | default(true)
+
+# 신규 testbed 의 첫 배포 시 service-spec.yaml + scripts/ 부재 → build-and-deploy.sh
+# 의 N>0 검사로 fail. testbed-build 의 Phase 10 (시나리오 생성) 이 본 role 호출 전에
+# 실행되어야 함. SKILL.md Phase 8 → 10 → scenario-runner role 순서로 명시.
+# stub placeholder 만 미리 만들어 build-and-deploy.sh 가 통과하게 — Phase 10 에서
+# 실제 시나리오 채워지면 다음 호출에 자동 발견.
+- name: scenario-runner — service-spec / scripts 디렉토리 stub 생성 (없는 경우만)
+  ansible.builtin.file:
+    path: "{{ scenario_runner_install_dir }}/scenarios/services/{{ app_subdir }}/scripts"
+    state: directory
+    mode: "0755"
+  become: false
+  when: scenario_runner_enabled | default(true)
+
 - name: scenario-runner — 빌드 + 배포 (`./build-and-deploy.sh`)
   ansible.builtin.shell:
     cmd: "./build-and-deploy.sh"
@@ -76,6 +99,11 @@
     - scenario_runner_enabled | default(true)
   register: runner_deploy
   changed_when: "'Recreating' in runner_deploy.stdout or 'Creating' in runner_deploy.stdout or 'Building' in runner_deploy.stdout"
+  failed_when:
+    # scenarios 0개여도 deploy 자체는 진행. healthz check 가 진짜 검증.
+    - runner_deploy.rc != 0
+    - "'No scripts found' not in runner_deploy.stdout"
+    - "'No scripts found' not in runner_deploy.stderr"
 
 - name: scenario-runner — healthz 확인
   ansible.builtin.uri:

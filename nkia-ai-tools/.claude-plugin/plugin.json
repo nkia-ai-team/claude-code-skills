@@ -1,6 +1,6 @@
 {
   "name": "nkia-ai-tools",
-  "version": "1.9.26",
+  "version": "1.9.27",
   "description": "NKIA-AI 팀 개발 워크플로우 도구 모음 - 코드 리뷰, 커밋 자동화, Linear 이슈/프로젝트/이니셔티브 관리, 증빙 수집, Confluence 문서 관리, Figma-to-React 컴포넌트 변환, 주간업무보고 자동화, polestar10 지식베이스 질의, OpenAPI 3.1 spec 자동 생성, RCA 테스트베드 end-to-end 자동화 (testbed-build orchestrator: 인터뷰→코드 생성→배포→Polestar10 자원 등록→시나리오→알람→closed-loop verify)",
   "author": {
     "name": "NKIA-AI Team"

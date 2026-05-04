@@ -63,6 +63,9 @@ chmod 700 ~/.testbed-build
 - ~/.polestar10rc → Polestar10 password 인터뷰 skip
 - 레포 디렉토리 → clone 작업 skip
 - ~/.git-credentials → git PAT 인터뷰 skip
+- bootstrap.yaml 의 polestar10.organization_id 가 비어있지 않음 → organization_id 인터뷰 skip
+
+⚠️ **organization_id 는 bootstrap.yaml 에 비어있으면 인터뷰 강제** — SMS install role 의 fail-fast 가드 + KCM DaemonSet 의 KCM_TENANT_ID env 가 모두 이 값을 참조. 빈값으로 진행하면 6종 자원 등록 시나리오에서 SMS/KCM standby 미감지 → PARTIAL verdict 로 끝남.
 
 상세 슬롯 정책 표는 [references/bootstrap.md](references/bootstrap.md) 의 "인터뷰 슬롯 정책 표" 참조.
 
@@ -301,13 +304,55 @@ ANSIBLE_PID=$!
 
 ### [Phase 9] Polestar10 6종 자원 등록
 
+#### 9-a. 사전 점검 (testbed-polestar10-register dispatch 전)
+
+1. **bootstrap.yaml + .polestar10rc 일치 확인**
+   ```bash
+   ORG_ID=$(yq '.polestar10.organization_id' ~/.testbed-build/bootstrap.yaml)
+   [ -z "$ORG_ID" ] || [ "$ORG_ID" = "null" ] && {
+     echo "FATAL: organization_id 가 비어있습니다. Phase 1 인터뷰가 누락한 것."
+     echo "재인터뷰: ~/.testbed-build/bootstrap.yaml 의 polestar10.organization_id 채우거나 파일 삭제 후 재호출."
+     exit 1
+   }
+   ```
+
+2. **broker / collector 도달성** (Polestar10 backend → target 의 NodePort 들)
+   - DPM (mysql/postgres NodePort) 도달성 — `nc -zv $TARGET_HOST 30432` 또는 `30306`
+   - SMS broker (1883) — `nc -zv $POLESTAR10_HOST $POLESTAR10_SMS_BROKER_PORT`
+   - KCM collector (20040) — `nc -zv $POLESTAR10_HOST $POLESTAR10_KCM_COLLECTOR_PORT`
+   - 실패 시 사용자에게 표 표시 + dispatch 진행 (각 자원 register 시점에 fail 하면 자동 skip 분기)
+
+3. **agent install 후 standby polling delay**
+   ```bash
+   echo "[phase 9] Polestar10 backend 가 SMS/KCM/APM heartbeat 받아 standby 에 등록할 시간 확보 (60초)..."
+   sleep 60
+   ```
+   ansible 마지막 task (agent install) 직후 즉시 register 시도하면 standby 미등록 → register API 가 빈 응답. 60초 grace period 가 필수.
+
+#### 9-b. dispatch
+
 ```
 Skill: testbed-polestar10-register
   scenario: 1 (full testbed)
   context: runs/<RUN_ID>/inventory.yml + interview.yaml
 ```
 
-Polestar10 자원 등록 결과 → `runs/<RUN_ID>/register.json`. Polestar10 에러 시 표준 패턴.
+testbed-polestar10-register 의 시나리오 1 가 [scenario_1_full_testbed.md](../testbed-polestar10-register/references/scenario_1_full_testbed.md) 의 **WPM (Scouter) vs OTel APM 분기**, **DPM 도달성 분기**, **NMS SNMP probe 분기** 모두 포함하여 자동 진행. 결과 → `runs/<RUN_ID>/register.json`.
+
+#### 9-c. PARTIAL verdict 처리
+
+testbed-polestar10-register 가 일부 자원 등록 실패 시 PARTIAL 반환. SKILL 은:
+1. register.json 의 자원별 등록 표 사용자에게 표시 (성공 / 실패 / 미시도)
+2. 실패 자원에 대해 가능한 fix 제안:
+   - SMS standby 미감지 → broker connectivity 재확인 + agent restart
+   - KCM standby 미감지 → DaemonSet env (KCM_TENANT_ID) 확인 + Pod restart
+   - APM (OTel) 자동 등록 안 됨 → Polestar10 web UI 직접 안내
+   - DPM mysql 도달성 X → NodePort 방화벽 / network policy 확인
+3. 사용자 선택:
+   - (1) 그대로 진행 (Phase 10 시나리오 생성으로) — 부분 등록 자원만으로 verify
+   - (2) 등록 재시도 (특정 자원만)
+   - (3) Phase 9 전체 retry (60초 추가 sleep + dispatch)
+   - (4) 중단 (run 보존, 사용자가 web UI 에서 보강 후 재호출)
 
 ### [Phase 10] 시나리오 생성
 

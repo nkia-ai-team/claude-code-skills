@@ -156,11 +156,29 @@
   changed_when: false
   failed_when: false
 
+# ⚠️ TODO (NKIAAI-542 follow-up) — KCM master 배포 누락
+# KCM 아키텍처 = master (NATS server + collector) + per-node agents (DaemonSet).
+# 현재 본 role 은 node agent (DaemonSet) 만 배포. master 가 없어서 node agent 가
+# nats://master 연결 실패 → standby 미감지 → Polestar10 에 자원 자동 등록 X.
+#
+# 정확한 fix 는 lucida-kcmagent 의 master 컴포넌트 build + K8s Deployment + Service
+# (NATS port 4222 expose) manifest 추가. follow-up issue 에서 처리.
+
 - name: Apply KCM RBAC + DaemonSet
   when:
     - kcm_enabled | default(true) | bool
     - kcm_image_present.rc == 0
   block:
+    - name: Ensure kcm namespace exists (kubectl diff chicken-and-egg fix)
+      # kubectl diff 가 신규 namespace 부재 시 rc=2 (namespace not found) 로 fail.
+      # apply 직전에 ns 를 미리 만들어 두면 diff 도 정상 동작.
+      ansible.builtin.command: /usr/local/bin/k3s kubectl create namespace kcm
+      register: kcm_ns_create
+      changed_when: kcm_ns_create.rc == 0
+      failed_when:
+        - kcm_ns_create.rc != 0
+        - "'AlreadyExists' not in kcm_ns_create.stderr"
+
     - name: Render KCM RBAC manifest
       ansible.builtin.template:
         src: kcm-rbac.yaml.j2

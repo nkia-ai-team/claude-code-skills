@@ -23,11 +23,16 @@ spec:
         - name: kcm-agent
           image: "{{ kcm_image_name }}:{{ kcm_agent_version }}-{{ target_arch }}"
           imagePullPolicy: IfNotPresent
+          # args: 인자 없이 컨테이너 시작 시 cobra root help 출력 후 exit 0 → CrashLoopBackOff.
+          # node subcommand 명시로 daemon 모드로 실행되게.
+          args: ["node"]
           env:
             - name: KCM_COLLECTOR_HOST
               value: "{{ polestar10_collector_host }}"
             - name: KCM_COLLECTOR_PORT
-              value: "{{ polestar10_kcm_collector_port }}"
+              value: "{{ polestar10_kcm_collector_port | string }}"
+            - name: KCM_TENANT_ID
+              value: "{{ polestar_organization_id }}"
             - name: KCM_NODE_NAME
               valueFrom:
                 fieldRef:

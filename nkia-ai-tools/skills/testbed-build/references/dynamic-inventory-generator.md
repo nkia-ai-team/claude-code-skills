@@ -45,6 +45,14 @@ all:
           kcm_local_path: "{{KCM_LOCAL_PATH}}"   # controller 의 lucida-kcmagent 절대 경로. bootstrap.paths.kcm_local_source.
           kcm_source_branch: "{{KCM_SOURCE_BRANCH}}"  # default `develop`
 
+          # === Polestar10 broker / collector / 조직 (host-level 강제) ===
+          # group_vars/all.yml 에 default 박혀있는 변수들. 인스턴스별로 다를 수 있어
+          # host-level 로 override. 빈값/누락이면 SMS/KCM standby 미감지 → PARTIAL.
+          polestar10_collector_host: "{{POLESTAR10_COLLECTOR_HOST}}"   # bootstrap.polestar10.base_url 의 hostname
+          polestar_organization_id: "{{POLESTAR_ORGANIZATION_ID}}"     # bootstrap.polestar10.organization_id (24-hex SAAS_TENANT_ID)
+          polestar10_kcm_collector_port: {{POLESTAR10_KCM_COLLECTOR_PORT}}   # default 20040 (group_vars 의 값을 그대로 또는 인터뷰에서 override)
+          polestar10_sms_broker_port: {{POLESTAR10_SMS_BROKER_PORT}}        # default 1883
+
           # === 신규 testbed 시 services-author 가 만든 정보 ===
           # is_new_variant=true 면 Phase 6 산출 (manifest.scenario_hints) 도 vars 로 흘려보내
           # 시나리오 생성 phase 가 host vars 로 직접 읽을 수 있게.
@@ -78,22 +86,10 @@ all:
           ansible_become_password: "{{ lookup('env', 'TESTBED_BECOME_PASSWORD') }}"
           {% endif %}
           ansible_python_interpreter: /usr/bin/python3
-      vars:
-        # === testbed identity (interview.app 에서) ===
-        app_repo: "https://github.com/nkia-ai-team/testbed-services.git"
-        app_version: "{{BRANCH}}"
-        app_subdir: "{{APP_SUBDIR}}"
-        app_namespace: "{{NAMESPACE}}"
-
-        # === polestar10 collector (bootstrap.polestar10.base_url 또는 별도 endpoint) ===
-        polestar10_collector_host: "{{POLESTAR10_COLLECTOR_HOST}}"
-        polestar_organization_id: "{{ lookup('env', 'POLESTAR_ORG_ID') }}"
-
-        # === agent enable flags ===
-        wpm_enabled: "{{WPM_ENABLED}}"
-        apm_enabled: "{{APM_ENABLED}}"
-        kcm_enabled: "{{KCM_ENABLED}}"
-        sms_enabled: "{{SMS_ENABLED}}"
+      # ⚠️ testbed 식별 / Polestar10 broker 변수는 모두 host-level 에 있어야 함
+      # (위 hosts: <ALIAS>: 영역). group vars 영역에 두면 group_vars/all.yml 의
+      # default 가 이김 (회고 P0 #3 의 root cause). 본 vars: 영역에는 진짜 group-wide
+      # ansible 동작 옵션만 (예: forks, gather_subset).
 ```
 
 ## 변수 매핑 표
@@ -109,6 +105,9 @@ all:
 | `APP_SUBDIR` | interview.app.app_subdir | 그대로 (예: `plopvape-shop`) |
 | `NAMESPACE` | interview.app.namespace | 그대로 |
 | `POLESTAR10_COLLECTOR_HOST` | bootstrap.polestar10.base_url 의 hostname | URL parse → hostname only |
+| `POLESTAR_ORGANIZATION_ID` | bootstrap.polestar10.organization_id | 24-hex. **빈값/누락 X** — Phase 1 인터뷰가 이미 받았어야 함. 빈값이면 SMS install role fail-fast |
+| `POLESTAR10_KCM_COLLECTOR_PORT` | bootstrap.polestar10.kcm_collector_port (없으면 group_vars default `20040`) | KCM DaemonSet env 의 KCM_COLLECTOR_PORT 채움 |
+| `POLESTAR10_SMS_BROKER_PORT` | bootstrap.polestar10.sms_broker_port (없으면 group_vars default `1883`) | SMS AgentInstall.sh -m 의 broker port |
 | `WPM_ENABLED` | true (default) | 사용자 인터뷰에서 disable 가능 |
 | `APM_ENABLED` | true | 동일 |
 | `KCM_ENABLED` | true (default) | ARM64 인터뷰에서 사용자가 "KCM 비활성" 명시 선택 시만 false |
@@ -118,18 +117,25 @@ all:
 
 ## 환경 변수 export (ansible-playbook 호출 직전)
 
-inventory 의 `lookup('env', ...)` 가 작동하려면:
+비밀 값 (SSH password / become password) 만 env var 로 전달. organization_id / collector / broker port 등 비-비밀 변수는 inventory yaml 에 host-level 로 평문 박힘 (위 골격 참조).
 
 ```bash
+# 비밀 — env var 로만
 export TESTBED_HOST="${TARGET_HOST}"
 export TESTBED_USER="${TARGET_USER}"
 export TESTBED_PASSWORD="${interview.password}"          # AUTH_MODE=password 시
 export TESTBED_BECOME_PASSWORD="${interview.become_password:-$TESTBED_PASSWORD}"
 export TESTBED_SSH_KEY="${SSH_KEY_PATH}"                  # AUTH_MODE=ssh_key 시
-export POLESTAR_ORG_ID="${interview.polestar.org_id}"     # 또는 bootstrap 캐시
+
+# 비-비밀 — inventory host vars 에 박힌 형태 (위 골격) 가 우선. env fallback 은 group_vars/all.yml 에서.
+# bootstrap.yaml 에서 읽어서 inventory 생성기가 직접 박음. 환경 변수 별도 export 불필요.
 ```
 
-비밀 값은 environment 만 통해서. inventory.yml 에 평문 X.
+**주입 우선순위 정리** (회고 P0 #3 룰):
+- `--extra-vars` (cli) > inventory **host vars** > playbook `vars:` > **inventory file group vars** > `group_vars/all.yml`
+- 즉 `polestar_organization_id` / `polestar10_collector_host` 같이 인스턴스별로 다른 값은 **반드시 inventory host vars** 에 박을 것. group_vars 에 두면 default (`192.168.230.104` 등) 가 이김.
+
+비밀 값은 inventory.yml 에 평문 X. env 만.
 
 ## DB / 추가 변수 (interview.app.db_kind)
 
