@@ -172,6 +172,48 @@ AskUserQuestion(questions=[
 ])
 ```
 
+### [Phase 4.5] 기존 testbed 감지 게이트
+
+타겟 서버에 같은 namespace 의 서비스가 이미 떠있는지 사전 감지. 떠있으면 사용자 의도 확인.
+
+```bash
+# secrets.env 의 SSH 자격증명으로 타겟 K3s 조회
+EXISTING_NS_CHECK=$(sshpass -e ssh -o ConnectTimeout=5 \
+  "${TARGET_USER}@${TARGET_HOST}" \
+  "sudo /usr/local/bin/k3s kubectl get ns ${APP_NAMESPACE} -o name 2>/dev/null && \
+   sudo /usr/local/bin/k3s kubectl get deploy -n ${APP_NAMESPACE} -o name 2>/dev/null | wc -l")
+
+# 결과: namespace 존재 + deployment N 개 → 이미 떠있음
+NS_EXISTS=$(echo "$EXISTING_NS_CHECK" | grep -c "^namespace/${APP_NAMESPACE}$" || echo 0)
+DEPLOY_COUNT=$(echo "$EXISTING_NS_CHECK" | tail -1)
+```
+
+`NS_EXISTS=1 && DEPLOY_COUNT > 0` 인 경우만 사용자 카드:
+
+```python
+AskUserQuestion(questions=[
+  {
+    "question": f"{TARGET_HOST} 의 {APP_NAMESPACE} namespace 에 이미 {DEPLOY_COUNT} 개 deployment 가 떠있습니다. 어떻게 진행할까요?",
+    "header": "기존 testbed 감지",
+    "multiSelect": False,
+    "options": [
+      {"label": "장애 시나리오만 추가", "description": "deploy/agent install 모두 skip — testbed-generate-scenarios 단독 호출로 분기"},
+      {"label": "다른 testbed 만들기", "description": "Phase 1 인터뷰 다시 (다른 namespace 또는 다른 service)"},
+      {"label": "기존 삭제 후 새로", "description": "kubectl delete ns 후 정상 진행 — 데이터 / DB 모두 사라짐 ⚠️"},
+      {"label": "그대로 재배포 (idempotent)", "description": "현재 상태 위에 ansible apply — 변경 없으면 ok=N changed=0"}
+    ]
+  }
+])
+```
+
+선택별 분기:
+- (1) → Phase 5~9 skip, Phase 10 (generate-scenarios) 로 점프
+- (2) → Phase 1 으로 복귀
+- (3) → `kubectl delete ns ${APP_NAMESPACE} --wait=true` 후 Phase 5 진행
+- (4) → 그대로 Phase 5 진행 (default behavior)
+
+`NS_EXISTS=0` (깨끗) 이면 카드 자체 skip → Phase 5 직행.
+
 ### [Phase 5] Lock 획득
 
 target_host 확정됐으니 [references/concurrency-lock.md](references/concurrency-lock.md) 의 flock 획득.
