@@ -10,34 +10,32 @@
     state: directory
     mode: '0755'
 
-# PAT 를 git URL 에 박으면 .git/config 의 remote.origin.url 에 영구 저장 →
-# 타겟 호스트 SSH 가능자에게 PAT 노출. http.extraheader 는 per-command flag 라
-# disk 에 안 남음. fetch + reset --hard 로 멱등성도 동시 보장.
-- name: Clone or update testbed-services monorepo (PAT via http.extraheader, no on-disk leak)
+# testbed-services 는 public 레포 (NKIAAI-542 결정). PAT/자격증명 불필요.
+# private 환경에서 운영하려는 사용자는 inventory 의 `app_repo` 를
+# `https://<user>:<pat>@github.com/...` 형식으로 직접 지정 (사용자 책임).
+- name: Clone or update testbed-services monorepo (public)
   ansible.builtin.shell: |
     set -eu
     SRC="/opt/{{ app_namespace }}/src"
-    HEADER="AUTHORIZATION: bearer ${GITHUB_PAT}"
     if [ -d "${SRC}/.git" ]; then
       OLD=$(git -C "${SRC}" rev-parse HEAD 2>/dev/null || echo none)
-      git -C "${SRC}" -c http.extraheader="${HEADER}" fetch --quiet origin {{ app_version }}
+      git -C "${SRC}" fetch --quiet origin {{ app_version }}
       git -C "${SRC}" checkout --quiet {{ app_version }}
       git -C "${SRC}" reset --hard --quiet FETCH_HEAD
       NEW=$(git -C "${SRC}" rev-parse HEAD)
       [ "${OLD}" = "${NEW}" ] && echo UNCHANGED || echo "UPDATED ${OLD} -> ${NEW}"
     else
-      git -c http.extraheader="${HEADER}" clone --quiet --branch {{ app_version }} {{ app_repo }} "${SRC}"
+      git clone --quiet --branch {{ app_version }} {{ app_repo }} "${SRC}"
       echo "CLONED $(git -C ${SRC} rev-parse HEAD)"
     fi
   args:
     executable: /bin/bash
   environment:
-    GITHUB_PAT: "{{ github_pat }}"
+    # 인증 prompt 가 hang 시키지 않도록 안전망. public 이라 정상 케이스엔 무관.
     GIT_TERMINAL_PROMPT: "0"
     GIT_ASKPASS: "/bin/true"
   register: app_clone
   changed_when: "'CLONED' in (app_clone.stdout | default('')) or 'UPDATED' in (app_clone.stdout | default(''))"
-  no_log: true
 
 - name: Stat build-and-deploy.sh
   ansible.builtin.stat:

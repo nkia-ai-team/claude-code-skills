@@ -38,6 +38,14 @@
     - target_arch == 'arm64'
     - kcm_source_repo | default('') | length == 0
 
+# ARM64 KCM 은 사내 GitLab (cims2.nkia.net) 의 lucida-kcmagent 소스 빌드.
+# 자격증명 없거나 GitLab 도달 불가 시 ansible.builtin.git 모듈이 무한 hang
+# (회고 P1 #6 — 12분+ 대기 케이스 발견). graceful skip 패턴:
+#   - shallow clone (depth=1, single_branch) 으로 데이터량 최소화
+#   - GIT_TERMINAL_PROMPT=0 / GIT_ASKPASS=/bin/true 로 인증 prompt 차단
+#   - timeout=60 으로 hang 방지
+#   - ignore_errors → kcm_clone_succeeded fact 후속 task 가 의존
+#   - 실패 시 사용자에게 명확한 안내 후 KCM 외 나머지 phase 는 정상 진행
 - name: ARM64 — build KCM from source (lucida-kcmagent)
   when:
     - kcm_enabled | default(true) | bool
@@ -50,19 +58,43 @@
         state: directory
         mode: '0755'
 
-    - name: Clone lucida-kcmagent (사내 GitLab — credentials may be required)
+    - name: Clone lucida-kcmagent (사내 GitLab — best-effort, hang 방지)
       ansible.builtin.git:
         repo: "{{ kcm_source_repo }}"
         dest: /opt/lucida-kcmagent
         version: "{{ kcm_source_branch }}"
+        depth: 1
+        single_branch: true
         force: false
+      environment:
+        GIT_TERMINAL_PROMPT: "0"
+        GIT_ASKPASS: "/bin/true"
+        GCM_INTERACTIVE: "Never"
       register: kcm_clone
+      timeout: 60
+      ignore_errors: true
+
+    - name: Set kcm_clone_succeeded fact
+      ansible.builtin.set_fact:
+        kcm_clone_succeeded: "{{ kcm_clone is succeeded }}"
+
+    - name: KCM clone 실패 안내 (사내 GitLab 자격증명 / 도달성 점검)
+      ansible.builtin.debug:
+        msg: |
+          KCM clone 실패 — 다음 중 하나로 추정:
+            - 사내 GitLab ({{ kcm_source_repo }}) 도달 불가 (VPN / 방화벽)
+            - 자격증명 미설정 (clone 시 prompt 가 차단됐을 가능성)
+            - 레포 경로 오타
+          KCM 외 나머지 phase 는 정상 진행. KCM 필요시 사용자 직접 자격증명
+          설정 후 ansible-playbook 재실행 권장.
+      when: not kcm_clone_succeeded
 
     - name: Build kcm-agent binary (Go) on target
       ansible.builtin.command: /usr/local/bin/go build -o build/kcm-agent ./cmd/agent
       args:
         chdir: /opt/lucida-kcmagent
         creates: /opt/lucida-kcmagent/build/kcm-agent
+      when: kcm_clone_succeeded
 
     - name: Build container image
       ansible.builtin.command: docker build -t {{ kcm_image_name }}:{{ kcm_agent_version }}-arm64 .
@@ -70,7 +102,9 @@
         chdir: /opt/lucida-kcmagent
       register: kcm_build_arm
       changed_when: "'writing image' in kcm_build_arm.stderr or 'Successfully built' in kcm_build_arm.stdout"
-      when: kcm_clone.changed or (force_rebuild | default(false))
+      when:
+        - kcm_clone_succeeded
+        - kcm_clone.changed or (force_rebuild | default(false))
 
     - name: Import KCM ARM image into K3s containerd
       ansible.builtin.shell: |
@@ -81,7 +115,9 @@
         executable: /bin/bash
       register: kcm_import_arm
       changed_when: "'unpacked' in kcm_import_arm.stderr or 'unpacked' in kcm_import_arm.stdout"
-      when: kcm_clone.changed or (force_rebuild | default(false))
+      when:
+        - kcm_clone_succeeded
+        - kcm_clone.changed or (force_rebuild | default(false))
 
 - name: AMD64 KCM URL not configured — skip apply
   ansible.builtin.debug:

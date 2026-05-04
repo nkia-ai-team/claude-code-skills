@@ -225,6 +225,103 @@ plopvape-shop 의 매니페스트 mimic:
 #### `docker-compose.dev.yml`
 로컬 dev 용. plopvape-shop 그대로 mimic.
 
+#### `README.md` — 새 testbed 의 자기 소개 문서
+
+새로 생성한 testbed 디렉토리 최상위에 `README.md` 작성 (`<NEW_DIR>/README.md`). 이 testbed 가 무엇인지, 어떤 서비스로 구성됐는지, 어떻게 빌드·배포·관측하는지를 사람이 한 번 읽고 파악할 수 있도록.
+
+**템플릿** (architecture 입력 → 변수 substitution):
+
+```markdown
+# {{testbed_name}}
+
+> {{domain}} 도메인의 RCA 테스트베드. testbed-build 오케스트레이터가 자동 생성.
+
+## Overview
+
+{{architecture.description 한 줄 요약 또는 LLM 합성 한 줄}}
+
+- 도메인: {{domain}}
+- 언어/프레임워크: Java {{java_version}} + Spring Boot 3.4
+- DB: {{db.kind}}
+- 서비스 개수: {{services | length}}
+- 시연 가능 장애 패턴: {{failure_surfaces | join(", ")}}
+
+## Services
+
+{{ for svc in services }}
+### {{svc.name}}
+- 책임: {{svc.responsibilities | join(", ")}}
+- depends_on: {{svc.depends_on | join(", ") or "—"}}
+- Endpoints:
+  {{ for ep in svc.endpoints }}
+  - `{{ep.method}} {{ep.path}}` — {{ep.description}}
+  {{ endfor }}
+{{ endfor }}
+
+## DB Schema
+
+{{db.kind}} 기반. 테이블 {{db.schemas | length}}개:
+
+{{ for table in db.schemas }}
+### `{{table.table}}`
+| 컬럼 | 타입 | PK |
+|---|---|---|
+{{ for col in table.columns }}
+| {{col.name}} | {{col.type}} | {{ "✓" if col.pk else "" }} |
+{{ endfor }}
+{{ endfor }}
+
+전체 DDL: [`db/init.sql`](db/init.sql)
+
+## Polestar10 관측 매핑
+
+본 testbed 는 testbed-build 오케스트레이터가 다음 6종 자원으로 Polestar10 에 등록:
+
+| Agent | 등록 자원 | 비고 |
+|---|---|---|
+| SMS | 호스트 1개 | 타겟 서버 OS 메트릭 |
+| KCM | 클러스터 1개 (DaemonSet) | K3s namespace `{{namespace}}` |
+| APM | {{services | length}} services | OTLP collector |
+| WPM | {{services | length}} services | UDP/TCP collector |
+| DPM | {{db.kind}} 인스턴스 1개 | Polestar10 backend 직접 접속 |
+| NMS | (자동 감지 결과 따라) | SNMP v2c/v3 |
+
+## Failure Scenarios (RCA 검증용)
+
+testbed-generate-scenarios 가 다음 패턴으로 시나리오 스크립트를 합성하여 rca-scenario-runner 에 등록:
+
+{{ for sf in failure_surfaces }}
+- **{{sf}}** — {{ scenario_hints[sf].description if scenario_hints[sf] else "패턴 카탈로그 참조"}}
+{{ endfor }}
+
+각 시나리오는 cleanup 멱등 보장. 자세한 흐름: [`infra/testbed/scenario-patterns/`](../infra/testbed/scenario-patterns/) (claude-code-skills 마켓플레이스).
+
+## Build & Deploy
+
+### 로컬 (Docker Compose)
+
+\`\`\`bash
+docker-compose -f docker-compose.dev.yml up --build
+\`\`\`
+
+### 타겟 서버 (K3s)
+
+\`\`\`bash
+# testbed-build 오케스트레이터가 자동 호출하는 표준 인터페이스
+./k8s/build-and-deploy.sh
+\`\`\`
+
+`build-and-deploy.sh` 의 `SERVICES` 배열을 도메인별로 자동 채움. 변경 시 [`k8s/build-and-deploy.sh`](k8s/build-and-deploy.sh) 직접 편집.
+
+## 한계 + 알려진 제약
+
+- 비즈니스 로직은 services-author (LLM) 가 자동 생성. 빌드 (mvnw clean package) 까지는 검증되지만 도메인 정확성은 사람 PR review 권장.
+- 시나리오 스크립트는 `db/init.sql` 의 테이블/컬럼 + Controller endpoint 기반으로 생성. 스키마 변경 시 시나리오 재생성 필요.
+- WPM 은 Java 21 미지원 — 본 testbed 는 Java 17 고정.
+```
+
+서비스 분할 / DB / failure_surfaces 가 사람이 읽기 쉬운 표·리스트 형태로 렌더링. testbed-build 오케스트레이터가 phase 6 services-author 직후 사용자에게 README 경로 알림 + finalize 보고서에도 링크 포함.
+
 #### `k8s/build-and-deploy.sh`
 ```bash
 #!/bin/bash
@@ -314,7 +411,7 @@ git push 인증 실패 (401) 시 verdict=`auth-failed` + ask-polestar10 우회 (
   "build_passed": true,
   "build_warnings": 0,
   "branch": "feat/core-banking-scaffold",
-  "pr_url": "https://github.com/BangSungjoon/testbed-services/pull/12",
+  "pr_url": "https://github.com/nkia-ai-team/testbed-services/pull/12",
   "scenario_hints": {
     "lock_table": "accounts",
     "lock_endpoint": "/api/accounts/{id}",

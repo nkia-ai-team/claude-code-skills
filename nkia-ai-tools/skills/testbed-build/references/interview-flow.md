@@ -182,23 +182,42 @@ app:
 
 deep interview 의 **첫이자 거의 유일한 사용자 입력**. 나머지는 LLM 자동 제안 후 검토.
 
+#### Step 1: testbed-services 레포 스캔
+
+기존 testbed 와 도메인 충돌을 피하기 위해 LLM 이 testbed-services 레포의 top-level 디렉토리 목록을 먼저 확인:
+
+```bash
+ls -d "$TESTBED_SERVICES_REPO"/*/ | xargs -n1 basename | grep -v "^\.\|^node_modules"
+```
+
+각 디렉토리의 README.md (있으면) 또는 디렉토리 이름으로 어떤 도메인이 이미 커버되는지 추론. 예: `plopvape-shop` 발견 → e-commerce 가 이미 있다고 판단.
+
+#### Step 2: LLM 이 미커버 도메인 1개 자동 추천
+
+이미 커버된 도메인 (e-commerce 등) 을 제외하고, RCA 검증에 의미 있는 미커버 도메인 1개를 LLM 이 추천. 후보 풀 (banking / IoT / 소셜 피드 / 물류 / 의료 예약 / 푸드 딜리버리 / SaaS 멀티테넌트 / 메시징 등) 중에서 testbed-services 에 없는 것을 우선 선택.
+
+#### Step 3: 추천 + Other 두 옵션 카드
+
 ```python
 AskUserQuestion(questions=[
   {
-    "question": "어떤 도메인의 testbed 를 만드시겠어요?",
-    "header": "도메인",
+    "question": "이 testbed 가 어떤 도메인을 시연하면 좋을까요? testbed-services 레포에 이미 있는 변형 (예: e-commerce 의 plopvape-shop) 과 겹치지 않는 도메인을 LLM 이 한 가지 추천해 드렸습니다. 추천을 그대로 쓰거나, 다른 도메인을 직접 입력하실 수 있어요.",
+    "header": "테스트베드 도메인",
     "multiSelect": False,
     "options": [
-      {"label": "은행/금융 (Recommended)", "description": "account / transfer / ledger / audit. 트랜잭션·lock 패턴 풍부."},
-      {"label": "IoT 플랫폼", "description": "device-registry / telemetry / command / alert. high-throughput / queue 패턴."},
-      {"label": "소셜 피드", "description": "post / feed / comment / notification. cache / fan-out 패턴."},
-      {"label": "물류", "description": "shipment / warehouse / route / driver. graph traversal / 외부 의존."}
+      {"label": "{{LLM_RECOMMENDED_DOMAIN}} (Recommended)", "description": "{{LLM_RECOMMENDED_REASON}} — 예: '소셜 피드 — testbed-services 에 fan-out / cache 패턴이 아직 없어서 RCA 검증 다양성에 도움'"}
     ]
   }
 ])
 ```
 
-`Other` 선택 시 자유 입력 prompt → 사용자가 도메인 한 줄 설명 (예: "음식 배달 주문 처리 / 의료 예약").
+옵션 1개 + AskUserQuestion 자동 추가 `Other`. 사용자가 Other 선택 시 별 턴에 텍스트 prompt:
+
+```
+testbed 가 시연할 도메인을 알려주세요 (한 줄 설명, 예: "음식 배달 주문 처리 시스템" 또는 "의료 예약").
+```
+
+(testbed-services 와 도메인 충돌 검사 — 같은 분야면 LLM 이 차별점 제안: "기존 plopvape-shop 이 e-commerce 라 충돌. multi-tenant 분기로 차별화할까요?")
 
 ### 2-d-b. LLM 자동 제안 (턴 2 — 인터뷰 X, 출력만)
 
