@@ -38,6 +38,13 @@ all:
           testbed_services: {{TESTBED_SERVICES}} # 예: [post, feed, comment, notification]
           db_kind: "{{DB_KIND}}"
 
+          # === KCM 자격증명 (ARM64 + KCM enabled 시 필수. bootstrap.agents 에서 흘림) ===
+          # KCM_DISABLE_BY_USER_CHOICE 변수: 사용자가 인터뷰에서 명시적으로
+          # "KCM 비활성" 선택했을 때만 true. ansible playbook 이 자동으로
+          # disable 결정하는 흐름은 금지 (사용자 명시 결정만).
+          kcm_enabled: {{KCM_ENABLED}}           # bootstrap.agents 의 사용자 결정. ARM 인터뷰 결과
+          kcm_source_repo: "{{KCM_SOURCE_REPO}}" # 사용자가 인터뷰에서 입력한 GitLab URL (또는 빈값)
+
           # === 신규 testbed 시 services-author 가 만든 정보 ===
           # is_new_variant=true 면 Phase 6 산출 (manifest.scenario_hints) 도 vars 로 흘려보내
           # 시나리오 생성 phase 가 host vars 로 직접 읽을 수 있게.
@@ -104,8 +111,9 @@ all:
 | `POLESTAR10_COLLECTOR_HOST` | bootstrap.polestar10.base_url 의 hostname | URL parse → hostname only |
 | `WPM_ENABLED` | true (default) | 사용자 인터뷰에서 disable 가능 |
 | `APM_ENABLED` | true | 동일 |
-| `KCM_ENABLED` | true | 동일 |
+| `KCM_ENABLED` | true (default) | ARM64 인터뷰에서 사용자가 "KCM 비활성" 명시 선택 시만 false |
 | `SMS_ENABLED` | true | 동일 |
+| `KCM_SOURCE_REPO` | bootstrap.agents.kcm_source_repo | ARM64 + KCM enabled 인 경우 인터뷰에서 입력 받음. AMD64 면 빈값 OK |
 
 ## 환경 변수 export (ansible-playbook 호출 직전)
 
