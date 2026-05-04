@@ -177,16 +177,20 @@ AskUserQuestion(questions=[
 타겟 서버에 같은 namespace 의 서비스가 이미 떠있는지 사전 감지. 떠있으면 사용자 의도 확인.
 
 ```bash
-# secrets.env 의 SSH 자격증명으로 타겟 K3s 조회
+# secrets.env 의 SSH 자격증명 + become 비번 재사용 (Phase 1 인터뷰에서 이미 받음)
+# sudo -S 로 stdin 비번 전달 — 명령행 노출 X, hang X.
+source ~/.testbed-build/runs/$RUN_ID/secrets.env
 EXISTING_NS_CHECK=$(sshpass -e ssh -o ConnectTimeout=5 \
   "${TARGET_USER}@${TARGET_HOST}" \
-  "sudo /usr/local/bin/k3s kubectl get ns ${APP_NAMESPACE} -o name 2>/dev/null && \
-   sudo /usr/local/bin/k3s kubectl get deploy -n ${APP_NAMESPACE} -o name 2>/dev/null | wc -l")
+  "echo '${TESTBED_BECOME_PASSWORD}' | sudo -S /usr/local/bin/k3s kubectl get ns ${APP_NAMESPACE} -o name 2>/dev/null && \
+   echo '${TESTBED_BECOME_PASSWORD}' | sudo -S /usr/local/bin/k3s kubectl get deploy -n ${APP_NAMESPACE} -o name 2>/dev/null | wc -l")
 
 # 결과: namespace 존재 + deployment N 개 → 이미 떠있음
 NS_EXISTS=$(echo "$EXISTING_NS_CHECK" | grep -c "^namespace/${APP_NAMESPACE}$" || echo 0)
 DEPLOY_COUNT=$(echo "$EXISTING_NS_CHECK" | tail -1)
 ```
+
+비번이 인터뷰에서 캡처되지 않은 케이스 (ssh_key 인증 + sudoers NOPASSWD) 는 `${TESTBED_BECOME_PASSWORD}` 가 빈 문자열 → `sudo -S` 가 stdin 빈값 → NOPASSWD 면 정상 통과, 아니면 즉시 fail (hang X). 양쪽 케이스 모두 안전.
 
 `NS_EXISTS=1 && DEPLOY_COUNT > 0` 인 경우만 사용자 카드:
 
