@@ -95,7 +95,7 @@ testbed-engineer 가 반환한 JSON:
   "build_passed": true,
   "build_warnings": 0,
   "branch": "feat/core-banking-scaffold",
-  "pr_url": "https://github.com/BangSungjoon/testbed-services/pull/12",
+  "pr_url": "https://github.com/nkia-ai-team/testbed-services/pull/12",
   "scenario_hints": {
     "lock_table": "accounts",
     "lock_endpoint": "/api/accounts/{id}",

@@ -77,11 +77,11 @@ RUNNER_REPO=$(grep '^scenario_runner_repo:' ~/.testbed-build/bootstrap.yaml | aw
 
 [ -d "$TESTBED_SVC_REPO/.git" ] || {
   echo "testbed-services 레포가 없습니다. clone 진행합니다."
-  git clone https://github.com/BangSungjoon/testbed-services.git "$TESTBED_SVC_REPO"
+  git clone https://github.com/nkia-ai-team/testbed-services.git "$TESTBED_SVC_REPO"
 }
 [ -d "$RUNNER_REPO/.git" ] || {
   echo "rca-scenario-runner 레포가 없습니다. clone 진행합니다."
-  git clone https://github.com/BangSungjoon/rca-scenario-runner.git "$RUNNER_REPO"
+  git clone https://github.com/nkia-ai-team/rca-scenario-runner.git "$RUNNER_REPO"
 }
 ```
 
@@ -328,7 +328,50 @@ done
 
 산출: `~/.testbed-build/reports/<RUN_ID>-<testbed_name>.md`.
 
-### [Phase 14] Cleanup
+### [Phase 14] Cleanup — 시점 따라 사용자 prompt
+
+run 종료 시점에 따라 산출물 / 외부 자원 정리 범위가 달라집니다. **finalize=completed (정상 종료)** 케이스는 [references/state-schema.md](references/state-schema.md) 의 자동 정리 룰 그대로 (run dir 삭제 + report 영구 보존). **사용자 cancel 또는 phase failed** 케이스는 다음 사용자 prompt 로 정리 범위를 사용자가 결정합니다.
+
+진행된 phase 까지 추적하여 어디까지 cleanup 가능한지 표시:
+
+```python
+# 진행 시점 식별
+last_phase = max([p for p, s in manifest.phases.items() if s == "completed"])
+
+# 시점 별 cleanup 옵션
+options = []
+if last_phase >= "services_author":
+    options.append({
+        "label": "services-author 산출물 정리 (Recommended for cancel)",
+        "description": "testbed-services 레포의 신규 branch close + (PR 머지된 경우) revert PR 자동 발행. main 의 새 디렉토리는 사용자 결정 후 별도 PR."
+    })
+if last_phase >= "ansible_deploy":
+    options.append({
+        "label": "ansible 배포 자원 정리",
+        "description": "타겟 서버에 깔린 K3s namespace 삭제 + /opt/<namespace> 디렉토리 정리 + rca-scenario-runner 컨테이너 stop. K3s 자체는 유지 (다른 testbed 사용 가능)."
+    })
+if last_phase >= "polestar10_register":
+    options.append({
+        "label": "Polestar10 자원 정리",
+        "description": "testbed-polestar10-register 의 시나리오 4 (자원 삭제 + 재출현 가드) 자동 호출. 6종 자원 모두 Polestar10 backend 에서 제거."
+    })
+
+options.append({
+    "label": "정리 안 함 (run 디렉토리만 보존)",
+    "description": "현재 상태 그대로 두고 run 디렉토리 (~/.testbed-build/runs/<ts>/) 만 보존. 사용자가 직접 분석 후 수동 정리. resume 시 이어서 진행 가능."
+})
+
+AskUserQuestion(questions=[
+  {
+    "question": "현재까지 phase 진행 상황을 보여드렸습니다. 어디까지 cleanup 을 진행할지 선택해 주세요. 진행한 phase 별로 정리 가능한 범위가 달라집니다. 보수적으로 가시려면 마지막 옵션 (정리 안 함) 을 고르시면 모든 자원이 그대로 보존되어 사용자가 직접 분석 후 결정할 수 있습니다.",
+    "header": "Cleanup 범위",
+    "multiSelect": True,
+    "options": options
+  }
+])
+```
+
+선택된 옵션들 순차 실행. 각 단계 실행 결과 사용자에게 표시. 실패 시 해당 단계만 보존 + 다음 단계 진행.
 
 ```bash
 flock -u "$LOCK_FD"

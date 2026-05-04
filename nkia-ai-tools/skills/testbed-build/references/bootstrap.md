@@ -12,19 +12,76 @@ ssh:
   ssh_key_path: ""            # 비어있으면 password 사용
 
 polestar10:
-  base_url: "https://192.168.230.96"   # 기본 endpoint (인터뷰에서 변경 가능)
-  user: ""                              # 비어있으면 매번 인터뷰
+  base_url: "https://192.168.230.104"   # 기본 endpoint (NKIA 운영. 인터뷰에서 변경 가능)
+  user: ""                               # 비어있으면 매번 인터뷰
+  organization_id: ""                    # SMS install 시 SAAS_TENANT_ID. Polestar10 web 우측 상단 [계정] > 조직명 마우스오버 24-hex
   # password 는 ~/.polestar10rc 에 별도 저장 (testbed-polestar10-register 호환)
 
 git:
   pat_file: "~/.git-credentials"        # PAT 저장 위치 (default git credential.helper store)
+  testbed_services_url: "https://github.com/nkia-ai-team/testbed-services.git"
+  scenario_runner_url:  "https://github.com/nkia-ai-team/rca-scenario-runner.git"
+  pr_merge_mode: "manual"               # manual (사용자가 PR 직접 머지 후 진행 버튼) | auto (gh CLI 로 자동 merge)
   default_branch_strategy: "feature-pr" # feature-pr | direct-develop
 
+agents:
+  kcm_source_repo: ""                   # ARM64 KCM source-build 시 사내 GitLab URL (예: https://cims2.nkia.net:8443/gitlab/lucida-kcmagent). 비우면 KCM 자동 skip
+  kcm_source_credentials_help: ""       # 사용자 메모용 — clone 시 자격증명 어떻게 통과시키는지 (예: "git config credential.helper store 후 한 번 수동 clone")
+
 paths:
-  testbed_services_repo: "~/dev/testbed-services"
-  scenario_runner_repo: "~/dev/rca-scenario-runner"
+  testbed_services_repo: ""             # 자동 발견 결과 또는 인터뷰. 비우면 cwd → ~/dev → ~/projects → ~ 순회
+  scenario_runner_repo: ""              # 동일
   ansible_playbook_root: ""             # 비우면 plugin install 디렉토리 발견
 ```
+
+## ⚠️ Step 0 — 컨트롤러 도구 사전 검증
+
+본격 인터뷰 진입 전, 컨트롤러 (Claude Code 가 실행 중인 머신) 에 필요한 CLI 도구들이 깔려있는지 확인합니다. 부재 시 자동 설치 옵션을 제공해 사용자가 phase 7~8 시점에 cryptic 에러를 보지 않도록 사전 차단.
+
+```bash
+required=(ansible-playbook sshpass ssh git curl jq yq gh)
+missing=()
+for cmd in "${required[@]}"; do
+  command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+done
+
+if [ ${#missing[@]} -gt 0 ]; then
+  # AskUserQuestion 으로 자동 설치 여부 확인
+  os=$(uname -s)
+  pkg_mgr=$([ "$os" = "Darwin" ] && echo "brew" || echo "apt")
+  install_cmds=$(generate_install_commands_for "$pkg_mgr" "${missing[@]}")
+fi
+```
+
+부재 도구 발견 시 사용자에게 다음 카드:
+
+```python
+AskUserQuestion(questions=[
+  {
+    "question": "테스트베드 구축에 필요한 일부 CLI 도구가 컨트롤러에 깔려있지 않습니다. 자동으로 설치를 진행할까요? 부재 도구: {{MISSING_LIST}}. 설치 명령은 패키지 매니저 ({{PKG_MGR}}) 를 사용합니다.",
+    "header": "도구 자동 설치",
+    "multiSelect": False,
+    "options": [
+      {"label": "자동 설치 진행 (Recommended)", "description": "{{INSTALL_CMD_PREVIEW}} — sudo 권한 필요할 수 있어 password prompt 가 뜰 수 있습니다."},
+      {"label": "직접 설치 후 재실행", "description": "사용자가 별 터미널에서 위 명령 실행 후 testbed-build 다시 호출"}
+    ]
+  }
+])
+```
+
+도구 → 설치 명령 매핑:
+
+| 도구 | macOS (brew) | Linux (apt) |
+|---|---|---|
+| ansible-playbook | `brew install ansible` | `sudo apt install ansible` |
+| sshpass | `brew install hudochenkov/sshpass/sshpass` | `sudo apt install sshpass` |
+| gh | `brew install gh` | `sudo apt install gh` |
+| jq, yq, curl, git | `brew install <name>` | `sudo apt install <name>` |
+| ssh | (시스템 기본) | (시스템 기본) |
+
+설치 후 `command -v` 재검증 → 모두 통과해야 다음 단계 진입.
+
+---
 
 ## ⚠️ 두 서버 개념 — 사용자에게 명확히 안내
 
@@ -115,7 +172,16 @@ AskUserQuestion(questions=[
     "header": "P10 서버",
     "multiSelect": False,
     "options": [
-      {"label": "104 운영 (Recommended)", "description": "https://192.168.230.104 — NKIA 운영 환경 (기본)"},
+      {"label": "104 운영 (Recommended)", "description": "https://192.168.230.104 — NKIA 운영 환경 (기본)"}
+    ]
+  },
+  {
+    "question": "services-author agent 가 신규 testbed 코드를 testbed-services 레포에 생성한 후, GitHub 에 PR 을 어떤 방식으로 머지하시겠어요? 수동 머지는 사용자가 직접 PR 화면에서 review 후 merge 버튼을 누르는 방식이고, 자동 머지는 gh CLI 가 충분한 권한을 가지고 있다고 가정하고 즉시 squash 머지합니다.",
+    "header": "PR 머지 모드",
+    "multiSelect": False,
+    "options": [
+      {"label": "수동 머지 (Recommended)", "description": "안전한 default — services-author 가 PR 만 만든 뒤, 사용자가 직접 코드 review + merge 버튼 클릭. testbed-build 는 PR 머지 상태를 60초 주기로 폴링하다가 머지 감지되면 자동으로 다음 phase 진행."},
+      {"label": "자동 머지", "description": "gh CLI 의 repo write 권한 가정 (`gh auth refresh -h github.com -s repo` 사전 실행 필요). PR 만든 직후 즉시 squash merge → 사용자 review 게이트 X. CI/dogfooding 빠른 환경에 적합."}
     ]
   }
   # 외부 레포 clone 은 자동 발견 후 분기 (아래 별 섹션 참조)
@@ -128,7 +194,29 @@ AskUserQuestion(questions=[
 
 ## 외부 레포 — 자동 발견 우선, 부재 시에만 인터뷰
 
-`testbed-services` / `rca-scenario-runner` 두 레포는 **항상 묻기 전에 자동 발견** 시도. 발견되면 그대로 사용. 없을 때만 prompt.
+testbed-build 가 의존하는 두 외부 레포가 있습니다. 사용자가 처음 호출하는 경우에는 각 레포가 어떤 역할인지 안내한 후 자동 발견 결과를 보여드립니다:
+
+```
+[외부 레포 역할 안내]
+
+  1. testbed-services — RCA 분석 대상이 될 microservices 코드 모음
+     예: plopvape-shop (e-commerce 5 services), social-feed (소셜 피드)
+     이 레포의 한 디렉토리가 K3s 에 배포돼 RCA 검증 시 부하·장애의
+     무대가 됩니다. 신규 도메인은 services-author agent 가 자동 생성.
+     URL: https://github.com/nkia-ai-team/testbed-services
+
+  2. rca-scenario-runner — 장애 시나리오 실행 웹 도구
+     플레이북 마지막 단계에서 109 같은 타겟 서버에 docker-compose 로
+     배포됩니다. 사용자가 web UI (target:8091) 에서 시나리오를 실행
+     하면 testbed-services 의 서비스에 장애를 주입하고 Polestar10 이
+     RCA 분석.
+     URL: https://github.com/nkia-ai-team/rca-scenario-runner
+
+두 레포가 컨트롤러 (Claude Code 가 실행 중인 머신) 에 이미 clone 되어
+있는지 확인 후, 없으면 어디에 clone 할지 묻습니다.
+```
+
+이 안내 출력 후 **자동 발견 시도**. 발견되면 그대로 사용 (인터뷰 X). 없을 때만 prompt.
 
 ### Step 1: cwd (Claude Code 작업 폴더) 우선 검사
 
@@ -296,13 +384,13 @@ RUNNER_PATH=$(yq '.paths.scenario_runner_repo' ~/.testbed-build/bootstrap.yaml |
 if [ ! -d "$TESTBED_SVC_PATH/.git" ]; then
   echo "testbed-services 레포가 없습니다. clone 합니다."
   mkdir -p "$(dirname "$TESTBED_SVC_PATH")"
-  git clone https://github.com/BangSungjoon/testbed-services.git "$TESTBED_SVC_PATH"
+  git clone https://github.com/nkia-ai-team/testbed-services.git "$TESTBED_SVC_PATH"
 fi
 
 if [ ! -d "$RUNNER_PATH/.git" ]; then
   echo "rca-scenario-runner 레포가 없습니다. clone 합니다."
   mkdir -p "$(dirname "$RUNNER_PATH")"
-  git clone https://github.com/BangSungjoon/rca-scenario-runner.git "$RUNNER_PATH"
+  git clone https://github.com/nkia-ai-team/rca-scenario-runner.git "$RUNNER_PATH"
 fi
 ```
 
@@ -310,7 +398,7 @@ git clone 실패 (PAT 만료 / private 권한 X) 시 ask-polestar10 가 아니�
 ```
 git clone 실패: <error>
   - PAT 가 ~/.git-credentials 에 있는지 확인
-  - private 레포 권한 있는지 확인 (BangSungjoon org 멤버?)
+  - private 레포 권한 있는지 확인 (nkia-ai-team org 멤버?)
   - 수동 clone 후 testbed-build 재호출 권장
 ```
 

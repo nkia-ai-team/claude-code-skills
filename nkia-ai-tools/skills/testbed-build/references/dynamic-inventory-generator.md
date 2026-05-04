@@ -1,6 +1,55 @@
 # Dynamic Inventory Generator
 
-Phase 6 — interview.yaml + bootstrap.yaml → `runs/<RUN_ID>/inventory.yml`.
+Phase 7 — interview.yaml + bootstrap.yaml → `runs/<RUN_ID>/inventory.yml`.
+
+## ⚠️ Ansible 변수 우선순위 함정 — host-level vars 강제
+
+Ansible 의 변수 우선순위 룰:
+
+```
+playbook group_vars/all  >  inventory file group vars  >  inventory file host vars (낮음)
+
+  ↑ 이게 제일 높은 게 아님!                          ↑ 이게 제일 높은 게 아님 ←—  ↑ 호스트 vars 가
+                                                                               group_vars/all 보다 낮음
+```
+
+**실제로는** `host_vars` (host 단위) 가 `inventory file group vars` 보다 우선. 그리고 `playbook group_vars/all` 이 둘을 다 이김. 본 ansible playbook 의 `group_vars/all.yml` 에는 **plopvape-shop default 가 박혀있어서**, inventory 의 group vars (`testbed:vars:`) 에 다른 값을 써도 무시됨 (회고 P0 #3 의 root cause).
+
+### 해결책: testbed 식별 변수는 모두 host-level 로 generate
+
+```yaml
+all:
+  children:
+    testbed:
+      hosts:
+        {{ALIAS}}:
+          # === connection (이미 host-level) ===
+          ansible_host: "{{TARGET_HOST}}"
+          ansible_user: "{{TARGET_USER}}"
+          ansible_password: "..."
+          ansible_become_password: "..."
+          ansible_python_interpreter: /usr/bin/python3
+
+          # === testbed identity (host-level 로 강제 — group_vars/all 의 default 를 이김) ===
+          app_repo: "{{APP_REPO}}"               # 예: https://github.com/nkia-ai-team/testbed-services
+          app_version: "{{BRANCH}}"
+          app_subdir: "{{APP_SUBDIR}}"           # 예: social-feed (신규) / plopvape-shop (기존)
+          app_namespace: "{{NAMESPACE}}"
+          testbed_services: {{TESTBED_SERVICES}} # 예: [post, feed, comment, notification]
+          db_kind: "{{DB_KIND}}"
+
+          # === 신규 testbed 시 services-author 가 만든 정보 ===
+          # is_new_variant=true 면 Phase 6 산출 (manifest.scenario_hints) 도 vars 로 흘려보내
+          # 시나리오 생성 phase 가 host vars 로 직접 읽을 수 있게.
+      # === 옵션 외 항목은 group vars 가능 (덜 민감) ===
+      vars:
+        # 서비스 + namespace 같이 testbed 를 식별하는 변수는 위 host vars 에 두고,
+        # 여기는 진짜 group-wide 옵션만 (예: ansible 동작 옵션).
+```
+
+> **금기**: `app_subdir`, `testbed_services`, `app_namespace` 같이 testbed 를 식별하는 변수는 절대 group vars 에 두지 X. 항상 host-level 로 generate. 안 그러면 `group_vars/all.yml` 의 default 가 이김.
+
+대안: ansible-playbook 호출 시 `--extra-vars` 로 전달. 모든 source 보다 우선순위 높음. 단 yaml 가독성 떨어져서 host-level vars 가 권장.
 
 ## 골격 — arm64-sample.yml 기반
 
@@ -24,7 +73,7 @@ all:
           ansible_python_interpreter: /usr/bin/python3
       vars:
         # === testbed identity (interview.app 에서) ===
-        app_repo: "https://github.com/BangSungjoon/testbed-services.git"
+        app_repo: "https://github.com/nkia-ai-team/testbed-services.git"
         app_version: "{{BRANCH}}"
         app_subdir: "{{APP_SUBDIR}}"
         app_namespace: "{{NAMESPACE}}"

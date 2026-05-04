@@ -53,7 +53,7 @@ description: RCA 테스트베드에 장애 시나리오를 추가/생성. `infra
 3. **레포 부재 시 인터뷰 + git clone**:
    ```
    "rca-scenario-runner 레포가 없습니다. ~/dev/rca-scenario-runner 에 clone 할까요?"
-   → yes: git clone https://github.com/BangSungjoon/rca-scenario-runner.git ~/dev/rca-scenario-runner
+   → yes: git clone https://github.com/nkia-ai-team/rca-scenario-runner.git ~/dev/rca-scenario-runner
    ```
 
 ---
@@ -94,7 +94,7 @@ ls "$RUNNER_ROOT/scenarios/services/"
 - 필드: id (`scenario-<NN>`), file, title, description, root_cause, propagation, estimated_duration_sec, expected_alarms (카드의 default), side_effects (있으면)
 - yaml dump 시 들여쓰기 보존 — 가능하면 ruamel.yaml 또는 직접 string 추가
 
-> **중요**: rca-scenario-runner 백엔드는 [scenarios.py](https://github.com/BangSungjoon/rca-scenario-runner/blob/develop/backend/app/scenarios.py) 가 service-spec.yaml glob 으로 시나리오 자동 발견. yaml 만 떨어뜨리면 컨테이너 재시작 후 자동 등록.
+> **중요**: rca-scenario-runner 백엔드는 [scenarios.py](https://github.com/nkia-ai-team/rca-scenario-runner/blob/develop/backend/app/scenarios.py) 가 service-spec.yaml glob 으로 시나리오 자동 발견. yaml 만 떨어뜨리면 컨테이너 재시작 후 자동 등록.
 
 ### 5. 사용자 미리보기 + 승인 ⛔ (AskUserQuestion)
 
