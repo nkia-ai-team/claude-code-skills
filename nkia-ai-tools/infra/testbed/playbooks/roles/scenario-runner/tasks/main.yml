@@ -9,81 +9,33 @@
     msg: "scenario-runner deploy enabled (port={{ scenario_runner_port | default('8091') }})"
   when: scenario_runner_enabled | default(true)
 
-- name: scenario-runner — 부재 시 git clone (hang 방지 + fail-fast)
+- name: scenario-runner — 부재 시 git clone
   ansible.builtin.git:
     repo: "{{ scenario_runner_repo_url }}"
     dest: "{{ scenario_runner_install_dir }}"
     version: "{{ scenario_runner_branch | default('main') }}"
-    depth: 1
-    single_branch: true
     force: false   # 기존 로컬 변경 보존
   become: false   # nkia user 의 home 에 clone (root 아님)
-  environment:
-    # 자격증명 prompt 가 hang 시키지 않도록 안전망. rca-scenario-runner
-    # 가 public 이면 정상 케이스엔 무관, private 일 때 미설정 자격증명
-    # prompt 차단 (PR #44 회고 — 54분 hang 케이스 방지).
-    GIT_TERMINAL_PROMPT: "0"
-    GIT_ASKPASS: "/bin/true"
-    GCM_INTERACTIVE: "Never"
   when:
     - scenario_runner_enabled | default(true)
     - scenario_runner_repo_url | length > 0
   register: runner_clone
-  timeout: 60
-  failed_when: false   # graceful — 다음 fail-fast task 에서 명확한 메시지
 
-- name: scenario-runner — clone 실패 시 명확한 안내 후 fail-fast
-  ansible.builtin.fail:
-    msg: |
-      rca-scenario-runner clone 실패 — 자격증명 prompt hang 또는 timeout.
-
-      원인: {{ scenario_runner_repo_url }} 가 private 일 가능성 높음.
-            타겟 서버에 자격증명 (예: ~/.git-credentials) 미설정 → git
-            이 username/password prompt 띄우려 함 → ansible 이 차단.
-
-      해결 (택 1):
-        1) rca-scenario-runner 레포를 public 으로 변경 권장
-           (NKIA-AI 팀의 testbed-services 처럼). 가장 단순.
-
-        2) 타겟 서버에 git credential 설정:
-             ssh {{ ansible_user }}@{{ ansible_host }}
-             git config --global credential.helper store
-             echo "https://<user>:<pat>@github.com" >> ~/.git-credentials
-             chmod 600 ~/.git-credentials
-
-        3) ansible-playbook 호출 시 -e scenario_runner_repo_url=... 으로
-           https://<user>:<pat>@github.com/... 형식 URL 직접 사용
-           (단 .git/config 에 평문 PAT 저장됨 — 보안 영향 검토)
-
-      RCA 검증은 rca-scenario-runner 가 필수 도구이므로 자동 skip 하지
-      않습니다. 위 옵션 중 하나로 해결 후 ansible-playbook 재실행.
-  when:
-    - scenario_runner_enabled | default(true)
-    - scenario_runner_repo_url | length > 0
-    - runner_clone is defined
-    - runner_clone is failed
-
-- name: scenario-runner — 기존 clone 이면 git pull (동일 보호)
+- name: scenario-runner — 기존 clone 이면 git pull
   ansible.builtin.command:
     cmd: "git pull --ff-only origin {{ scenario_runner_branch | default('main') }}"
     chdir: "{{ scenario_runner_install_dir }}"
   become: false
-  environment:
-    GIT_TERMINAL_PROMPT: "0"
-    GIT_ASKPASS: "/bin/true"
-    GCM_INTERACTIVE: "Never"
   when:
     - scenario_runner_enabled | default(true)
     - runner_clone is defined
-    - runner_clone is succeeded
     - not runner_clone.changed
   changed_when: false   # idempotent (no rebuild trigger if already up-to-date)
   register: runner_pull
-  timeout: 60
   failed_when:
     - runner_pull.rc != 0
-    - "'Already up to date' not in (runner_pull.stdout | default(''))"
-    - "'CONFLICT' in (runner_pull.stdout | default(''))"
+    - "'Already up to date' not in runner_pull.stdout"
+    - "'CONFLICT' in runner_pull.stdout"
 
 - name: scenario-runner — .env 작성 (build-and-deploy.sh 가 source)
   ansible.builtin.copy:
