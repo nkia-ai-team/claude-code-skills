@@ -99,7 +99,7 @@ WPM Agent 설치 시 OS별 구성 템플릿을 복사 후 환경에 맞게 변�
 <td><p>AGENT_NAME=&lt;에이전트명&gt;</p>
 <p>JAVA_OPTS="$JAVA_OPTS -javaagent: &lt;WPMAgent경로&gt;</p>
 <p>/$AGENT_NAME/wpmagent.jar"</p>
-<p>JAVA_OPTS="$JAVA_OPTS -Dwpmagent.conf=/$WPMAGENT_PATH/$AGENT_NAME/wpmagent.conf"</p></td>
+<p>JAVA_OPTS="$JAVA_OPTS -Dwpm.config=/$WPMAGENT_PATH/$AGENT_NAME/wpmagent.conf"</p></td>
 </tr>
 </tbody>
 </table>
@@ -108,7 +108,7 @@ WPM Agent 설치 시 OS별 구성 템플릿을 복사 후 환경에 맞게 변�
 
 |                                                                                                                             |
 | --------------------------------------------------------------------------------------------------------------------------- |
-| JAVA\_OPTS="$JAVA\_OPTS -javaagent:\<애플리케이션별 에이전트 설치경로\>/wpmagent.jar" -Dwpmagent.conf=\<애플리케이션별 에이전트 설치경로\>/wpmagent.conf" |
+| JAVA\_OPTS="$JAVA\_OPTS -javaagent:\<애플리케이션별 에이전트 설치경로\>/wpmagent.jar" -Dwpm.config=\<애플리케이션별 에이전트 설치경로\>/wpmagent.conf" |
 
 > ![](./images/agent-install-003/media/image9.png)
 > 
@@ -119,7 +119,7 @@ WPM Agent 설치 시 OS별 구성 템플릿을 복사 후 환경에 맞게 변�
 <tr class="odd">
 <td><p>set AGENT_NAME=&lt;에이전트명&gt;</p>
 <p>set JAVA_OPTS="%JAVA_OPTS% -javaagent:&lt;WPMAgent 경로&gt;\%AGENT_NAME%\wpmagent.jar"</p>
-<p>set JAVA_OPTS="%JAVA_OPTS% -Dwpmagent.conf=&lt;WPMAgent 경로&gt;\%AGENT_NAME%wpmagent.conf"</p></td>
+<p>set JAVA_OPTS="%JAVA_OPTS% -Dwpm.config=&lt;WPMAgent 경로&gt;\%AGENT_NAME%wpmagent.conf"</p></td>
 </tr>
 </tbody>
 </table>
@@ -128,7 +128,7 @@ WPM Agent 설치 시 OS별 구성 템플릿을 복사 후 환경에 맞게 변�
 
 |                                                                                                                                  |
 | -------------------------------------------------------------------------------------------------------------------------------- |
-| set JAVA\_OPTS="%JAVA\_OPTS% -javaagent: \<애플리케이션별 에이전트 설치경로\>/wpmagent.jar -Dwpmagent.conf=\<애플리케이션별 에이전트 설치경로\>/wpmagent.conf" |
+| set JAVA\_OPTS="%JAVA\_OPTS% -javaagent: \<애플리케이션별 에이전트 설치경로\>/wpmagent.jar -Dwpm.config=\<애플리케이션별 에이전트 설치경로\>/wpmagent.conf" |
 
 > WPMAgent 실행 및 적용 확인
 

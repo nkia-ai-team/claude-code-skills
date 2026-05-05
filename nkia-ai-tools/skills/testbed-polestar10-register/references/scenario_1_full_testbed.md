@@ -125,11 +125,34 @@
 
    ━━ WPM (Scouter) path ━━
      w-a. /api/apm/standby-agents-filter-step1 polling (60초 grace period — heartbeat 도달 대기)
+          응답: service 목록만 (agents=null) — 어떤 service 가 떴는지 확인용
      w-b. 같은 serviceName 의 agent 들 묶음 표시
      w-c. 사용자에게 등록할 service 선택 (한 번에 올릴 service 1개~N개)
-     w-d. recipes/add-target.md "APM Step 2" → /api/apm/standby-agent/register
-          해당 service 의 모든 agent 를 array body 로 일괄 등록
-          category 필드 ("APM" 또는 "WPM") 는 standby 응답 그대로 복사
+     w-d. /api/apm/standby-agents-filter-step2 (POST) — agent 상세 조회
+          payload:
+            {
+              "pageNumber": 1, "pagePerSize": 30,
+              "sortFieldSets": [], "gridFilters": [], "arguments": {}
+            }
+          응답: data.content[] = [{ serviceName, agentId, resourceId, confId, category, ... }, ...]
+          → step1 의 service 목록을 채울 agent 상세가 여기서 나옴.
+     w-e. step2 응답 → jq filter 로 등록 대상만 추출 + register 필드 추가:
+          REG_PAYLOAD=$(curl ... step2 | jq --arg svc_prefix "$TESTBED_NAME" '
+            [.data.content[]
+             | select(.serviceName | startswith($svc_prefix))
+             | {
+                 serviceName, agentId, resourceId, confId, category,
+                 managementStatus: "MANAGED",
+                 collectorPolicyTagValue: "defaultPolicy",
+                 anomalyPolicyTagValue: "성능 이상감지 기본 정책",
+                 serviceGroupTagValue: $svc_prefix,
+                 groupId: 1
+               }]')
+     w-f. recipes/add-target.md "APM Step 2" → POST /api/apm/standby-agent/register
+          body = $REG_PAYLOAD (array)
+          category 필드 ("APM" 또는 "WPM") 는 step2 응답 그대로 복사 — Scouter 면 보통 "WPM"
+          collectorPolicyTagValue / anomalyPolicyTagValue / serviceGroupTagValue 는 등록 시점에 추가
+          (groupId=1 = Default 시스템 그룹. 다른 그룹 사용 시 사용자 인터뷰)
 
    ━━ OTel APM path ━━
      o-a. data 흐름 검증: testbed-services 의 OTel exporter 가 polestar10
