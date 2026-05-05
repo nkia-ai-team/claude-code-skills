@@ -187,7 +187,7 @@ ssh <target> 'sudo /usr/local/bin/k3s kubectl top nodes'
 | service-k8s/app | `docker build` 실패 | Dockerfile 누락 또는 base image 접근 불가 | git repo 안 Dockerfile + base image registry 도달 |
 | service-k8s/app | `Pod ImagePullBackOff` | 이미지가 K3s containerd 에 import 안 됨 | 수동: `docker save <image> \| sudo k3s ctr -n k8s.io images import -` |
 | agent-kcm/ARM | `git: clone fail (auth)` | 사내 GitLab 인증 | git config + PAT 또는 ssh key 인증 |
-| agent-kcm | `kubectl rollout status timeout` | metrics-server 누락 또는 RBAC 누락 | `kubectl logs -n kcm ds/kcm-agent` |
+| agent-kcm | `kubectl rollout status timeout` | metrics-server 누락 또는 helm install 실패 | `kubectl logs -n kcm-monitoring ds/kcm-node-agent` + `kubectl logs -n kcm-monitoring deploy/kcm-master-agent` |
 | agent-sms/ARM | `Exec format error` | binfmt_misc 미등록 | `sudo update-binfmts --enable qemu-x86_64` |
 | agent-sms | "already running — skip" | 호스트에 이미 SMS 도는 중 (정상) | 강제 재설치 시 `--extra-vars sms_force_reinstall=true` |
 
@@ -208,22 +208,68 @@ ssh sjbang@192.168.230.104 'docker logs polestar-app-wpm-1 2>&1 | tail -300' > l
 
 ## 5. cleanup
 
-### 본 playbook 으로 만든 리소스만 제거
+### k3d cluster 단위 cleanup (default 패턴)
+
+testbed 별 별 k3d cluster 사용 (cluster_kind=k3d). cluster 삭제 = 그 testbed 의 모든 K8s 리소스 삭제:
 
 ```sh
-ssh <target> 'sudo /usr/local/bin/k3s kubectl delete ns testbed-app kcm --ignore-not-found'
+# testbed 단위 (cluster name = testbed 이름, 예: social-feed, plopvape-shop)
+ssh <target> "k3d cluster delete <testbed-name>"
+
+# host install agents (KCM source / SMS systemd / WPM·APM jar) 제거
+ssh <target> 'sudo systemctl disable --now sms-agent || true'
+ssh <target> 'sudo rm -rf /opt/polestar10 /opt/lucida-kcmagent'
+
+# scenario-runner (testbed 별 별 인스턴스)
+ssh <target> "docker compose -p rca-scenario-runner-<testbed-name> down -v"
+ssh <target> "rm -rf /home/<user>/rca-scenario-runner-<testbed-name>"
+
+# testbed 별 KUBECONFIG 정리
+ssh <target> "rm -f /home/<user>/.kube/<testbed-name>.yaml"
+```
+
+### 모든 testbed 한 번에 cleanup
+
+```sh
+ssh <target> 'k3d cluster list -o json | jq -r ".[].name" | xargs -I{} k3d cluster delete {}'
+```
+
+### 기존 plopvape-shop (legacy native K3s) 마이그레이션
+
+라운드-5 이전 사용자가 native K3s 에 plopvape-shop 띄워놨던 경우 → k3d 로 마이그레이션:
+
+```sh
+# 1. 기존 native K3s 의 plopvape-shop 삭제
+ssh <target> 'sudo /usr/local/bin/k3s kubectl delete ns rca-testbed kcm --ignore-not-found'
+
+# 2. (옵션) native K3s 자체 제거 — 다른 legacy testbed 가 없다면
+ssh <target> 'sudo /usr/local/bin/k3s-uninstall.sh'
+
+# 3. testbed-build 재호출 — k3d 패턴으로 plopvape-shop 새로 생성
+#    (Polestar10 web UI 의 기존 plopvape-shop 자원도 사용자가 cleanup 권장)
+```
+
+### legacy native K3s 케이스 (cluster_kind=k3s only)
+
+```sh
+ssh <target> 'sudo /usr/local/bin/k3s kubectl delete ns testbed-app kcm-monitoring --ignore-not-found'
 ssh <target> 'sudo systemctl disable --now sms-agent || true'
 ssh <target> 'sudo rm -rf /opt/polestar10 /opt/lucida-kcmagent'
 ```
 
-### multipass VM 제거
+### multipass VM 제거 (개발용)
 
 ```sh
 multipass stop testbed && multipass delete testbed && multipass purge
 ```
 
-### K3s 자체 제거
+### k3d / K3s 자체 제거
 
 ```sh
+# k3d (default)
+ssh <target> 'k3d cluster list -o json | jq -r ".[].name" | xargs -I{} k3d cluster delete {}'
+# (k3d 도구 자체 삭제는 거의 필요 없음 — cluster 만 다 지우면 docker container 자동 정리)
+
+# native K3s legacy
 ssh <target> 'sudo /usr/local/bin/k3s-uninstall.sh'
 ```

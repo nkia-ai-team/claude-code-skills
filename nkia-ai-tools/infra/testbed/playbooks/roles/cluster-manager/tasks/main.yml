@@ -1,0 +1,127 @@
+---
+# cluster-manager role
+# testbed 별 K8s cluster 생성/관리. default = k3d (Docker 컨테이너 안 K3s).
+#
+# 입력 변수:
+#   cluster_kind  — k3d (default) | k3s (legacy native)
+#   cluster_name  — testbed 식별자 (예: social-feed, plopvape-shop)
+#   kubeconfig_path — /home/<user>/.kube/<cluster_name>.yaml
+#   k3d_api_port  — k3d API server host port (예: 6443, 6444 — testbed 마다 다른 port 권장)
+#
+# 동작:
+#   k3d 케이스: k3d cluster 생성 + KUBECONFIG export + metrics-server 설치
+#   k3s 케이스: 이미 common 에서 설치됨, kubeconfig_path 만 /etc/rancher/k3s/k3s.yaml 으로 link
+
+- name: cluster-manager — debug 표시
+  ansible.builtin.debug:
+    msg: |
+      cluster_kind={{ cluster_kind | default('k3d') }}
+      cluster_name={{ cluster_name | default(app_subdir) }}
+      kubeconfig_path={{ kubeconfig_path }}
+
+# === k3d 케이스 ===
+- name: k3d cluster 처리 block
+  when: cluster_kind | default('k3d') == 'k3d'
+  block:
+    - name: k3d cluster 존재 여부 확인
+      ansible.builtin.command: k3d cluster list -o json
+      register: k3d_cluster_list
+      changed_when: false
+
+    - name: 기존 cluster 매칭
+      ansible.builtin.set_fact:
+        k3d_cluster_exists: "{{ (k3d_cluster_list.stdout | from_json | map(attribute='name') | list) | intersect([cluster_name]) | length > 0 }}"
+
+    - name: k3d cluster 생성 (없는 경우만)
+      ansible.builtin.shell: |
+        set -e
+        k3d cluster create "{{ cluster_name }}" \
+          --api-port "0.0.0.0:{{ k3d_api_port | default(6443) }}" \
+          --servers 1 \
+          --agents 0 \
+          --port "{{ k3d_node_http_port | default(8080) }}:80@loadbalancer" \
+          --port "{{ k3d_node_https_port | default(8443) }}:443@loadbalancer" \
+          --port "{{ k3d_node_nodeport_offset | default(30000) }}-{{ k3d_node_nodeport_max | default(30100) }}:{{ k3d_node_nodeport_offset | default(30000) }}-{{ k3d_node_nodeport_max | default(30100) }}@loadbalancer" \
+          --k3s-arg "--disable=traefik@server:0" \
+          --kubeconfig-update-default=false \
+          --kubeconfig-switch-context=false \
+          --wait
+      become: false
+      when: not k3d_cluster_exists
+      register: k3d_create_result
+      changed_when: k3d_create_result.rc == 0
+
+    - name: KUBECONFIG export 디렉토리 준비
+      become: false
+      ansible.builtin.file:
+        path: "{{ kubeconfig_path | dirname }}"
+        state: directory
+        mode: '0700'
+
+    - name: KUBECONFIG export ({{ kubeconfig_path }})
+      ansible.builtin.shell: |
+        set -e
+        k3d kubeconfig get "{{ cluster_name }}" > "{{ kubeconfig_path }}"
+        chmod 600 "{{ kubeconfig_path }}"
+      become: false
+      changed_when: true
+
+    - name: metrics-server 설치 (k3d cluster 안)
+      # k3d 의 K3s 가 metrics-server 자동 설치 X. components.yaml 직접 apply.
+      ansible.builtin.shell: |
+        set -e
+        kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+        # K3s 의 self-signed kubelet 인증서 회피
+        kubectl patch deployment metrics-server -n kube-system --type=json \
+          -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
+        kubectl rollout status deployment/metrics-server -n kube-system --timeout=120s
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      become: false
+      register: metrics_install_result
+      changed_when: metrics_install_result.rc == 0
+      retries: 3
+      delay: 10
+      until: metrics_install_result.rc == 0
+
+# === k3s legacy 케이스 ===
+- name: k3s legacy — kubeconfig 읽기 권한 부여 + path symlink
+  when: cluster_kind | default('k3d') == 'k3s'
+  block:
+    - name: K3s kubeconfig 권한 (사용자 read 가능하게)
+      ansible.builtin.file:
+        path: /etc/rancher/k3s/k3s.yaml
+        mode: '0644'
+      become: true
+
+    - name: kubeconfig_path 디렉토리 준비
+      become: false
+      ansible.builtin.file:
+        path: "{{ kubeconfig_path | dirname }}"
+        state: directory
+        mode: '0700'
+
+    - name: kubeconfig_path 에 K3s yaml 복사
+      ansible.builtin.copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "{{ kubeconfig_path }}"
+        remote_src: true
+        mode: '0600'
+      become: false
+
+# === 공통 검증 ===
+- name: cluster ready 검증 (kubectl get nodes)
+  ansible.builtin.command: kubectl get nodes
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  become: false
+  register: kubectl_nodes
+  changed_when: false
+
+- name: cluster-manager 완료 안내
+  ansible.builtin.debug:
+    msg: |
+      cluster '{{ cluster_name }}' ({{ cluster_kind | default('k3d') }}) 준비 완료.
+      KUBECONFIG: {{ kubeconfig_path }}
+      Nodes:
+      {{ kubectl_nodes.stdout }}

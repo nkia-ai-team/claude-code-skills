@@ -21,12 +21,23 @@
   ansible.builtin.include_tasks: docker.yml
   tags: [docker]
 
-- name: Install K3s (single-node)
+# Cluster 격리 방식 — testbed 별 별 K8s cluster (production 모사).
+# default cluster_kind=k3d (Docker 컨테이너 안 K3s). legacy cluster_kind=k3s 면 native K3s 설치.
+- name: Install K3s (native — legacy cluster_kind=k3s only)
   ansible.builtin.include_tasks: k3s.yml
+  when: cluster_kind | default('k3d') == 'k3s'
   tags: [k3s]
 
-- name: Install metrics-server with --kubelet-insecure-tls
+- name: Install k3d (Docker 안 K3s — testbed 별 cluster 격리, default)
+  ansible.builtin.include_tasks: k3d.yml
+  when: cluster_kind | default('k3d') == 'k3d'
+  tags: [k3d]
+
+# metrics-server: cluster-manager role 이 cluster 생성 후 cluster context 안에서 설치 (k3d 케이스).
+# native K3s 의 경우는 여기서 처리 (legacy).
+- name: Install metrics-server (legacy native K3s only — k3d 는 cluster-manager 에서 처리)
   ansible.builtin.include_tasks: metrics-server.yml
+  when: cluster_kind | default('k3d') == 'k3s'
   tags: [metrics-server]
 
 - name: Install Go toolchain (ARM only — needed for KCM source build)

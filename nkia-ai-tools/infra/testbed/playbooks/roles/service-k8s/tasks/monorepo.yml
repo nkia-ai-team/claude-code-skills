@@ -67,16 +67,46 @@
   ansible.builtin.set_fact:
     applied_rev: "{{ (applied_rev_b64.content | b64decode | trim) if (applied_rev_b64 is not failed and applied_rev_b64.content is defined) else '' }}"
 
+# build-and-deploy.sh 가 docker build + kubectl apply 호출. testbed 별 cluster 의
+# KUBECONFIG 명시 필수 (cluster_kind=k3d 면 testbed-별 kubeconfig_path).
 - name: Run build-and-deploy.sh (only when repo rev changed or first run)
   ansible.builtin.shell: bash k8s/build-and-deploy.sh
   args:
     chdir: "/opt/{{ app_namespace }}/src/{{ app_subdir }}"
     executable: /bin/bash
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
   register: bds_run
   changed_when: bds_run.rc == 0
   when:
     - bds_stat.stat.exists
     - applied_rev != current_rev.stdout
+
+# k3d 의 경우: build-and-deploy.sh 가 docker build 한 image 를 k3d cluster 에 import 해야.
+# 기존 native K3s 는 docker engine 의 이미지가 그대로 K3s 컨테이너로 사용 가능했지만 (host docker = K3s containerd 공유 setting),
+# k3d 는 별 컨테이너 안 K3s 라 docker host image → k3d cluster import 명시 필요.
+- name: Import service images into k3d cluster (k3d only)
+  ansible.builtin.shell: |
+    set -e
+    # build-and-deploy.sh 가 빌드한 이미지 list 추출 후 k3d 로 import
+    cd /opt/{{ app_namespace }}/src/{{ app_subdir }}
+    if [ -f k8s/build-and-deploy.sh ]; then
+      # docker images 의 testbed 관련 image 자동 발견 (last 1h 빌드 + app_subdir prefix 또는 namespace prefix)
+      IMAGES=$(docker images --format '{{ "{{.Repository}}:{{.Tag}}" }}' | grep -E "^({{ app_subdir }}|{{ app_namespace }})" | head -20)
+      if [ -n "$IMAGES" ]; then
+        echo "$IMAGES" | while read img; do
+          k3d image import "$img" -c "{{ cluster_name }}"
+        done
+      else
+        echo "no matching local images for k3d import — service images 가 정상이라면 image: 의 registry pull 패턴"
+      fi
+    fi
+  when:
+    - cluster_kind | default('k3d') == 'k3d'
+    - bds_run is changed
+  register: k3d_image_import
+  changed_when: k3d_image_import.rc == 0
+  failed_when: false
 
 - name: Persist applied rev sentinel
   ansible.builtin.copy:
@@ -87,14 +117,18 @@
 
 - name: Wait for all testbed deployments to be Available
   ansible.builtin.command: >
-    /usr/local/bin/k3s kubectl -n {{ app_namespace }}
+    kubectl -n {{ app_namespace }}
     rollout status deployment --timeout=300s
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
   changed_when: false
   failed_when: false
 
 - name: Wait for all testbed statefulsets to be ready
   ansible.builtin.command: >
-    /usr/local/bin/k3s kubectl -n {{ app_namespace }}
+    kubectl -n {{ app_namespace }}
     rollout status statefulset --timeout=180s
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
   changed_when: false
   failed_when: false

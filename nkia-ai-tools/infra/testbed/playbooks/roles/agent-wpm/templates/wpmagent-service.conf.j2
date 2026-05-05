@@ -1,5 +1,5 @@
-msa_group_id=plopvape-{{ item }}
-obj_name=plopvape-{{ item }}
+msa_group_id={{ app_subdir }}-{{ item }}
+obj_name={{ app_subdir }}-{{ item }}
 manager_ip={{ polestar10_collector_host }}
 is_msa_env=true
 enable_get_sysenv=true

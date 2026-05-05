@@ -6,7 +6,7 @@ polestar10_wpm_collector_udp_port: 31002
 polestar10_wpm_collector_tcp_port: 31005
 # APM (OTel) 은 OTLP gRPC endpoint
 polestar10_apm_collector_otlp_endpoint: "http://192.168.230.104:6565"
-polestar10_kcm_collector_port: 20040
+polestar10_kcm_collector_port: 7575
 # SMS 는 AgentInstall.sh 의 -m 인자로 broker_ip:port (MQTT 1883)
 polestar10_sms_broker_port: 1883
 
@@ -103,8 +103,19 @@ apm_jar_name: "opentelemetry-javaagent.jar"
 # ARM 타겟에서 KCM 사용 시 inventory 또는 -e 로 override 또는 env KCM_SOURCE_REPO.
 # AMD64 는 kcm_image_url_amd64 (polestar-agents-binaries 후속, NKIAAI-537) 로 우회.
 kcm_source_repo: "{{ lookup('env', 'KCM_SOURCE_REPO') | default('', true) }}"
-kcm_source_branch: "main"
+kcm_source_branch: "develop"
 kcm_image_name: "polestar10-kcm"
+
+# KCM 배포는 lucida-kcmagent 의 자체 helm chart (deploy/kcm-agent) 사용.
+# Chart 가 master Deployment + Service (NATS server) + node DaemonSet + RBAC + ConfigMap + Secret 모두 generate.
+kcm_namespace: "kcm-monitoring"
+
+# KCM helm chart 의 kcm.token / kcm.insecure 매핑.
+# RCA 테스트베드 (internal network) 는 token 빈값 + insecure: true 로 충분.
+# 운영 환경에서는 Polestar10 web UI 의 KCM 메뉴에서 발급된 token 을
+# inventory host vars 로 override.
+polestar10_kcm_token: "{{ lookup('env', 'POLESTAR10_KCM_TOKEN') | default('', true) }}"
+polestar10_kcm_insecure: true
 
 # SMS 설치 경로
 sms_install_dir: "/opt/polestar10/sms"
@@ -124,5 +135,24 @@ sms_install_dir: "/opt/polestar10/sms"
 scenario_runner_enabled: true
 scenario_runner_repo_url: "https://github.com/nkia-ai-team/rca-scenario-runner.git"
 scenario_runner_branch: "main"
-scenario_runner_install_dir: "/home/{{ ansible_user }}/rca-scenario-runner"
+# testbed 별 별 install dir + port (concurrent testbed 격리). cluster_name 은 inventory host vars 에서 결정.
+scenario_runner_install_dir: "/home/{{ ansible_user }}/rca-scenario-runner-{{ cluster_name | default(app_subdir) }}"
 scenario_runner_port: 8091
+
+# ============================================================
+# Cluster 격리 (production 모사) — testbed 별 별 K8s cluster
+# ============================================================
+# default cluster_kind=k3d (Docker 컨테이너 안 K3s). 한 호스트에 N 개 testbed 가
+# 동시에 떠있어도 cluster 단위로 자원/네트워크/장애 도메인 분리 됨.
+# legacy cluster_kind=k3s 는 native single-K3s + namespace 격리 (호환 옵션, 권장 X).
+cluster_kind: k3d
+cluster_name: "{{ app_subdir }}"   # 보통 testbed 이름 = app_subdir (예: social-feed, plopvape-shop)
+kubeconfig_path: "/home/{{ ansible_user }}/.kube/{{ cluster_name | default(app_subdir) }}.yaml"
+
+# k3d cluster 의 host port 할당 — testbed 마다 충돌 회피하려면 inventory host vars 로 override.
+# default 는 single-testbed 가정. 여러 testbed 동시 운영 시 각 testbed 의 inventory 에 다른 port 박을 것.
+k3d_api_port: 6443                  # k3d cluster API server (Kubernetes API)
+k3d_node_http_port: 8080            # cluster 의 HTTP ingress
+k3d_node_https_port: 8443           # cluster 의 HTTPS ingress
+k3d_node_nodeport_offset: 30000     # NodePort range 시작
+k3d_node_nodeport_max: 30100        # NodePort range 끝

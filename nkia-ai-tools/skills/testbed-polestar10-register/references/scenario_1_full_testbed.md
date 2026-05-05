@@ -112,13 +112,50 @@
      d. recipes/nms-lifecycle.md "Step 3" → /api/nms/v1/addResource
         ⚠️ collectType 필드의 대소문자 비일관 함정 — recipe 본문이 안전하게 처리
 
-   [APM — service+agent 2-level]
-     a. recipes/add-target.md "APM Step 1" → /api/apm/standby-agents-filter-step1
-        같은 serviceName 의 agent 들 묶음 표시
-     b. 사용자에게 등록할 service 선택 (한 번에 올릴 service 1개~N개)
-     c. recipes/add-target.md "APM Step 2" → /api/apm/standby-agent/register
-        해당 service 의 모든 agent 를 array body 로 일괄 등록
-        category 필드 ("APM" 또는 "WPM") 는 standby 응답 그대로 복사
+   [APM — Scouter (WPM) vs OTel 분기]
+
+   ⚠️ Polestar10 의 APM 등록은 agent 종류에 따라 path 가 다름:
+     - **Scouter / WPM (javaagent)** = standby polling 모델. /api/apm/standby-agents-filter-step1
+       에 heartbeat 보낸 agent 가 떠야 register 가능.
+     - **OTel (opentelemetry-javaagent)** = data 흐름 시작 → backend 자동 등록.
+       명시적 register 호출 X. /api/apm/list-filter 로 등록 여부 확인.
+
+   분기 결정: inventory host_vars 의 apm_agent_type (= "scouter" 또는 "otel") 또는
+   testbed-services 의 manifest 메타에서 추론. 모르면 둘 다 시도.
+
+   ━━ WPM (Scouter) path ━━
+     w-a. /api/apm/standby-agents-filter-step1 polling (60초 grace period — heartbeat 도달 대기)
+     w-b. 같은 serviceName 의 agent 들 묶음 표시
+     w-c. 사용자에게 등록할 service 선택 (한 번에 올릴 service 1개~N개)
+     w-d. recipes/add-target.md "APM Step 2" → /api/apm/standby-agent/register
+          해당 service 의 모든 agent 를 array body 로 일괄 등록
+          category 필드 ("APM" 또는 "WPM") 는 standby 응답 그대로 복사
+
+   ━━ OTel APM path ━━
+     o-a. data 흐름 검증: testbed-services 의 OTel exporter 가 polestar10
+          OTLP endpoint (group_vars/all.yml: polestar10_apm_collector_otlp_endpoint
+          default `http://192.168.230.104:6565`) 로 trace 송신 중인지 확인.
+          → kubectl logs <pod> | grep -i 'otlp\|otel' 또는 직접 endpoint 도달성.
+     o-b. 60초 grace period 대기 (Polestar10 backend 가 trace 받아 service 자원
+          자동 생성하기까지).
+     o-c. /api/apm/list-filter 폴링 (10초 간격 × 6회 = 60초 추가):
+          response 에 testbed-services 의 service name 이 떠 있는지 확인.
+            - 떠있음 → 자동 등록 OK. category=APM 으로 표시.
+            - 안 떠있음 → backend 의 OTel 자동 등록이 비활성 상태 가능.
+              사용자 안내: "Polestar10 web UI > APM 메뉴 에서 testbed-services
+              의 OTel trace 가 보이는지 확인 필요. 메뉴얼 등록 옵션 있을 수 있음."
+     o-d. (옵션) 명시적 register 가 필요한 backend 버전인 경우:
+          /api/apm/standby-agents-filter-step1 도 시도 — 일부 backend 는 OTel 도
+          standby 모델로 처리. 응답 비어있으면 자동 등록 모델로 확정.
+
+   ━━ 둘 다 실패 시 폴백 ━━
+   사용자에게 표 제시:
+     | service | 등록 여부 | 이유 |
+     | post-service | NOT REGISTERED | OTel data 미수신 (60초 timeout) |
+   다음 옵션:
+     - testbed pod 의 javaagent JVM_OPTS 확인 + 재시도
+     - Polestar10 web UI 에서 직접 등록 (수동 fallback)
+     - 본 자원만 skip 하고 진행 (시나리오/알람 단계는 나머지 자원으로 진행)
 
    [TBD — Syslog/SQL/SNMP OID/사용자정의]
      UI fallback 안내 (recipes/add-target.md "UI Fallback") + 등록 후 list-filter 로 검증

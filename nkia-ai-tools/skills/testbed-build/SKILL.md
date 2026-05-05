@@ -63,6 +63,9 @@ chmod 700 ~/.testbed-build
 - ~/.polestar10rc → Polestar10 password 인터뷰 skip
 - 레포 디렉토리 → clone 작업 skip
 - ~/.git-credentials → git PAT 인터뷰 skip
+- bootstrap.yaml 의 polestar10.organization_id 가 비어있지 않음 → organization_id 인터뷰 skip
+
+⚠️ **organization_id 는 bootstrap.yaml 에 비어있으면 인터뷰 강제** — SMS install role 의 fail-fast 가드 + KCM helm chart 의 `kcm.orgId` (Secret `KCM_ORG_ID`) 가 모두 이 값을 참조. 빈값으로 진행하면 6종 자원 등록 시나리오에서 SMS/KCM standby 미감지 → PARTIAL verdict 로 끝남.
 
 상세 슬롯 정책 표는 [references/bootstrap.md](references/bootstrap.md) 의 "인터뷰 슬롯 정책 표" 참조.
 
@@ -172,39 +175,43 @@ AskUserQuestion(questions=[
 ])
 ```
 
-### [Phase 4.5] 기존 testbed 감지 게이트
+### [Phase 4.5] 기존 testbed 감지 게이트 (cluster 단위)
 
-타겟 서버에 같은 namespace 의 서비스가 이미 떠있는지 사전 감지. 떠있으면 사용자 의도 확인.
+타겟 서버에 **같은 이름의 cluster** (cluster_kind=k3d 면 k3d cluster, k3s legacy 면 같은 namespace) 가 이미 떠있는지 사전 감지. 떠있으면 사용자 의도 확인.
 
 ```bash
-# secrets.env 의 SSH 자격증명 + become 비번 재사용 (Phase 1 인터뷰에서 이미 받음)
-# sudo -S 로 stdin 비번 전달 — 명령행 노출 X, hang X.
 source ~/.testbed-build/runs/$RUN_ID/secrets.env
-EXISTING_NS_CHECK=$(sshpass -e ssh -o ConnectTimeout=5 \
-  "${TARGET_USER}@${TARGET_HOST}" \
-  "echo '${TESTBED_BECOME_PASSWORD}' | sudo -S /usr/local/bin/k3s kubectl get ns ${APP_NAMESPACE} -o name 2>/dev/null && \
-   echo '${TESTBED_BECOME_PASSWORD}' | sudo -S /usr/local/bin/k3s kubectl get deploy -n ${APP_NAMESPACE} -o name 2>/dev/null | wc -l")
+CLUSTER_NAME="${APP_SUBDIR}"   # = bootstrap.cluster.name 도출 (testbed 이름)
 
-# 결과: namespace 존재 + deployment N 개 → 이미 떠있음
-NS_EXISTS=$(echo "$EXISTING_NS_CHECK" | grep -c "^namespace/${APP_NAMESPACE}$" || echo 0)
-DEPLOY_COUNT=$(echo "$EXISTING_NS_CHECK" | tail -1)
+# k3d cluster 단위 검사 (default cluster_kind=k3d)
+EXISTING_CLUSTER=$(sshpass -e ssh -o ConnectTimeout=5 \
+  "${TARGET_USER}@${TARGET_HOST}" \
+  "k3d cluster list -o json 2>/dev/null | jq -r '.[].name' | grep -Fx '${CLUSTER_NAME}' || true")
+
+CLUSTER_EXISTS=$([ -n "$EXISTING_CLUSTER" ] && echo 1 || echo 0)
+
+# (k3s legacy 케이스) — cluster_kind=k3s 면 namespace 검사 (이전 패턴 유지)
+if [ "$CLUSTER_KIND" = "k3s" ]; then
+  EXISTING_NS=$(sshpass -e ssh -o ConnectTimeout=5 \
+    "${TARGET_USER}@${TARGET_HOST}" \
+    "echo '${TESTBED_BECOME_PASSWORD}' | sudo -S /usr/local/bin/k3s kubectl get ns ${APP_NAMESPACE} -o name 2>/dev/null")
+  CLUSTER_EXISTS=$([ -n "$EXISTING_NS" ] && echo 1 || echo 0)
+fi
 ```
 
-비번이 인터뷰에서 캡처되지 않은 케이스 (ssh_key 인증 + sudoers NOPASSWD) 는 `${TESTBED_BECOME_PASSWORD}` 가 빈 문자열 → `sudo -S` 가 stdin 빈값 → NOPASSWD 면 정상 통과, 아니면 즉시 fail (hang X). 양쪽 케이스 모두 안전.
-
-`NS_EXISTS=1 && DEPLOY_COUNT > 0` 인 경우만 사용자 카드:
+`CLUSTER_EXISTS=1` 인 경우만 사용자 카드:
 
 ```python
 AskUserQuestion(questions=[
   {
-    "question": f"{TARGET_HOST} 의 {APP_NAMESPACE} namespace 에 이미 {DEPLOY_COUNT} 개 deployment 가 떠있습니다. 어떻게 진행할까요?",
+    "question": f"{TARGET_HOST} 에 이미 cluster '{CLUSTER_NAME}' 이 존재합니다. 어떻게 진행할까요?",
     "header": "기존 testbed 감지",
     "multiSelect": False,
     "options": [
       {"label": "장애 시나리오만 추가", "description": "deploy/agent install 모두 skip — testbed-generate-scenarios 단독 호출로 분기"},
-      {"label": "다른 testbed 만들기", "description": "Phase 1 인터뷰 다시 (다른 namespace 또는 다른 service)"},
-      {"label": "기존 삭제 후 새로", "description": "kubectl delete ns 후 정상 진행 — 데이터 / DB 모두 사라짐 ⚠️"},
-      {"label": "그대로 재배포 (idempotent)", "description": "현재 상태 위에 ansible apply — 변경 없으면 ok=N changed=0"}
+      {"label": "다른 testbed 만들기", "description": "Phase 1 인터뷰 다시 (다른 cluster_name = 다른 testbed 이름)"},
+      {"label": "기존 cluster 삭제 후 새로", "description": "k3d cluster delete <name> (또는 k3s 면 kubectl delete ns) 후 정상 진행 — 데이터 / DB 모두 사라짐 ⚠️"},
+      {"label": "그대로 재배포 (idempotent)", "description": "현재 cluster 위에 ansible apply — helm upgrade --install 이 변경분만 적용"}
     ]
   }
 ])
@@ -213,14 +220,27 @@ AskUserQuestion(questions=[
 선택별 분기:
 - (1) → Phase 5~9 skip, Phase 10 (generate-scenarios) 로 점프
 - (2) → Phase 1 으로 복귀
-- (3) → `kubectl delete ns ${APP_NAMESPACE} --wait=true` 후 Phase 5 진행
-- (4) → 그대로 Phase 5 진행 (default behavior)
+- (3) → k3d: `sshpass -e ssh ${TARGET_USER}@${TARGET_HOST} "k3d cluster delete ${CLUSTER_NAME}"` 후 Phase 5 / k3s: `kubectl delete ns ${APP_NAMESPACE} --wait=true`
+- (4) → 그대로 Phase 5 진행 (helm upgrade --install 이 idempotent)
 
-`NS_EXISTS=0` (깨끗) 이면 카드 자체 skip → Phase 5 직행.
+`CLUSTER_EXISTS=0` (깨끗) 이면 카드 자체 skip → Phase 5 직행.
 
-### [Phase 5] Lock 획득
+⚠️ **port 충돌 사전 점검 (다중 testbed 동시 운영 시)**: 같은 호스트에 다른 testbed 가 떠있는데 cluster_name 만 다르면 — k3d_api_port (6443) / scenario_runner_port (8091) 등이 충돌 가능. 인터뷰가 다른 port 받지 않았다면 사용자에게 안내:
+```bash
+PORTS_IN_USE=$(sshpass -e ssh ${TARGET_USER}@${TARGET_HOST} "ss -tlnp 2>/dev/null | grep -E ':6443|:8091' | wc -l")
+[ "$PORTS_IN_USE" -gt 0 ] && warn "host port 충돌 가능 — 다른 cluster 가 같은 port 사용 중. 인터뷰 다시 + 다른 port 입력 필요"
+```
 
-target_host 확정됐으니 [references/concurrency-lock.md](references/concurrency-lock.md) 의 flock 획득.
+### [Phase 5] Lock 획득 (cluster 단위)
+
+target_host + cluster_name 확정됐으니 [references/concurrency-lock.md](references/concurrency-lock.md) 의 flock 획득. lock key 는 `<target_host>_<cluster_name>` — 같은 호스트의 **다른** testbed 는 동시 빌드 가능 (k3d cluster 단위 격리), 같은 cluster 의 동시 빌드만 차단.
+
+```bash
+LOCK_KEY="${TARGET_HOST}_${CLUSTER_NAME}"
+LOCK_FILE="$HOME/.testbed-build/.locks/${LOCK_KEY}.lock"
+exec 200>"$LOCK_FILE"
+flock -n 200 || { echo "FATAL: 이미 ${LOCK_KEY} 빌드 진행 중"; exit 1; }
+```
 
 ### [Phase 6] Services-Author (조건부 — 새 testbed 생성 시만)
 
@@ -301,13 +321,55 @@ ANSIBLE_PID=$!
 
 ### [Phase 9] Polestar10 6종 자원 등록
 
+#### 9-a. 사전 점검 (testbed-polestar10-register dispatch 전)
+
+1. **bootstrap.yaml + .polestar10rc 일치 확인**
+   ```bash
+   ORG_ID=$(yq '.polestar10.organization_id' ~/.testbed-build/bootstrap.yaml)
+   [ -z "$ORG_ID" ] || [ "$ORG_ID" = "null" ] && {
+     echo "FATAL: organization_id 가 비어있습니다. Phase 1 인터뷰가 누락한 것."
+     echo "재인터뷰: ~/.testbed-build/bootstrap.yaml 의 polestar10.organization_id 채우거나 파일 삭제 후 재호출."
+     exit 1
+   }
+   ```
+
+2. **broker / collector 도달성** (Polestar10 backend → target 의 NodePort 들)
+   - DPM (mysql/postgres NodePort) 도달성 — `nc -zv $TARGET_HOST 30432` 또는 `30306`
+   - SMS broker (1883) — `nc -zv $POLESTAR10_HOST $POLESTAR10_SMS_BROKER_PORT`
+   - KCM backend (7575) — `nc -zv $POLESTAR10_HOST $POLESTAR10_KCM_COLLECTOR_PORT` (master Pod 가 Polestar10 KCM backend 로 push)
+   - 실패 시 사용자에게 표 표시 + dispatch 진행 (각 자원 register 시점에 fail 하면 자동 skip 분기)
+
+3. **agent install 후 standby polling delay**
+   ```bash
+   echo "[phase 9] Polestar10 backend 가 SMS/KCM/APM heartbeat 받아 standby 에 등록할 시간 확보 (60초)..."
+   sleep 60
+   ```
+   ansible 마지막 task (agent install) 직후 즉시 register 시도하면 standby 미등록 → register API 가 빈 응답. 60초 grace period 가 필수.
+
+#### 9-b. dispatch
+
 ```
 Skill: testbed-polestar10-register
   scenario: 1 (full testbed)
   context: runs/<RUN_ID>/inventory.yml + interview.yaml
 ```
 
-Polestar10 자원 등록 결과 → `runs/<RUN_ID>/register.json`. Polestar10 에러 시 표준 패턴.
+testbed-polestar10-register 의 시나리오 1 가 [scenario_1_full_testbed.md](../testbed-polestar10-register/references/scenario_1_full_testbed.md) 의 **WPM (Scouter) vs OTel APM 분기**, **DPM 도달성 분기**, **NMS SNMP probe 분기** 모두 포함하여 자동 진행. 결과 → `runs/<RUN_ID>/register.json`.
+
+#### 9-c. PARTIAL verdict 처리
+
+testbed-polestar10-register 가 일부 자원 등록 실패 시 PARTIAL 반환. SKILL 은:
+1. register.json 의 자원별 등록 표 사용자에게 표시 (성공 / 실패 / 미시도)
+2. 실패 자원에 대해 가능한 fix 제안:
+   - SMS standby 미감지 → broker connectivity 재확인 + agent restart
+   - KCM standby 미감지 → `helm get values kcm-agent -n kcm-monitoring` 으로 orgId / addr 확인 + master/node Pod logs (`kubectl logs -n kcm-monitoring deploy/kcm-master-agent`) 확인 + helm rollback / upgrade
+   - APM (OTel) 자동 등록 안 됨 → Polestar10 web UI 직접 안내
+   - DPM mysql 도달성 X → NodePort 방화벽 / network policy 확인
+3. 사용자 선택:
+   - (1) 그대로 진행 (Phase 10 시나리오 생성으로) — 부분 등록 자원만으로 verify
+   - (2) 등록 재시도 (특정 자원만)
+   - (3) Phase 9 전체 retry (60초 추가 sleep + dispatch)
+   - (4) 중단 (run 보존, 사용자가 web UI 에서 보강 후 재호출)
 
 ### [Phase 10] 시나리오 생성
 
