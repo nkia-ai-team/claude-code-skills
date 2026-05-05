@@ -49,6 +49,20 @@
         dest: "{{ wpm_install_dir }}"
         remote_src: true
 
+    # Scouter (lucida-wpmagent) 의 정석 디렉토리 구조 (매뉴얼 agent-install-003.md):
+    #
+    #   <WPMAgent_root>/
+    #   ├── WPMAgentInfo.conf       # archive 추출 시 같이 들어있음 (메타)
+    #   ├── template/
+    #   │   ├── wpmagent.jar
+    #   │   └── wpmagent.conf
+    #   └── <agent_name>/           # template 복사된 agent별 dir — 핵심
+    #       ├── wpmagent.jar       (← agent별 dir 에 jar 가 있어야 setAgentPath 정상)
+    #       └── wpmagent.conf      (← agent별 conf — msa_group_id 등)
+    #
+    # 옛 평면 배치 (root 에 wpmagent.jar + wpmagent-<svc>.conf) 는 Scouter 가
+    # 인식 못 함. agent별 dir 강제.
+
     - name: Locate WPM jar in extracted archive (largest jar)
       ansible.builtin.find:
         paths: "{{ wpm_install_dir }}"
@@ -56,20 +70,73 @@
         recurse: true
       register: wpm_jars
 
-    - name: Copy WPM jar to install root as {{ wpm_jar_name }}
+    - name: Ensure template dir
+      ansible.builtin.file:
+        path: "{{ wpm_install_dir }}/template"
+        state: directory
+        mode: '0755'
+
+    - name: Copy WPM jar to template/{{ wpm_jar_name }} (canonical source for per-agent copies)
       ansible.builtin.copy:
         src: "{{ (wpm_jars.files | sort(attribute='size') | reverse | first).path }}"
-        dest: "{{ wpm_install_dir }}/{{ wpm_jar_name }}"
+        dest: "{{ wpm_install_dir }}/template/{{ wpm_jar_name }}"
         remote_src: true
         mode: '0644'
       when: wpm_jars.matched > 0
 
-    - name: Generate WPM service-specific config (one per testbed service)
-      ansible.builtin.template:
-        src: wpmagent-service.conf.j2
-        dest: "{{ wpm_install_dir }}/wpmagent-{{ item }}.conf"
+    - name: Ensure per-agent dir for each testbed service
+      ansible.builtin.file:
+        path: "{{ wpm_install_dir }}/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ testbed_services }}"
+
+    - name: Copy WPM jar into per-agent dir (Scouter setAgentPath 컨벤션)
+      ansible.builtin.copy:
+        src: "{{ wpm_install_dir }}/template/{{ wpm_jar_name }}"
+        dest: "{{ wpm_install_dir }}/{{ item }}/{{ wpm_jar_name }}"
+        remote_src: true
         mode: '0644'
       loop: "{{ testbed_services }}"
+      when: wpm_jars.matched > 0
+
+    - name: Render per-agent wpmagent.conf (msa_group_id / obj_name / collector ports)
+      ansible.builtin.template:
+        src: wpmagent-service.conf.j2
+        dest: "{{ wpm_install_dir }}/{{ item }}/wpmagent.conf"
+        mode: '0644'
+      loop: "{{ testbed_services }}"
+
+    - name: Ensure WPMAgentInfo.conf exists (root-level metadata)
+      # Scouter archive 가 root 에 WPMAgentInfo.conf 를 포함하는 게 표준이나
+      # 일부 빌드는 누락. 비어있으면 빈 파일 stub 생성 (없는 것보단 빈 파일이 안전).
+      ansible.builtin.file:
+        path: "{{ wpm_install_dir }}/WPMAgentInfo.conf"
+        state: touch
+        mode: '0644'
+      changed_when: false
+
+    - name: WPM 디렉토리 구조 안내 — testbed-services 의 hostPath / JAVA_TOOL_OPTIONS 매핑 가이드
+      ansible.builtin.debug:
+        msg: |
+          WPM agent 설치 완료 (Scouter 정석 디렉토리 구조):
+            host path: {{ wpm_install_dir }}/<svc>/{wpmagent.jar, wpmagent.conf}
+
+          ⚠️ testbed-services 의 각 service Deployment 에 다음이 필요:
+
+            volumeMounts:
+              - name: wpm-{{ '{{' }}svc{{ '}}' }}
+                mountPath: /opt/wpm/{{ '{{' }}svc{{ '}}' }}
+            volumes:
+              - name: wpm-{{ '{{' }}svc{{ '}}' }}
+                hostPath:
+                  path: {{ wpm_install_dir }}/{{ '{{' }}svc{{ '}}' }}
+                  type: Directory
+            env:
+              - name: JAVA_TOOL_OPTIONS
+                value: "-javaagent:/opt/wpm/{{ '{{' }}svc{{ '}}' }}/wpmagent.jar -Dwpm.config=/opt/wpm/{{ '{{' }}svc{{ '}}' }}/wpmagent.conf"
+
+          이게 없으면 jar 는 mount 되지만 JVM attach 자체 안 됨 → 평생 standby 미감지.
 
 - name: WPM skip notice (GITHUB_PAT not set)
   ansible.builtin.debug:
