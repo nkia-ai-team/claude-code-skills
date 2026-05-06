@@ -21,6 +21,14 @@ context:
 요구:
   - 각 시나리오 1회 실행 (rca-scenario-runner POST /api/scenarios/<id>/run)
   - 실행 중 + 종료 후 90초 buffer Polestar10 알람 history 조회
+    → endpoint: POST /api/alarm/alarms (HAR 검증, 추측 path /api/alarm/list 등 사용 X)
+    → body: {pageNumber:1, pagePerSize:200, sortFieldSets:[], gridFilters:[], tagFilters:[],
+             timeFilter:{mode:"MONTH_6", startTime:<ms>, endTime:<ms>,
+                         customLabel:false, brush:false, intervalMode:0, isLiveModeInternal:false},
+             arguments:{alarmSeverity:{LEVEL1:true,LEVEL2:true,LEVEL3:true,LEVEL4:true},
+                        event:true, aiSuggestion:true, anomaly:true, anomalyRca:true, maintenance:true}}
+    → 시간 단위 epoch ms. mode "MONTH_6" 만 검증됨 (다른 값은 totalElements:0).
+    → 상세 schema: knowledge/polestar10/api/endpoints.md "Fired Alarm 조회"
   - expected_alarms vs 실제 발화 매칭 (이름 fuzzy + 자원 + severity LEVEL2+ + time window)
   - cleanup 호출 (POST /api/scenarios/<id>/cleanup)
   - 단발 verdict JSON 반환 (overall + scenarios[] + recommendations[])

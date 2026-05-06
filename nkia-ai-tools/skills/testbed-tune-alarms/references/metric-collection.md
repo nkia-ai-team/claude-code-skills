@@ -15,14 +15,25 @@ curl -sS --cookie-jar "$POLESTAR10_COOKIE_JAR" \
   "$POLESTAR10_BASE_URL/api/apm/metric/list?serviceGroup=$SG"
 ```
 
-주요 measurement type:
-| measurementType | alias | unit |
-|---|---|---|
-| `apm.response_time_avg` | 평균 응답시간 | ms |
-| `apm.response_time_p95` | p95 응답시간 | ms |
-| `apm.error_rate` | 에러율 | % |
-| `apm.tps` | Throughput | req/sec |
-| `apm.thread_pool_used` | Thread Pool 사용률 | % |
+주요 measurement type — **알람 정의 시 measurementDefinitionId** (resource-type 카탈로그 호출 결과):
+
+| measurementType (displayKey) | alias | unit | measurementDefinitionId (알람 정의 등록 시 사용) |
+|---|---|---|---|
+| `apm.response_time_avg` | 평균 응답시간 | μs (Polestar10 내부) | `apm.Agent_AvgResponseTime` |
+| `apm.response_time_p95` | p95 응답시간 | μs | `apm.Agent_P95ResponseTime` |
+| `apm.error_rate` | 에러율 | % | **`apm.Agent_ErrorRate`** (alias=ER) ← 알람 정의 권장 |
+| `apm.tps` | Throughput | req/sec | `apm.Agent_TPS` |
+| `apm.thread_pool_used` | Thread Pool 사용률 | % | `apm.Agent_ThreadPoolUsed` |
+
+⚠️ **`apm.Agent_ApiErrorRate` 와 혼동 금지**: 두 metric 모두 카탈로그에 존재하나 alarm engine 이 평가하는 건 `apm.Agent_ErrorRate` (alias=ER, displayKey=apm.error_rate). plopvape-shop 의 fired alarm 156건 모두 이 metric 사용. `ApiErrorRate` (alias=ApiErrorRate, displayKey=apm.api_error_rate) 사용 시 alarm 정의는 등록되나 fire 0건.
+
+metric 카탈로그 직접 조회:
+```bash
+curl $POLESTAR10_CURL_OPTS -X POST --cookie "$JAR" \
+  -H 'Content-Type: application/json' \
+  -d '{"parameter":{"resourceType":"apm.Agent"}}' \
+  "$POLESTAR10_BASE_URL/api/measurement/definitions/resource-type"
+```
 
 ### DPM (Database Performance Monitoring)
 

@@ -272,6 +272,59 @@ CRUD (생성/수정/삭제) 는 본 캡처에서 미확인. 시스템 default �
 | POST | `/api/measurement/definitions` | 메트릭 정의 |
 | POST | `/api/measurement/policies/simple-list` | 측정 정책 목록 |
 
+### OTLP Receiver (APM data ingestion)
+
+| Protocol | Port | Endpoint URL | 용도 |
+|---|---|---|---|
+| OTLP gRPC | **6565** | `http://<polestar10_host>:6565` | OpenTelemetry javaagent / SDK 가 trace/metric 송신 |
+
+⚠️ 표준 OTLP port (4317 gRPC / 4318 HTTP) 사용 X. polestar10 는 **6565** 만 listen. 다른 port 시도 시 connection refused. ansible group_vars/all.yml 의 `polestar10_apm_collector_otlp_endpoint` default 가 이 port 사용.
+
+OTel resource attribute 강제:
+```yaml
+OTEL_RESOURCE_ATTRIBUTES: "lucida.organizationId=<org-id>,lucida.groupId=<testbed-name>"
+```
+- `lucida.organizationId` = bootstrap.yaml 의 polestar10.organization_id (24-hex)
+- `lucida.groupId` = testbed 이름 (= app_subdir / cluster_name)
+
+이 attribute 없으면 polestar10 가 OTel data 를 어떤 organization/group 에 매핑할지 모름 → silently 누락 가능.
+
+### Fired Alarm 조회 (HAR 검증)
+
+```
+POST /api/alarm/alarms
+```
+
+**body schema** (모든 필드 필수, 빈 array 도 명시 — 누락 시 totalElements:0):
+```json
+{
+  "pageNumber": 1, "pagePerSize": 30,
+  "sortFieldSets": [], "gridFilters": [], "tagFilters": [],
+  "timeFilter": {
+    "mode": "MONTH_6",
+    "startTime": <epoch_ms>,
+    "endTime":   <epoch_ms>,
+    "customLabel": false,
+    "brush": false,
+    "intervalMode": 0,
+    "isLiveModeInternal": false
+  },
+  "arguments": {
+    "alarmSeverity": {"LEVEL1": true, "LEVEL2": true, "LEVEL3": true, "LEVEL4": true},
+    "event": true, "aiSuggestion": true,
+    "anomaly": true, "anomalyRca": true, "maintenance": true
+  }
+}
+```
+
+⚠️ **mode 제약**: `"MONTH_6"` 만 검증됨. `"LIVE"` / `"FIXED"` / 다른 값은 totalElements:0 또는 JSON_PARSE_ERROR. testbed-verifier 가 fired alarm 검증 시 본 endpoint + 본 schema 사용.
+
+⚠️ **시간 단위**: `startTime` / `endTime` 은 epoch **ms** (sec 아님).
+
+⚠️ **arguments 의 alarmSeverity / event / aiSuggestion / anomaly / anomalyRca / maintenance flag 모두 필수**. 누락 시 응답 비어있음.
+
+**검증된 path 외 추측 금지**: `/api/alarm/list`, `/api/alarm/history` 등은 router 미등록 (HTTP 200 + success:false + errorCode:"POLESTAR_00000").
+
 ---
 
 ## TBD — 후속 캡처 필요
@@ -318,3 +371,25 @@ POST /api/rulechain/integration-systems/count ← 관찰됨, full lifecycle TBD
    - **sec** (epoch sec): SLO `setting.startDate` (`$(date +%s)`)
    - **ms** (epoch ms): NMS addResource `searchTime` (`(now | floor * 1000)`), DPM `searchTime`, list 응답의 `ctime`/`createdAt`/`updatedAt`/`timestamp`
    - 단위 변환: ms → sec 는 `/ 1000`, 반대는 `* 1000`. recipe 안에서는 일관됐으나 다른 endpoint 로 응용 시 변환 필요.
+9. **HTTP code 만으로 endpoint 존재 판정 X** — Polestar10 의 응답 시그널 표:
+
+   | 시그널 | 의미 |
+   |---|---|
+   | HTTP 200 + `success:true` | 정상 호출 |
+   | HTTP 200 + `success:false` + `errorCode:"POLESTAR_00000"` + msg "No endpoint POST/GET ..." | router 등록은 됐지만 본 build 미구현 (= 사실상 미존재) |
+   | HTTP 404 (Spring `/error`) | router 미매칭 (path 자체가 잘못) |
+   | HTTP 200 + `success:false` + 다른 errorCode | endpoint 정상 동작 / 비즈니스 거절 (검증/권한 등) |
+
+   추측 path 는 거의 항상 첫 번째 패턴 (HTTP 200 + POLESTAR_00000) 으로 응답 → curl 이 200 이라고 endpoint 존재한다고 판단 X. 응답 body 의 `success` / `errorCode` 까지 확인.
+
+10. **list-filter 류 endpoint body 에 `arguments:{}` 누락 시 NPE** — 모든 `*-filter` / `*-list-filter` POST 호출에 빈 객체라도 `"arguments": {}` 필수. 누락 시 backend 가 `NullPointerException` 으로 500 또는 success:false 응답.
+
+    **표준 list-filter body**:
+    ```json
+    {
+      "pageNumber": 1, "pagePerSize": 100,
+      "sortFieldSets": [], "gridFilters": [], "tagFilters": [],
+      "arguments": {}
+    }
+    ```
+    `tagFilters` 도 일부 endpoint 에서 누락 시 동일 NPE — 빈 array 라도 명시.

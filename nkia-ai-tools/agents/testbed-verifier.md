@@ -56,14 +56,41 @@ status 가 `running` / `cleanup_running` 동안 30초 슬립 + 다음 폴링.
 #### 2-d. 시나리오 종료 후 90초 buffer 대기
 지연 발화하는 알람을 흡수.
 
-#### 2-e. Polestar10 알람 history 조회
-```
-END_ISO=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-curl -sS --cookie-jar "$POLESTAR10_COOKIE_JAR" \
-  "<polestar10_base>/api/alarm/list?from=${START_ISO}&to=${END_ISO}&size=200"
+#### 2-e. Polestar10 알람 history 조회 — `/api/alarm/alarms` (HAR 검증)
+
+```bash
+START_MS=$(($(date -d "$START_ISO" +%s) * 1000))   # epoch ms
+END_MS=$(($(date +%s) * 1000))
+
+curl -k -sS --cookie "$POLESTAR10_COOKIE_JAR" \
+  -X POST -H 'Content-Type: application/json' \
+  -d "$(jq -n --argjson s $START_MS --argjson e $END_MS '{
+    pageNumber: 1, pagePerSize: 200,
+    sortFieldSets: [], gridFilters: [], tagFilters: [],
+    timeFilter: {
+      mode: "MONTH_6",
+      startTime: $s, endTime: $e,
+      customLabel: false, brush: false,
+      intervalMode: 0, isLiveModeInternal: false
+    },
+    arguments: {
+      alarmSeverity: { LEVEL1: true, LEVEL2: true, LEVEL3: true, LEVEL4: true },
+      event: true, aiSuggestion: true,
+      anomaly: true, anomalyRca: true, maintenance: true
+    }
+  }')" \
+  "$POLESTAR10_BASE_URL/api/alarm/alarms"
 ```
 
-(정확한 endpoint + 쿼리 파라미터는 `<plugin_root>/knowledge/polestar10/api/recipes/` 또는 `endpoints.md` 의 alarm-history recipe 참조. 미존재 시 `/api/alarm/events` 또는 web UI 의 화면 캡처 endpoint fallback.)
+⚠️ **추측 path 사용 금지** (검증 실패 사례):
+- `/api/alarm/list` — router 미등록 (HTTP 200 + success:false + errorCode:"POLESTAR_00000")
+- `/api/alarm/events` / `/api/alarm/history` — 동일
+
+⚠️ **mode "MONTH_6" 만 검증**. "LIVE" / "FIXED" / 다른 값은 totalElements:0 또는 JSON_PARSE_ERROR.
+
+⚠️ **arguments 의 6 flag 모두 필수**: alarmSeverity / event / aiSuggestion / anomaly / anomalyRca / maintenance. 누락 시 응답 비어있음.
+
+상세 schema: [endpoints.md "Fired Alarm 조회"](../knowledge/polestar10/api/endpoints.md) 참조.
 
 #### 2-f. cleanup
 ```
