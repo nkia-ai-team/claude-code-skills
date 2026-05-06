@@ -136,14 +136,23 @@
             }
           응답: data.content[] = [{ serviceName, agentId, resourceId, confId, category, ... }, ...]
           → step1 의 service 목록을 채울 agent 상세가 여기서 나옴.
-     w-e. step2 응답 → jq filter 로 등록 대상만 추출 + register 필드 추가:
+     w-e. step2 응답 → jq filter 로 등록 대상만 추출 + register **mandatory 7 필드** 추가.
+          서버가 강제하는 mandatory: collectorPolicy / alarmPolicy / anomalyPolicy
+          (base 3개) + 3 tagValue + serviceGroupTagValue. 누락 시 register 실패.
+
           REG_PAYLOAD=$(curl ... step2 | jq --arg svc_prefix "$TESTBED_NAME" '
             [.data.content[]
-             | select(.serviceName | startswith($svc_prefix))
+             | select((.serviceName // "" | startswith($svc_prefix))
+                   or (.hostName // "" | contains($svc_prefix))
+                   or (.agentName // "" | startswith($svc_prefix + "-")))
              | {
-                 serviceName, agentId, resourceId, confId, category,
+                 serviceName, agentId, resourceId, confId, category, hostName, agentName,
                  managementStatus: "MANAGED",
+                 collectorPolicy: "defaultPolicy",
+                 alarmPolicy: "defaultPolicy",
+                 anomalyPolicy: "성능 이상감지 기본 정책",
                  collectorPolicyTagValue: "defaultPolicy",
+                 alarmPolicyTagValue: "defaultPolicy",
                  anomalyPolicyTagValue: "성능 이상감지 기본 정책",
                  serviceGroupTagValue: $svc_prefix,
                  groupId: 1
@@ -151,7 +160,7 @@
      w-f. recipes/add-target.md "APM Step 2" → POST /api/apm/standby-agent/register
           body = $REG_PAYLOAD (array)
           category 필드 ("APM" 또는 "WPM") 는 step2 응답 그대로 복사 — Scouter 면 보통 "WPM"
-          collectorPolicyTagValue / anomalyPolicyTagValue / serviceGroupTagValue 는 등록 시점에 추가
+          정상 응답: {"success":true,"data":{"failedList":[]},"errorCode":null}
           (groupId=1 = Default 시스템 그룹. 다른 그룹 사용 시 사용자 인터뷰)
 
    ━━ OTel APM path ━━

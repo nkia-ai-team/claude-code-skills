@@ -263,7 +263,7 @@ ANSIBLE_PID=$!
 `run_in_background` 으로 진행 (예상 15~25분). 사용자에게 progress 안내.
 
 종료 후:
-- exit 0 → phase complete
+- exit 0 → 8-c sanity check 진행
 - exit != 0 → Agent: testbed-engineer 호출
   ```
   Agent({
@@ -272,6 +272,40 @@ ANSIBLE_PID=$!
   })
   ```
   결과를 사용자에게 표시 + severity=blocking 이면 종료, recoverable 이면 재시도 prompt.
+
+#### 8-c. APM standby agent heartbeat sanity check (silent failure 차단)
+
+ansible exit 0 라도 deployment manifest 의 OTLP env 누락 / OTel javaagent attach 실패로 standby 미감지 가능. Phase 9 진입 전 필수 검증:
+
+```bash
+EXPECTED=${SERVICE_COUNT}   # interview.app.testbed_services 의 개수
+TESTBED=${APP_SUBDIR}
+
+for i in 1 2 3 4 5; do
+  CNT=$(curl -k -sS --cookie "$JAR" -X POST -H 'Content-Type: application/json' \
+    -d '{"pageNumber":1,"pagePerSize":100,"gridFilters":[],"sortFieldSets":[],"tagFilters":[],"arguments":{}}' \
+    "$POLESTAR10_BASE_URL/api/apm/standby-agents-filter-step1" | \
+    jq --arg n "$TESTBED" '[.data.content[]
+      | select((.hostName // "" | tostring | contains($n))
+            or (.agentName // "" | tostring | startswith($n + "-")))
+      | select(.agentType == "opentelemetry" and .availabilityStatus == "UP")] | length')
+  [ "$CNT" -ge "$EXPECTED" ] && { echo "[sanity] APM standby agents=$CNT (>=$EXPECTED) OK"; break; }
+  echo "[sanity] APM standby attempt $i/5 — $CNT / $EXPECTED. 1분 후 재시도"
+  [ $i -eq 5 ] && {
+    echo "FATAL: APM standby heartbeat 5분 후 미도달."
+    echo "원인 후보:"
+    echo "  - testbed-services manifest 의 OTLP env 누락"
+    echo "    (JAVA_TOOL_OPTIONS / OTEL_EXPORTER_OTLP_ENDPOINT / OTEL_RESOURCE_ATTRIBUTES)"
+    echo "  - OTel collector port (default 6565) 도달 불가"
+    echo "  - lucida.organizationId / lucida.groupId attribute 미설정"
+    echo "사용자 안내 후 manifest patch / kubectl set env 권고."
+    exit 1
+  }
+  sleep 60
+done
+```
+
+이 sanity check 가 round-7 의 'manifest OTLP env 누락 → fire 0' silent failure 패턴 차단. 통과해야 Phase 9 진입.
 
 ### [Phase 9] Polestar10 6종 자원 등록
 

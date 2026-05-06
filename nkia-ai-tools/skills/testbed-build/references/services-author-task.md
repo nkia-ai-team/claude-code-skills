@@ -42,6 +42,11 @@ architecture:
 
   failure_surfaces: {{INTERVIEW_FAILURE_SURFACES}}  # interview.app.failure_surfaces
 
+  # 배포 manifest 강제 요구사항 — Polestar10 APM 자원 자동 등록에 필수
+  manifest_requirements:
+    otlp_env_required: true       # 모든 service Deployment 의 env 에 5개 OTLP 변수 필수
+    apm_jar_volume_required: true  # apm-agent jar hostPath mount 필수
+
 context:
   testbed_services_repo: "{{TESTBED_SVC_REPO}}"     # bootstrap.paths.testbed_services_repo
   reference_subdir: "plopvape-shop"
@@ -49,6 +54,49 @@ context:
   push_mode: "{{PUSH_MODE}}"                         # default: pr
   pat_available: {{PAT_PRESENT}}                     # ~/.git-credentials 존재 여부
 ```
+
+## ⚠️ Deployment manifest 강제 요구사항 — OTLP env (Polestar10 APM 자원 등록 필수)
+
+새 testbed 생성 시 **각 service Deployment 의 `env` 에 다음 5개 OTLP 변수를 반드시 포함**. 누락 시 OTel javaagent attach 후에도 데이터가 polestar10 OTLP receiver 로 도달 안 함 → standby 미감지 → APM 자원 자동 등록 실패 → fired alarm 0건.
+
+```yaml
+spec:
+  template:
+    spec:
+      volumes:
+        - name: apm-agent-jar
+          hostPath:
+            path: /opt/polestar10/apm
+            type: Directory
+      containers:
+        - name: <service>
+          volumeMounts:
+            - name: apm-agent-jar
+              mountPath: /opt/apm
+              readOnly: true
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-javaagent:/opt/apm/opentelemetry-javaagent.jar"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://{{ polestar10_collector_host }}:{{ polestar10_apm_otlp_port | default('6565') }}"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "grpc"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "lucida.organizationId={{ polestar_organization_id }},lucida.groupId={{ testbed_name }}"
+            - name: OTEL_METRIC_EXPORT_INTERVAL
+              value: "10000"
+```
+
+핵심 포인트 (round-7 사용자 진단으로 확정):
+
+- **`OTEL_EXPORTER_OTLP_ENDPOINT` port 6565** — Polestar10 의 OTLP gRPC receiver. 표준 4317/4318 사용 X (refused).
+- **`OTEL_RESOURCE_ATTRIBUTES.lucida.organizationId`** — bootstrap.yaml 의 24-hex `organization_id`. 누락 시 polestar10 가 어느 조직 데이터인지 판단 불가.
+- **`OTEL_RESOURCE_ATTRIBUTES.lucida.groupId`** — testbed 이름 (= app_subdir / cluster_name). polestar10 web UI 에 service group 단위로 묶이기 위한 키.
+- **`apm-agent-jar` hostPath** = `/opt/polestar10/apm` (ansible role agent-apm 이 호스트에 jar 배치한 경로). 컨테이너 mount 는 `/opt/apm`.
+
+testbed-engineer agent 가 새 Deployment manifest 생성 시 위 5 env + volumes/volumeMounts 자동 포함. plopvape-shop 의 검증된 manifest 를 reference_subdir 로 사용 — 그 패턴 그대로 mimic.
+
+검증: ansible-playbook 직후 SKILL.md Phase 8 의 8-c sanity check (APM standby agent count) 가 자동 검증 — fail 시 manifest 미반영 의심.
 
 ## 변환 (오케스트레이터가 task spec 채움)
 
