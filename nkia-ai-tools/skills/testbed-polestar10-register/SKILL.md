@@ -106,6 +106,68 @@ recipe 가 아니라 **dispatcher** — 직접 API 를 호출하지 않고, `Rea
 
 ---
 
+## API Response Preprocessing — jq Filter (LLM 컨텍스트 절약)
+
+**룰**: 모든 API 응답을 LLM 컨텍스트에 그대로 넣지 X. `jq` 로 필요한 필드만 추출 후 bash 변수 또는 짧은 요약만 LLM 에 전달.
+
+### Anti-pattern (LLM 컨텍스트 폭증)
+
+```bash
+# ❌ 안티패턴 — 응답 전체 (수십 KB JSON) 가 LLM 컨텍스트로 들어옴
+RESP=$(curl ... /api/sms/standby-hosts-filter-step1)
+echo "$RESP"   # LLM 이 이걸 읽고 agentId 파싱
+```
+
+### 올바른 패턴
+
+```bash
+# ✅ jq 로 필요한 필드만 추출 — LLM 에는 추출된 값만 전달
+RESP=$(curl ... /api/sms/standby-hosts-filter-step1)
+AGENT_ID=$(echo "$RESP" | jq -r '.content[0].agentId')
+RESOURCE_ID=$(echo "$RESP" | jq -r '.content[0].resourceId')
+echo "extracted: agentId=$AGENT_ID resourceId=$RESOURCE_ID"   # LLM 에는 이것만
+```
+
+### 다중 항목 — array 일괄 처리
+
+여러 항목 등록 시 jq 로 **register payload 직접 합성** 후 curl body 에 전달 (LLM 이 배열 변환 X):
+
+```bash
+# WPM step2 응답 → register 대상만 추출 + 필요 필드 추가
+REG_PAYLOAD=$(echo "$STEP2_RESP" | jq --arg svc "$TESTBED_NAME" '
+  [ .data.content[]
+    | select(.serviceName | startswith($svc))
+    | { serviceName, agentId, resourceId, confId, category,
+        managementStatus: "MANAGED",
+        collectorPolicyTagValue: "defaultPolicy",
+        groupId: 1 } ]')
+curl ... -d "$REG_PAYLOAD" /api/apm/standby-agent/register
+```
+
+### 추출 대상 표준 패턴
+
+| 응답 종류 | jq filter | 추출 후 LLM 에 전달 |
+|---|---|---|
+| `content[]` (페이지네이션) | `.content[0].fieldName` 또는 `.content[] | select(.cond) | .field` | 단일 ID 또는 짧은 요약 |
+| `data.id` (단건) | `.data.id` | ID 한 개 |
+| `data[]` (다건) | `[.data[] | {field1, field2}]` | 짧은 array |
+| 에러 응답 | `.errorCode // "ok"` | 에러 코드 한 단어 |
+
+### Verbose log 는 LLM 외부에 저장
+
+전체 응답이 디버깅에 필요하면 LLM 컨텍스트가 아닌 파일에:
+
+```bash
+RESP=$(curl ... /api/...)
+echo "$RESP" > "$RUN_DIR/api-response-$(date +%s).json"   # 디스크 저장
+EXTRACT=$(echo "$RESP" | jq -r '.errorCode // "ok"')
+[ "$EXTRACT" != "ok" ] && echo "ERROR — see $RUN_DIR/api-response-*.json"
+```
+
+LLM 은 추출된 필드만 보고 reasoning. 디버깅 시 사용자 또는 LLM 이 "Read $RUN_DIR/api-response-...json" 으로 명시적 요청 시에만 컨텍스트에 적재.
+
+---
+
 ## Idempotency & Verification
 
 오케스트레이터가 같은 작업이 두 번 호출돼도 안전하게 (handoff note §4):
