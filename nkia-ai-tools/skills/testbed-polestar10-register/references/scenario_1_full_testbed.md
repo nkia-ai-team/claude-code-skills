@@ -157,7 +157,7 @@
    ━━ OTel APM path ━━
      o-a. data 흐름 검증: testbed-services 의 OTel exporter 가 polestar10
           OTLP endpoint (group_vars/all.yml: polestar10_apm_collector_otlp_endpoint
-          default `http://192.168.230.104:6565`) 로 trace 송신 중인지 확인.
+          default `http://198.51.100.104:6565`) 로 trace 송신 중인지 확인.
           → kubectl logs <pod> | grep -i 'otlp\|otel' 또는 직접 endpoint 도달성.
      o-b. 60초 grace period 대기 (Polestar10 backend 가 trace 받아 service 자원
           자동 생성하기까지).

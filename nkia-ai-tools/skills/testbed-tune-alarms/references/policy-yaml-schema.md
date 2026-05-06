@@ -179,7 +179,7 @@ individual_alarms:
     levels: { level1: 5, level2: 25, level3: 50, level4: 80 }
     units: "%"
   # SMS
-  - resource_name: "192.168.200.109"
+  - resource_name: "203.0.113.109"
     measurement_type: "sms.cpu_usage"
     levels: { level1: 60, level2: 75, level3: 85, level4: 95 }
     units: "%"

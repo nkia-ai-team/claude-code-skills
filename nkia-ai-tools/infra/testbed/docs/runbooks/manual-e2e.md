@@ -164,7 +164,7 @@ ssh <target> 'sudo /usr/local/bin/k3s kubectl get pods -A'
 curl -fsS http://<target>:30080/actuator/health
 
 # 4 에이전트 UP (104 collector)
-ssh sjbang@192.168.230.104 'docker logs polestar-app-wpm-1 2>&1 | tail -200 | grep -E "(WPM|APM|KCM|SMS).*managementStatus=UP"'
+ssh <polestar10-host-user>@<polestar10-host> 'docker logs polestar-app-wpm-1 2>&1 | tail -200 | grep -E "(WPM|APM|KCM|SMS).*managementStatus=UP"'
 
 # metrics-server 정상
 ssh <target> 'sudo /usr/local/bin/k3s kubectl top nodes'
@@ -199,7 +199,7 @@ ssh <target> 'sudo /usr/local/bin/k3s kubectl top nodes'
 ansible-playbook -i inventory/<your>.yml site.yml -v 2>&1 | tee logs/run1.log
 ansible-playbook -i inventory/<your>.yml site.yml -v 2>&1 | tee logs/run2.log
 ssh <target> 'sudo /usr/local/bin/k3s kubectl get pods -A -o wide' > logs/pods.txt
-ssh sjbang@192.168.230.104 'docker logs polestar-app-wpm-1 2>&1 | tail -300' > logs/wpm-collector.log
+ssh <polestar10-host-user>@<polestar10-host> 'docker logs polestar-app-wpm-1 2>&1 | tail -300' > logs/wpm-collector.log
 ```
 
 `logs/` 는 `.gitignore` 처리 권장.

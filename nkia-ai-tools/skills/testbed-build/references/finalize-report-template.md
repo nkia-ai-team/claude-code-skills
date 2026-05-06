@@ -25,7 +25,7 @@ manifest.yaml + register.json + scenarios.json + alarms.json + verify.log 모두
 
 {{ONE_LINE_SUMMARY}}
 
-<!-- 예시: "plopvape-shop-v2 테스트베드를 192.168.200.109 에 구축. 6종 자원 등록 + 4 시나리오 + 12 알람 정책. closed-loop verify PASS (attempt 1)." -->
+<!-- 예시: "plopvape-shop-v2 테스트베드를 203.0.113.109 에 구축. 6종 자원 등록 + 4 시나리오 + 12 알람 정책. closed-loop verify PASS (attempt 1)." -->
 
 ---
 
@@ -57,7 +57,7 @@ manifest.yaml + register.json + scenarios.json + alarms.json + verify.log 모두
 <!-- 예시:
 | 에이전트 | 등록 자원 | 상태 |
 |---|---|---|
-| SMS | 192.168.200.109 (호스트) | UP |
+| SMS | 203.0.113.109 (호스트) | UP |
 | KCM | cluster-abc123 | UP |
 | APM | {{SERVICE_COUNT}} services ({{SERVICE_NAMES_INLINE}}) | UP |
 | WPM | {{SERVICE_COUNT}} services (동일) | UP |
@@ -207,7 +207,7 @@ write(f"~/.testbed-build/reports/{RUN_ID}-{manifest.testbed_name}.md", report)
 (보고서 핵심 요약 표시 — 위 템플릿의 "## 요약" 섹션)
 
 다음 단계 안내:
-- Polestar10 web UI: https://192.168.230.96
-- 시나리오 runner: http://192.168.200.109:8091/
+- Polestar10 web UI: https://198.51.100.96
+- 시나리오 runner: http://203.0.113.109:8091/
 - 추가 시나리오: /testbed-generate-scenarios "..."
 ```

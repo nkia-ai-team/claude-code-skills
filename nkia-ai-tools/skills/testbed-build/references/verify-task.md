@@ -11,7 +11,7 @@ task: scenario-verification
 
 context:
   testbed_name: {{TESTBED_NAME}}
-  scenario_runner_base: {{SCENARIO_RUNNER_BASE}}     # http://192.168.200.109:8091
+  scenario_runner_base: {{SCENARIO_RUNNER_BASE}}     # http://203.0.113.109:8091
   polestar10_base: {{POLESTAR10_BASE_URL}}
   polestar10_cookie_jar: {{COOKIE_JAR}}              # ~/.polestar10/cookie.jar 또는 동등 경로
   scenarios_to_verify: {{SCENARIO_IDS}}              # ["01", "02", "03", "04"] 또는 "all"
@@ -37,8 +37,8 @@ context:
 task: scenario-verification
 context:
   testbed_name: plopvape-shop
-  scenario_runner_base: http://192.168.200.109:8091
-  polestar10_base: https://192.168.230.96
+  scenario_runner_base: http://203.0.113.109:8091
+  polestar10_base: https://198.51.100.96
   polestar10_cookie_jar: $HOME/.polestar10/cookie.jar
   scenarios_to_verify: ["01", "02", "03", "04"]
   attempt_n: 2

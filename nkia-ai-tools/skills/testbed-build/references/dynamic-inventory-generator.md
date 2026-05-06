@@ -156,7 +156,7 @@ export TESTBED_SSH_KEY="${SSH_KEY_PATH}"                  # AUTH_MODE=ssh_key �
 
 **주입 우선순위 정리** (회고 P0 #3 룰):
 - `--extra-vars` (cli) > inventory **host vars** > playbook `vars:` > **inventory file group vars** > `group_vars/all.yml`
-- 즉 `polestar_organization_id` / `polestar10_collector_host` 같이 인스턴스별로 다른 값은 **반드시 inventory host vars** 에 박을 것. group_vars 에 두면 default (`192.168.230.104` 등) 가 이김.
+- 즉 `polestar_organization_id` / `polestar10_collector_host` 같이 인스턴스별로 다른 값은 **반드시 inventory host vars** 에 박을 것. group_vars 에 두면 default (`198.51.100.104` 등) 가 이김.
 
 비밀 값은 inventory.yml 에 평문 X. env 만.
 
