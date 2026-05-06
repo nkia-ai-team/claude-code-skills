@@ -62,7 +62,7 @@ description: RCA 테스트베드에 장애 시나리오를 추가/생성. `infra
    5. bootstrap.yaml 의 paths.scenario_runner_repo 에 영구 저장 (다음 호출부터 자동 사용)
    ```
 
-   ⚠️ 사용자 환경 가정 금지 — `~/dev/...` 같은 sjbang-local default 를 임의로 사용 X.
+   ⚠️ 사용자 환경 가정 금지 — 임의의 절대 경로 default 를 박지 말고 자동 발견 / 인터뷰 결과만 사용.
 
 ---
 
@@ -196,17 +196,30 @@ case "$PUSH_MODE" in
 esac
 ```
 
-### 7. 109 재배포 안내
+### 7. 타겟 호스트 재배포 안내
 
-> 새 시나리오는 컨테이너 재기동 후 활성화됩니다.
-> ```
-> ssh nkia@192.168.200.109
-> cd ~/rca-scenario-runner
-> git pull
-> ./build-and-deploy.sh
-> ```
+새 시나리오는 rca-scenario-runner 컨테이너 재기동 후 활성화됩니다. 명령은 testbed 가 떠있는 호스트에서 실행 — 109 / 다른 사내 서버 / 사용자 본인 머신 등 환경마다 다름.
 
-오케스트레이터가 호출한 경우 자동으로 위 명령 실행 (사용자 승인 후).
+호스트 결정 source (우선순위):
+1. testbed-build 에서 호출된 경우 → `inventory.yml` 의 host vars (`ansible_host`, `ansible_user`)
+2. 단독 호출의 경우 → bootstrap.yaml 의 SSH 자격증명 (`ssh.default_user` + 인터뷰에서 받은 host)
+
+```bash
+# inventory.yml / bootstrap.yaml 에서 추출한 변수 사용
+TARGET_USER=<from inventory or bootstrap>
+TARGET_HOST=<from inventory or bootstrap>
+RUNNER_DIR=<scenario_runner_install_dir — group_vars/all.yml default 또는 사용자 override>
+
+ssh "${TARGET_USER}@${TARGET_HOST}" "
+  cd ${RUNNER_DIR} && \
+  git pull && \
+  ./build-and-deploy.sh
+"
+```
+
+⚠️ 호스트 결정은 항상 inventory/bootstrap source 에서.
+
+오케스트레이터가 호출한 경우 자동으로 위 명령 실행 (사용자 승인 후). 단독 호출의 경우 사용자에게 호스트 + 명령 표시 후 확인 받기.
 
 ---
 
