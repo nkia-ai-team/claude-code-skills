@@ -50,11 +50,19 @@ description: RCA 테스트베드에 장애 시나리오를 추가/생성. `infra
    ```
    매치된 첫 절대경로의 디렉토리가 `<patterns_root>`. dev clone 환경에서는 cwd 의 `nkia-ai-tools/infra/testbed/scenario-patterns/` fallback 허용.
 
-3. **레포 부재 시 인터뷰 + git clone**:
+3. **레포 부재 시 인터뷰 + git clone** — 사용자 환경마다 dev/projects/workspace 등 위치가 다름. testbed-build 의 [repo-discovery.md](../testbed-build/references/repo-discovery.md) 와 동일한 자동 발견 + 인터뷰 패턴 사용:
    ```
-   "rca-scenario-runner 레포가 없습니다. ~/dev/rca-scenario-runner 에 clone 할까요?"
-   → yes: git clone https://github.com/nkia-ai-team/rca-scenario-runner.git ~/dev/rca-scenario-runner
+   1. cwd ($PWD) 우선 검사 → 발견되면 그대로 사용
+   2. 부재 시 home 디렉토리 fallback (~/dev, ~/projects, ~/workspace, ~/)
+   3. 둘 다 부재 시 AskUserQuestion 카드:
+      - 옵션 (1) cwd 아래 ($PWD/rca-scenario-runner) — Recommended
+      - 옵션 (2) $HOME/dev/rca-scenario-runner — 사용자가 dev 패턴 사용 시
+      - Other (자동 추가) — 직접 경로 입력
+   4. 결정된 경로에 git clone https://github.com/nkia-ai-team/rca-scenario-runner.git
+   5. bootstrap.yaml 의 paths.scenario_runner_repo 에 영구 저장 (다음 호출부터 자동 사용)
    ```
+
+   ⚠️ 사용자 환경 가정 금지 — `~/dev/...` 같은 sjbang-local default 를 임의로 사용 X.
 
 ---
 
@@ -208,7 +216,8 @@ esac
 사용자: /testbed-generate-scenarios "plopvape-shop 에 memory leak 시나리오 추가"
 
 스킬 응답:
-  1. RUNNER_ROOT 확인 → ~/dev/rca-scenario-runner ✓
+  1. RUNNER_ROOT 확인 → bootstrap.yaml 의 paths.scenario_runner_repo 사용
+     (예시: 사용자 환경마다 다름. cwd / $HOME/dev / $HOME/projects 등)
   2. 패턴 카탈로그 표시:
      [현재 plopvape-shop 시나리오: 4종 (lock / timeout / cpu-throttle / flood)]
      [추가 가능 패턴: template-generic (사용자 정의 필요)]
@@ -226,4 +235,4 @@ esac
 - [scenario-patterns/](../../infra/testbed/scenario-patterns/) — 패턴 카드 카탈로그
 - [pattern-to-script.md](references/pattern-to-script.md) — 카드 → 스크립트 변환 룰
 - [script-template.md](references/script-template.md) — bash 스크립트 표준 골격
-- rca-scenario-runner 레포: `~/dev/rca-scenario-runner` (default)
+- rca-scenario-runner 레포 path: `bootstrap.yaml` 의 `paths.scenario_runner_repo` (사용자별로 다름 — 자동 발견 결과 또는 인터뷰로 결정)

@@ -46,7 +46,8 @@ description: NKIA RCA 테스트베드 (또는 일반 Polestar10 환경) 의 알�
 ### 1. target_scope 결정
 
 ```
-~/dev/rca-scenario-runner/scenarios/services/ 스캔
+<RUNNER_ROOT>/scenarios/services/ 스캔
+  RUNNER_ROOT = bootstrap.yaml 의 paths.scenario_runner_repo (사용자별 결정)
   1개 → 자동
   여럿 → 사용자 prompt
 사용자 직접 servicegroup 명시 가능 (rca-scenario-runner 와 무관한 일반 케이스)
