@@ -44,8 +44,14 @@ architecture:
 
   # 배포 manifest 강제 요구사항 — Polestar10 APM 자원 자동 등록에 필수
   manifest_requirements:
-    otlp_env_required: true       # 모든 service Deployment 의 env 에 5개 OTLP 변수 필수
+    otlp_env_required: true        # 모든 service Deployment 의 env 에 5개 OTLP 변수 필수
     apm_jar_volume_required: true  # apm-agent jar hostPath mount 필수
+    wpm_jvm_attach: true           # default ON. RCA 테스트베드는 6종 에이전트 풀 스택 모니터링이 목적.
+                                   # WPM Scouter javaagent 가 OTel javaagent 와 dual-attach 됨:
+                                   # → wpm-agent jar volume (/opt/polestar10/wpm → /opt/wpm) 추가
+                                   # → JAVA_TOOL_OPTIONS 에 -javaagent:/opt/wpm/wpmagent.jar 추가
+                                   # → WPM collector env (UDP 31002 / TCP 31005) 추가
+                                   # 사용자가 명시적으로 OTel only 만 원하면 deep interview 에서 false 로 변경
 
 context:
   testbed_services_repo: "{{TESTBED_SVC_REPO}}"     # bootstrap.paths.testbed_services_repo
@@ -97,6 +103,43 @@ spec:
 testbed-engineer agent 가 새 Deployment manifest 생성 시 위 5 env + volumes/volumeMounts 자동 포함. plopvape-shop 의 검증된 manifest 를 reference_subdir 로 사용 — 그 패턴 그대로 mimic.
 
 검증: ansible-playbook 직후 SKILL.md Phase 8 의 8-c sanity check (APM standby agent count) 가 자동 검증 — fail 시 manifest 미반영 의심.
+
+## ⚠️ WPM (Scouter) dual-attach — default ON (manifest_requirements.wpm_jvm_attach=true)
+
+RCA 테스트베드는 Polestar10 의 6종 에이전트 (KCM / APM / WPM / SMS / DPM / NMS) 풀 스택 모니터링이 목적. WPM 은 default ON 으로 OTel javaagent 와 dual-attach. 새 testbed 생성 시 services-author 가 자동으로 다음 패턴 적용:
+
+```yaml
+spec:
+  template:
+    spec:
+      volumes:
+        - name: apm-agent-jar
+          hostPath: { path: /opt/polestar10/apm, type: Directory }
+        - name: wpm-agent-jar               # ← 추가
+          hostPath: { path: /opt/polestar10/wpm, type: Directory }
+      containers:
+        - name: <service>
+          volumeMounts:
+            - { name: apm-agent-jar, mountPath: /opt/apm, readOnly: true }
+            - { name: wpm-agent-jar, mountPath: /opt/wpm, readOnly: true }   # ← 추가
+          env:
+            # OTel + WPM dual-attach (한 JAVA_TOOL_OPTIONS 에 -javaagent 두 개)
+            - name: JAVA_TOOL_OPTIONS
+              value: "-javaagent:/opt/apm/opentelemetry-javaagent.jar -javaagent:/opt/wpm/wpmagent.jar -Dwpm.config=/opt/wpm/<service>/wpmagent.conf"
+            # OTel env (위와 동일)
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://{{ polestar10_collector_host }}:6565"
+            # ... 나머지 OTel env
+            # WPM collector — UDP 31002 / TCP 31005 (Scouter 표준)
+            - name: WPM_COLLECTOR_UDP_PORT
+              value: "31002"
+            - name: WPM_COLLECTOR_TCP_PORT
+              value: "31005"
+```
+
+WPM 의 `<service>/wpmagent.conf` 는 ansible agent-wpm role 이 호스트에 service 별로 dir 생성 + 그 안에 conf render (msa_group_id={{app_subdir}}-{{item}}). 컨테이너 안에선 `/opt/wpm/<service>/wpmagent.conf` 로 mount 된 형태.
+
+**default ON 인 이유**: RCA 테스트베드의 6종 에이전트 풀 스택 모니터링 목적. WPM 메트릭 (Scouter 고유 — TX queue / GC profiling / thread profiling) 이 OTel 메트릭 (response_time / error_rate / TPS) 과 함께 RCA 분석에 사용됨. dual-attach 의 JVM 부하 ↑ 는 트레이드오프이지만 6종 풀 스택이 우선. 사용자가 OTel only 원하면 deep interview 에서 'OTel only' 응답.
 
 ## 변환 (오케스트레이터가 task spec 채움)
 

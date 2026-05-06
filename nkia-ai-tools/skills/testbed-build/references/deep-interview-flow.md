@@ -58,6 +58,7 @@ testbed 가 시연할 도메인을 알려주세요 (한 줄 설명, 예: "음식
 3. **DB 종류** — 도메인 적합 default (트랜잭션 도메인이면 PostgreSQL)
 4. **DB 스키마** — service 분할 보고 테이블 + 컬럼 + PK/FK 합성
 5. **failure_surfaces** — default 4종 (db-lock-contention / external-api-timeout / db-cpu-throttle / traffic-flood)
+6. **APM 도구** — default OTel + WPM Scouter dual-attach (6종 에이전트 풀 스택 모니터링). 사용자가 OTel only 원하면 명시 요청
 
 **사용자에게 종합 spec 표시** (인터뷰 X, 알림만):
 
@@ -71,7 +72,9 @@ testbed 가 시연할 도메인을 알려주세요 (한 줄 설명, 예: "음식
   - transfer: 이체 실행 (POST /api/transfer) [depends: account]
   - ledger:   거래 내역 (GET /api/ledger/{accountId}) [depends: transfer]
   - audit:    감사 이벤트 (POST /api/audit/event)
-DB:      PostgreSQL + 4 테이블 (accounts, transfers, ledger, audit_events)
+DB:       PostgreSQL + 4 테이블 (accounts, transfers, ledger, audit_events)
+APM 도구:  OTel + WPM Scouter dual-attach (default — 6종 에이전트 풀 스택 모니터링)
+          OTel only 만 원하면 다음 카드의 'Other' 로 'OTel only' 응답
 시나리오: db-lock-contention / external-api-timeout / db-cpu-throttle / traffic-flood
 
 services-author 가 testbed-services 레포에 다음 작업 진행 예정:
@@ -93,7 +96,7 @@ AskUserQuestion(questions=[
     "header": "최종 승인",
     "multiSelect": False,
     "options": [
-      {"label": "이대로 진행 (Recommended)", "description": "PR push_mode=pr 로 자동 생성"},
+      {"label": "이대로 진행 (Recommended)", "description": "PR push_mode=pr 로 자동 생성 (APM=OTel + WPM dual-attach, 6종 풀 스택)"},
       {"label": "이름만 다시", "description": "이름이 마음에 안 듦 — 자유 입력으로 직접 선택 (kebab-case 검증)"},
       {"label": "서비스 분할 수정", "description": "서비스 추가/제거/이름변경/endpoint 조정"},
       {"label": "DB 종류 변경", "description": "PostgreSQL 외 6종 (MySQL/MariaDB/Oracle/Tibero/CUBRID/SQL Server) 선택"}
@@ -102,7 +105,9 @@ AskUserQuestion(questions=[
 ])
 ```
 
-`Other` 옵션은 AskUserQuestion 자동 추가 — "취소 / 다른 항목 변경" 자유 입력 fallback.
+`Other` 옵션은 AskUserQuestion 자동 추가 — "취소 / 다른 항목 변경" 자유 입력 fallback. 예시:
+- `OTel only` 또는 `WPM 빼고` → manifest_requirements.wpm_jvm_attach=false 로 services-author 진행. WPM 부착 X (단 RCA 검증 시 WPM 메트릭 알람은 제외됨 — Scouter TX queue / GC profiling 등). default 는 dual-attach 라 6종 풀 스택.
+- `취소` → run 종료, manifest 미작성
 
 ## 2-d-d. 수정 분기 (턴 4+, 사용자가 수정 선택 시만)
 

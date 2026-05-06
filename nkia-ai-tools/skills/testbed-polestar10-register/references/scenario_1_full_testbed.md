@@ -120,8 +120,17 @@
      - **OTel (opentelemetry-javaagent)** = data 흐름 시작 → backend 자동 등록.
        명시적 register 호출 X. /api/apm/list-filter 로 등록 여부 확인.
 
-   분기 결정: inventory host_vars 의 apm_agent_type (= "scouter" 또는 "otel") 또는
-   testbed-services 의 manifest 메타에서 추론. 모르면 둘 다 시도.
+   분기 결정 (다음 우선순위 — 위에서부터 확인):
+   1. **interview.yaml 의 manifest_requirements.wpm_jvm_attach** (services-author 가 deep interview
+      에서 받은 옵션. **default true — 6종 풀 스택**):
+      - `true` (기본) → **OTel + WPM 둘 다 path** 진입
+      - `false` (사용자가 deep interview 에서 'OTel only' 명시 응답) → **OTel APM path 만**
+   2. **testbed-services manifest 의 JAVA_TOOL_OPTIONS** 정적 검사 (위 옵션 미설정 시 fallback):
+      - `-javaagent:/opt/wpm/wpmagent.jar` 포함 → WPM path 활성
+      - 없으면 OTel only path
+   3. **둘 다 모름**: 6종 풀 스택이 default 라 둘 다 path 시도. WPM standby 비어있으면 자연스럽게 60초 grace period 후 OTel path 만 결과 반영.
+
+   ⚠️ 기존 plopvape-shop / social-feed / food-delivery 의 OTel only manifest 는 1.9.x 라운드에서 만든 것 — 향후 RCA 6종 풀 스택 검증을 위해 WPM dual-attach 로 재배포 권장. 새 testbed 는 default ON 이라 자동 dual-attach.
 
    ━━ WPM (Scouter) path ━━
      w-a. /api/apm/standby-agents-filter-step1 polling (60초 grace period — heartbeat 도달 대기)

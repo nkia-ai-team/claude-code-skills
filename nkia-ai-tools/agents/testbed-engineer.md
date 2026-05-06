@@ -139,11 +139,11 @@ architecture:
     - traffic-flood
 
 context:
-  testbed_services_repo: "/home/sjbang/dev/testbed-services"
-  reference_subdir: "plopvape-shop"          # 구조 reference
+  testbed_services_repo: "<paths.testbed_services_repo>"   # bootstrap.yaml 에서 결정 — 사용자 환경마다 다름
+  reference_subdir: "plopvape-shop"                         # 구조 reference
   branch: "feat/core-banking-scaffold"
-  push_mode: "pr"                            # pr | direct-push | local-only
-  pat_available: true                        # ~/.git-credentials 에 PAT 있음
+  push_mode: "pr"                                           # pr | direct-push | local-only
+  pat_available: true                                       # ~/.git-credentials 에 PAT 있음
 ```
 
 ## 절차
@@ -407,6 +407,17 @@ case "${push_mode}" in
 esac
 ```
 
+⚠️ **destructive action chat 승인 룰** — `git push` / `gh pr create` / `git merge --no-ff main` 같은 destructive 명령은 Claude Code 권한 정책상 사용자의 별도 chat 승인 (자연어 응답) 을 요구. push_mode 가 task spec 으로 미리 결정됐어도 push 직전에 사용자에게 chat 으로 한 번 더 묻고 자연어 응답 받기:
+
+```
+"새 testbed 코드 작성 + 빌드 검증 완료. 다음 destructive action 진행할까요?
+   git push -u origin <branch>
+   gh pr create ...
+응답해 주세요 (예: '응 진행', 'PR 만들어 줘', '취소')."
+```
+
+사용자 자연어 응답 받기 전엔 push 명령 실행 X. AskUserQuestion 카드 사용 X — 카드는 의도 표현일 뿐 권한 시스템은 별도 chat 승인 요구.
+
 git push 인증 실패 (401) 시 verdict=`auth-failed` + ask-polestar10 우회 (PAT/credential helper 영역).
 
 ### 6단계: 출력 (JSON)
@@ -415,7 +426,7 @@ git push 인증 실패 (401) 시 verdict=`auth-failed` + ask-polestar10 우회 (
 {
   "verdict": "ok",
   "testbed_name": "core-banking",
-  "subdir_created": "/home/sjbang/dev/testbed-services/core-banking",
+  "subdir_created": "<paths.testbed_services_repo>/core-banking",
   "services_created": ["account", "transfer", "ledger", "audit"],
   "files_count": 47,
   "build_passed": true,
@@ -462,7 +473,7 @@ services-author 단계는 Polestar10 무관. 매뉴얼 X 영역. ask-polestar10 
 - 플레이북: `<plugin_root>/infra/testbed/playbooks/`
 - README: `<plugin_root>/infra/testbed/README.md`
 - 설치 명세: `<plugin_root>/infra/testbed/install-spec.yaml`
-- testbed-services reference: `~/dev/testbed-services/plopvape-shop/`
+- testbed-services reference: `<paths.testbed_services_repo>/plopvape-shop/` (bootstrap.yaml 에서 결정 — 사용자 환경마다 다름)
 
 ## 금지 (양 모드 공통)
 

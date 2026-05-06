@@ -28,8 +28,8 @@ Glob({
 })
 ```
 
-매치 결과의 첫 번째 절대경로에서 `/knowledge/polestar10/manuals/user/00-toc.md` 부분을 떼고 남은 부분이 `<plugin_root>` 입니다. 예:
-`<plugin_root>` = `/home/sjbang/.claude/plugins/cache/nkia-ai-marketplace/nkia-ai-tools/1.7.0`
+매치 결과의 첫 번째 절대경로에서 `/knowledge/polestar10/manuals/user/00-toc.md` 부분을 떼고 남은 부분이 `<plugin_root>` 입니다. 예시 형식:
+`$HOME/.claude/plugins/cache/<marketplace>/<plugin>/<version>` (사용자 환경의 home + 설치된 plugin 버전에 따라 결정)
 
 Glob 결과가 비었다면 NKIA 개발자가 plugin 을 직접 작업 중인 환경입니다. 이 경우만 cwd 의 `nkia-ai-tools/knowledge/polestar10/...` 상대경로 fallback 을 허용하세요.
 

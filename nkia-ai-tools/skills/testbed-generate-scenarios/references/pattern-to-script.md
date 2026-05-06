@@ -68,31 +68,62 @@ scenario_hints:
 
 **우선순위**: scenario_hints 가 있으면 룩업 표 + 사용자 인터뷰 모두 우회. testbed-engineer 가 생성한 코드의 실제 schema 기반이라 정확.
 
-### 4-c. 룩업 결정 알고리즘
+### 4-c. 룩업 결정 알고리즘 — fallback 명확화 (강제 룰)
 
 ```
 1. scenario_hints 가 manifest 에 존재? → 그대로 사용 (신규 도메인)
 2. interview.app.domain 이 룩업 표의 키? → 표 사용 (e-commerce / banking / 예약)
-3. 그 외 → 사용자 인터뷰 fallback
+3. 그 외 → auto 모드 강제 진입 (코드 분석)
+4. auto 결과 confidence 낮으면 → 사용자 인터뷰
+5. 사용자 인터뷰도 결정 안 되면 → fail-fast (시나리오 생성 중단)
 ```
 
-테스트베드 generate-scenarios 단독 호출 (scenario_hints 없음, 룩업 표에도 없는 도메인):
+🚫 **강제 금지 룰 — plopvape-shop 시나리오 sed 치환 절대 X**
+
+새 testbed (food-delivery / banking / IoT / 사용자 정의 도메인 등) 의 시나리오 생성 시 plopvape-shop 의 `scripts/*.sh` 를 sed 치환으로 변환하는 shortcut **절대 금지**. 이유:
+
+- plopvape 의 시나리오는 e-commerce 도메인 전용 (orders 테이블 / inventory.id / pg-mock 컨테이너 / NodePort 30080)
+- 다른 도메인에 sed 치환 시 비즈니스 의미 X — orders 테이블 자체가 없는 testbed 에서 `SELECT * FROM orders FOR UPDATE` 실행하면 SQL error
+- 변수 이름만 치환되고 SQL / endpoint / payload / 외부 의존성 컨테이너 모두 plopvape 가정 그대로 — 사용자가 보고서에서 직접 "비즈니스 도메인 정확성 검증 X" 라고 admit 한 패턴
+
+신규 도메인 시나리오는 **반드시 auto 모드 (코드 분석) 또는 사용자 인터뷰** 거쳐 도메인-specific 합성. plopvape `.sh` 파일 read 후 변환 금지.
+
+### 4-d. auto 모드 — 신규 도메인 코드 분석 강제 절차
+
+룩업 표에 없는 도메인 (food-delivery / banking 새 변형 / IoT 등) = auto 모드 강제. LLM 이 다음 파일 read **필수**:
+
+| read 대상 | 추출 정보 |
+|---|---|
+| `<TESTBED_SVC_REPO>/<testbed_name>/*-service/src/main/java/.../*Controller.java` | `@PostMapping` / `@GetMapping` / `@RequestMapping` 의 path + HTTP method + body schema |
+| `<TESTBED_SVC_REPO>/<testbed_name>/db/init.sql` (또는 `db/schema.sql`) | `CREATE TABLE` 의 테이블명 + 컬럼 + PK/FK + seed data |
+| `<TESTBED_SVC_REPO>/<testbed_name>/k8s/*.yaml` | NodePort 실제 port (30080 가정 X), Service 이름, 외부 의존성 컨테이너 (`pg-mock` / `external-pg-mock` 등 도메인별로 다름) |
+| `<TESTBED_SVC_REPO>/<testbed_name>/docker-compose.dev.yml` (있다면) | 외부 mock 컨테이너 이름 정확히 확인 |
+
+읽은 후 LLM 이 다음 매핑 합성 (도메인 추론):
+
+| 패턴 | 매핑 후보 (LLM 추론) |
+|---|---|
+| db-lock-contention | 핫 테이블 = 트랜잭션 도메인의 PK 충돌 가능 테이블 (food-delivery 면 `orders` 또는 `restaurant_inventory`. banking 이면 `accounts`. IoT 면 `device_state`) |
+| external-api-timeout | 외부 의존성 컨테이너 = k8s manifest 또는 docker-compose 에서 발견된 mock 이름 (`external-pg-mock` 그대로 가정 X) |
+| db-cpu-throttle | DB Deployment / container 이름 = k8s manifest 의 실제 값 |
+| traffic-flood | 진입 endpoint = Controller 의 `@PostMapping("/api/<도메인 트랜잭션>")` |
+
+**confidence 낮은 경우** (Controller 가 너무 많아서 어떤 endpoint 가 핫 path 인지 모호 / 테이블이 여러 개라 어떤 게 lock 핫 row 인지 모호) → 사용자 인터뷰:
 ```
-사용자에게 prompt:
-  "도메인 매핑 정보가 없습니다. 다음 변수를 직접 입력하시거나 LLM 추론에 위임:
-   - LOCK_TABLE: _
-   - LOAD_ENDPOINT: _
-   - LOAD_PAYLOAD: _
-   ...
-   또는 'auto' 선택 시 testbed-services 레포의 코드 (controller / entity) 를 LLM 이 분석하여 추론."
+"food-delivery 의 db-lock-contention 시나리오에 사용할 변수를 결정해 주세요:
+  - LOCK_TABLE 후보: orders / restaurant_inventory / order_items (init.sql 분석 결과)
+  - LOAD_ENDPOINT 후보: POST /api/orders / POST /api/orders/cancel (Controller 분석 결과)
+  - 도메인 의도: 어떤 트랜잭션 핫스팟을 시뮬레이션? _"
 ```
 
-`auto` 선택 시:
-- LLM 이 `<TESTBED_SVC_REPO>/<testbed_name>/*-service/src/main/java/.../*Controller.java` Read
-- `@PostMapping` / `@GetMapping` / `@RequestMapping` annotation 으로 endpoint 목록 추출
-- `<TESTBED_SVC_REPO>/<testbed_name>/db/init.sql` 의 CREATE TABLE 로 테이블 추출
-- 트랜잭션 도메인 (transfer, orders) endpoint + 핫 테이블 후보 자동 매핑
-- 사용자 confirm 후 진행
+**confidence 높음** (단일 후보 명확) → 사용자에게 결정 사항 표시 후 confirm 받고 진행 (silent 진행 X — 사용자가 도메인 적합성 검증).
+
+### 4-e. fail-fast — 신규 도메인인데 코드 분석 불가능한 경우
+
+testbed-services 레포 자체에 testbed 디렉토리 없거나 controller / init.sql 부재 시:
+- plopvape sed 치환으로 fallback X
+- 사용자에게 명시: "코드 분석 불가능. testbed-services 의 <testbed_name>/src/main/java + db/init.sql 가 필요. PR 머지 후 재호출하거나 사용자가 시나리오 직접 작성."
+- 시나리오 생성 자체 abort
 
 ### 5. 추론 충돌 시
 
