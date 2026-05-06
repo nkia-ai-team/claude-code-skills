@@ -1,4 +1,4 @@
-# Phase 9 — Polestar10 6종 자원 등록 (사전 점검 + dispatch + PARTIAL 처리)
+# Phase 9 — Polestar10 관리대상 등록 (KCM / APM / WPM / SMS / DPM / NMS — 사전 점검 + dispatch + PARTIAL 처리)
 
 **조건부 적용**: Phase 8 (ansible-playbook) 완료 직후 read. agent install 끝난 시점.
 

@@ -285,7 +285,7 @@ plopvape-shop 의 매니페스트 mimic:
 
 ## Polestar10 관측 매핑
 
-본 testbed 는 testbed-build 오케스트레이터가 다음 6종 자원으로 Polestar10 에 등록:
+본 testbed 는 testbed-build 오케스트레이터가 Polestar10 의 관리대상 6종 (KCM / APM / WPM / SMS / DPM / NMS) 으로 등록:
 
 | Agent | 등록 자원 | 비고 |
 |---|---|---|

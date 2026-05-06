@@ -126,7 +126,7 @@ graph TB
 
 ---
 
-## 6종 Polestar10 자원 등록 계획
+## Polestar10 관리대상 등록 계획 (KCM / APM / WPM / SMS / DPM / NMS)
 
 | 에이전트 | 호스트 설치? | 등록 자원 (예상) | 비고 |
 |---|---|---|---|

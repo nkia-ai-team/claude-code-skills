@@ -1,6 +1,6 @@
 ---
 name: testbed-build
-description: NKIA RCA 테스트베드 end-to-end 자동화 오케스트레이터 (Mode 1 = 새 테스트베드 처음부터 끝까지). 4단계 인터뷰 → 아키텍처 승인 → ansible-playbook 배포 → Polestar10 6종 자원 등록 → 시나리오 4종 생성 → LLM 알람 정책 → closed-loop 검증 → 보고서. 사용자가 "/testbed-build", "테스트베드 만들어줘", "RCA 환경 셋업", "새 testbed 구축" 같은 요청 시 트리거. 시나리오 추가만 원하면 testbed-generate-scenarios 단독 호출, 알람 재튜닝만 원하면 testbed-tune-alarms 단독 호출.
+description: NKIA RCA 테스트베드 end-to-end 자동화 오케스트레이터 (Mode 1 = 새 테스트베드 처음부터 끝까지). 4단계 인터뷰 → 아키텍처 승인 → ansible-playbook 배포 → Polestar10 관리대상 등록 (host/K8s/Java 서비스/DB/네트워크 장비 6종) → 시나리오 4종 생성 → LLM 알람 정책 → closed-loop 검증 → 보고서. 사용자가 "/testbed-build", "테스트베드 만들어줘", "RCA 환경 셋업", "새 testbed 구축" 같은 요청 시 트리거. 시나리오 추가만 원하면 testbed-generate-scenarios 단독 호출, 알람 재튜닝만 원하면 testbed-tune-alarms 단독 호출.
 ---
 
 # testbed-build
@@ -65,7 +65,7 @@ chmod 700 ~/.testbed-build
 - ~/.git-credentials → git PAT 인터뷰 skip
 - bootstrap.yaml 의 polestar10.organization_id 가 비어있지 않음 → organization_id 인터뷰 skip
 
-⚠️ **organization_id 는 bootstrap.yaml 에 비어있으면 인터뷰 강제** — SMS install role 의 fail-fast 가드 + KCM helm chart 의 `kcm.orgId` (Secret `KCM_ORG_ID`) 가 모두 이 값을 참조. 빈값으로 진행하면 6종 자원 등록 시나리오에서 SMS/KCM standby 미감지 → PARTIAL verdict 로 끝남.
+⚠️ **organization_id 는 bootstrap.yaml 에 비어있으면 인터뷰 강제** — SMS install role 의 fail-fast 가드 + KCM helm chart 의 `kcm.orgId` (Secret `KCM_ORG_ID`) 가 모두 이 값을 참조. 빈값으로 진행하면 Polestar10 관리대상 등록 단계에서 SMS/KCM standby 미감지 → PARTIAL verdict 로 끝남.
 
 상세 슬롯 정책 표는 [references/bootstrap.md](references/bootstrap.md) 의 "인터뷰 슬롯 정책 표" 참조.
 
@@ -151,7 +151,7 @@ echo "[precheck] reachable (HTTP $HTTP_CODE)"
 
 [references/architecture-template.md](references/architecture-template.md) 템플릿 변수 채우기:
 - 인터뷰 답으로 mermaid 다이어그램 자동 생성
-- 6종 에이전트 표 + 알람 정책 자리 (8단계 후 채워짐)
+- Polestar10 모니터링 에이전트 6종 (KCM/APM/WPM/SMS/DPM/NMS) 표 + 알람 정책 자리 (8단계 후 채워짐)
 - 시나리오 자리 (7단계 후 채워짐)
 
 산출: `runs/<RUN_ID>/architecture.md`. 사용자에게 표시.
@@ -307,7 +307,7 @@ done
 
 이 sanity check 가 round-7 의 'manifest OTLP env 누락 → fire 0' silent failure 패턴 차단. 통과해야 Phase 9 진입.
 
-### [Phase 9] Polestar10 6종 자원 등록
+### [Phase 9] Polestar10 관리대상 등록 (host / K8s / Java 서비스 / DB / 네트워크 장비 6종)
 
 agent install 직후의 standby polling delay (60초) + 자원별 dispatch + PARTIAL verdict 처리.
 
@@ -389,7 +389,7 @@ done
 
 [references/finalize-report-template.md](references/finalize-report-template.md) 템플릿:
 - architecture.md 본문
-- register.json 의 6종 자원 표
+- register.json 의 관리대상 등록 표 (KCM / APM / WPM / SMS / DPM / NMS)
 - alarms.json 의 정책 표
 - verify.log 의 최종 verdict 요약
 - learnings.md append (반복 이슈 hook — 본 세션은 placeholder)
@@ -421,7 +421,7 @@ if last_phase >= "ansible_deploy":
 if last_phase >= "polestar10_register":
     options.append({
         "label": "Polestar10 자원 정리",
-        "description": "testbed-polestar10-register 의 시나리오 4 (자원 삭제 + 재출현 가드) 자동 호출. 6종 자원 모두 Polestar10 backend 에서 제거."
+        "description": "testbed-polestar10-register 의 시나리오 4 (자원 삭제 + 재출현 가드) 자동 호출. Polestar10 에 등록된 관리대상 (KCM / APM / WPM / SMS / DPM / NMS) 모두 backend 에서 제거."
     })
 
 options.append({

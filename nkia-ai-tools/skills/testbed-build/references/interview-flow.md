@@ -74,11 +74,11 @@ AskUserQuestion(questions=[
     ]
   },
   {
-    "question": "Polestar10에 Agent를 어떻게 등록할까요?",
-    "header": "Agent 등록",
+    "question": "Polestar10 에 모니터링 대상을 어떻게 등록하시겠어요?",
+    "header": "관리대상 등록",
     "multiSelect": False,
     "options": [
-      {"label": "자동 (Recommended)", "description": "testbed-polestar10-register 스킬이 API 로 6종 Agent 일괄 등록"},
+      {"label": "자동 (Recommended)", "description": "스킬이 Polestar10 API 로 직접 등록 — host (SMS) / K8s cluster (KCM) / Java 서비스 (APM, WPM) / DB (DPM) / 네트워크 장비 (NMS) 6종 모두"},
       {"label": "직접 (수동)", "description": "사용자가 Polestar10 web UI 로 수동 등록 후 진행"}
     ]
   }

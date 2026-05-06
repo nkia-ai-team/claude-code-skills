@@ -25,7 +25,7 @@ manifest.yaml + register.json + scenarios.json + alarms.json + verify.log 모두
 
 {{ONE_LINE_SUMMARY}}
 
-<!-- 예시: "plopvape-shop-v2 테스트베드를 203.0.113.109 에 구축. 6종 자원 등록 + 4 시나리오 + 12 알람 정책. closed-loop verify PASS (attempt 1)." -->
+<!-- 예시: "plopvape-shop-v2 테스트베드를 203.0.113.109 에 구축. Polestar10 관리대상 6종 (KCM/APM/WPM/SMS/DPM/NMS) 등록 + 시나리오 4종 + 알람 정책 12개. closed-loop verify PASS (attempt 1)." -->
 
 ---
 
