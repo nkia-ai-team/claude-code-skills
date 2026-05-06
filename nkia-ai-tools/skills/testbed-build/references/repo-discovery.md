@@ -57,12 +57,14 @@ done
 
 **인터뷰 없이 자동 진행** — 발견된 경로 사용 + 알림만:
 ```
-[레포 자동 발견 결과]
-  ✓ testbed-services       → /home/sjbang/dev/claude-code-skills/testbed-services (cwd)
-  ✓ rca-scenario-runner   → /home/sjbang/dev/rca-scenario-runner (home)
+[레포 자동 발견 결과 — 예시 출력 형식]
+  ✓ testbed-services       → <발견된 절대 경로> (cwd 또는 home)
+  ✓ rca-scenario-runner   → <발견된 절대 경로> (cwd 또는 home)
 
 위 경로 그대로 사용합니다.
 ```
+
+(실제 경로는 사용자 환경마다 다름. cwd 의 위치 / 사용자가 평소 사용하는 dev 패턴에 따라 결정.)
 
 ### Case B: 둘 중 하나만 발견
 

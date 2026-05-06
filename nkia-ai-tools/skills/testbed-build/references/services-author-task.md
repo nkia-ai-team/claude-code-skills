@@ -89,7 +89,7 @@ testbed-engineer 가 반환한 JSON:
 {
   "verdict": "ok",
   "testbed_name": "core-banking",
-  "subdir_created": "/home/sjbang/dev/testbed-services/core-banking",
+  "subdir_created": "<paths.testbed_services_repo>/core-banking",
   "services_created": ["account", "transfer", "ledger", "audit"],
   "files_count": 47,
   "build_passed": true,
