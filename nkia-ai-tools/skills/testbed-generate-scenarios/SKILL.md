@@ -96,21 +96,56 @@ ls "$RUNNER_ROOT/scenarios/services/"
 
 > **중요**: rca-scenario-runner 백엔드는 [scenarios.py](https://github.com/nkia-ai-team/rca-scenario-runner/blob/develop/backend/app/scenarios.py) 가 service-spec.yaml glob 으로 시나리오 자동 발견. yaml 만 떨어뜨리면 컨테이너 재시작 후 자동 등록.
 
-### 5. 사용자 미리보기 + 승인 ⛔ (AskUserQuestion)
+### 5. 사용자 미리보기 + 승인 ⛔ (AskUserQuestion 게이트 — 강제)
 
-다음 시나리오 추가 예정 표시 후:
+🚫 **강제 룰**: 본 step 의 AskUserQuestion 답변을 받기 전에는 **git commit / push / PR 생성 절대 X**. LLM 이 SKILL.md 따르며 "곧바로 git commit 해버리는" 패턴 금지. step 6 진입 조건 = 사용자가 옵션 1/2/3 중 하나를 명시 선택.
+
+#### 미리보기 — 의미 + 발화 조건까지 풀어서 설명
+
+시나리오 파일 경로 / 라인 수만 표시하지 말고 **무엇을 시뮬레이션 하는지, 왜 이 testbed 에 적합한지, 어떤 알람이 어떤 조건에서 발화될지** 모두 자연어로 풀어서 출력:
 
 ```
-[scripts/scenario-05-memory-leak.sh] (47 lines)
-  trigger: java heap 강제 증가
-  expected_alarms: APM 평균응답시간 / KCM Pod Memory / KCM Pod restart count
-  estimated_duration_sec: 240
-  cleanup: pod restart
+=== 시나리오 추가 미리보기 ===
 
-[service-spec.yaml entry]
-  id: scenario-05
-  ...
+[scenario-05] Memory Leak (Heap exhaustion)
+
+▶ 무엇을 시뮬레이션:
+  Java heap 메모리를 강제로 증가시켜 OOM (OutOfMemoryError) 직전 상태를 재현.
+  실제 production 의 메모리 누수 (캐시 무한 증식 / static collection 누적 /
+  thread-local 미정리 등) 패턴을 모방.
+
+▶ 왜 social-feed testbed 에 적합한가:
+  feed-service 가 사용자별 피드 캐시를 in-memory 로 보관하는 구조라 메모리
+  누수가 자연스럽게 발생할 가능성이 있음. 같은 testbed 에 이미 있는 lock /
+  external-timeout / cpu / traffic-flood 와 카테고리 겹침 X — 메모리 도메인은
+  현재 미커버.
+
+▶ 트리거 메커니즘:
+  bash 스크립트가 feed-service Pod 안에서 byte[] 배열을 list 에 무한 추가
+  하는 작은 Java 프로그램을 실행. 60초 동안 heap 증가 → JVM 가 GC 압박 →
+  Pod 메모리 limit 도달 → KCM 가 감지.
+
+▶ 예상 발화 알람 (expected_alarms — Polestar10 web 의 알람 history 에서 매칭):
+  1. APM 평균 응답시간 초과 (feed-service)
+     조건: GC 압박으로 응답 latency 증가. p95 가 5s 이상 5분 지속 시 발화.
+  2. KCM Pod Memory 사용률 (feed-service Pod)
+     조건: Pod memory limit 의 90% 초과 5분 지속. KCM master 가 cgroup
+     metric 받아 polestar10 push.
+  3. KCM Pod restart count
+     조건: Pod 가 OOMKilled 후 자동 restart. 재시작 1회 이상 시 발화.
+
+▶ 메타:
+  estimated_duration_sec: 240   # 4분 — 메모리 증가 + 알람 발화까지
+  cleanup: pod restart           # kubectl rollout restart 로 메모리 reset
+  side_effects:
+    - feed-service Pod 가 잠시 unavailable. 다른 시나리오와 병렬 실행 X 권장.
+
+▶ 변경 파일:
+  + scripts/scenario-05-memory-leak.sh (신규, 47 lines)
+  ~ service-spec.yaml (entry 추가, 12 lines)
 ```
+
+#### AskUserQuestion 카드 (위 미리보기 출력 직후)
 
 ```python
 AskUserQuestion(questions=[
@@ -127,6 +162,8 @@ AskUserQuestion(questions=[
   }
 ])
 ```
+
+⚠️ **AskUserQuestion 발사 전 git 작업 X / Step 6 은 사용자 답변 후에만 진입**. 사용자가 (4) 취소 선택 시 임시 파일 정리 + 종료. testbed-build 오케스트레이터가 호출한 경우라도 반드시 본 게이트 통과 필수 — 자동 진행 모드에서도 이 게이트는 강제.
 
 ### 6. git commit + push (push_mode 에 따라)
 
