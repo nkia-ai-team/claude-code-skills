@@ -39,7 +39,7 @@ context:
   testbed_name: plopvape-shop
   scenario_runner_base: http://192.168.200.109:8091
   polestar10_base: https://192.168.230.96
-  polestar10_cookie_jar: /home/sjbang/.polestar10/cookie.jar
+  polestar10_cookie_jar: $HOME/.polestar10/cookie.jar
   scenarios_to_verify: ["01", "02", "03", "04"]
   attempt_n: 2
   previous_verdict:

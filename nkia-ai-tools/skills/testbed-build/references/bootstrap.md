@@ -225,18 +225,19 @@ testbed-build 가 의존하는 두 외부 레포 (testbed-services / rca-scenari
 
 > Polestar10 ID/PW 는 `~/.polestar10rc` (chmod 600) 에 저장돼 testbed-polestar10-register 와 공유됨. 이미 파일이 있으면 재사용 (재인터뷰 X).
 
-#### 카드형 (default-present 슬롯) — 묶음 AskUserQuestion
+#### 카드형 (default-present 슬롯) — bootstrap.yaml 캐시 있을 때만
 
-타겟 서버 IP 와 SSH user 는 default 가 명확해서 카드형이 자연스럽습니다 (109 / nkia). Polestar10 사용자 계정은 환경마다 다양해서 (admin / nkia / 별도 운영 계정) 카드 옵션을 미리 정해두는 가치가 적으므로 다음 단계 비밀 입력 흐름에서 자유 입력으로 받습니다.
+타겟 서버 IP 와 SSH user 는 사용자 환경마다 다르므로 **임의의 default 사전 박지 말 것**. bootstrap.yaml 에 이전 호출의 값이 있으면 카드의 (Recommended) 옵션으로 제시 + Other 자유 입력. 캐시 없으면 (첫 호출) 카드 자체 부적합 — 자유 입력 텍스트 prompt 로.
 
 ```python
+# 캐시 있는 케이스 — 이전 값 = bootstrap.yaml 의 ssh.default_user / 직전 run 의 target_host
 AskUserQuestion(questions=[
   {
     "question": "타겟 서버 IP/hostname 은 어떤 걸 사용하시겠어요?",
     "header": "타겟 IP",
     "multiSelect": False,
     "options": [
-      {"label": "192.168.200.109 (Recommended)", "description": "109 DGX Spark — 기존 RCA 테스트베드 위치"}
+      {"label": f"{cached_target_host} (이전 호출 값)", "description": "bootstrap.yaml 또는 직전 run 의 manifest 에서 가져옴"}
     ]
   },
   {
@@ -244,11 +245,15 @@ AskUserQuestion(questions=[
     "header": "SSH user",
     "multiSelect": False,
     "options": [
-      {"label": "nkia (Recommended)", "description": "109/96/104 공통 user. 일반적으로 nkia."}
+      {"label": f"{cached_ssh_user} (이전 호출 값)", "description": "bootstrap.yaml 의 ssh.default_user"}
     ]
   }
 ])
-# Other 가 자동 추가되어 자유 입력 가능 (예: 다른 IP, 다른 user)
+# Other 가 자동 추가되어 자유 입력 가능 (다른 IP / 다른 user)
+
+# 캐시 없는 케이스 (첫 호출) — 카드 X. interview-flow.md 의 자유 입력 텍스트 prompt 패턴 사용:
+#   "타겟 서버 IP 또는 hostname 을 입력해 주세요"
+#   "SSH user 를 입력해 주세요"
 ```
 
 > ⚠️ **Polestar10 base_url 의 Other 케이스**: 첫 인터뷰의 P10 서버 카드에서 Other 선택 시 위 묶음과 별 턴에 자유 입력 prompt: "Polestar10 base_url 을 직접 입력해 주세요 (`https://...` 형식)".

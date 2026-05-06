@@ -89,20 +89,20 @@ AskUserQuestion(questions=[
 
 ## 단계 (a): 타겟 서버 — 자유 입력 + multi-choice 혼합
 
-> **타겟 서버 = 테스트베드 (K3s + 서비스 + 4 host 에이전트) 가 설치될 호스트**. Polestar10 모니터링 서버 (96/dev) 와 분리. 사용자가 헷갈리지 않게 명시.
+> **타겟 서버 = 테스트베드 (K3s + 서비스 + 4 host 에이전트) 가 설치될 호스트**. Polestar10 모니터링 서버 (57/104) 와 분리. 사용자가 헷갈리지 않게 명시.
 
 ### 1-a, 1-b: target host + user (자유 입력 — 텍스트 프롬프트)
 
 ```
 === Step 1: 타겟 서버 (테스트베드가 배포될 곳) ===
 
-질문: "타겟 서버 IP/hostname? (default: 192.168.200.109 — 109 DGX Spark, ARM64)"
-질문: "SSH user? (default: nkia)"
+질문: "타겟 서버 IP 또는 hostname 을 입력해 주세요 (예: 사내 K3s 호스트 IP)"
+질문: "SSH user는 무엇인가요? (이전 호출에서 사용한 default 가 bootstrap.yaml 에 있으면 표시)"
 ```
 
 이 두 슬롯은 자유 입력이라 AskUserQuestion 부적합. 일반 텍스트 프롬프트.
 
-> 타겟 = 109 면 default 그대로. 다른 호스트 (예: Mac multipass 또는 다른 서버) 에 깔 거면 IP 직접 입력.
+> 사용자 환경마다 타겟 호스트가 다름 (사내 서버 / 사용자 본인 머신 / cloud VM 등). 임의의 default 박지 말고 사용자 입력을 받음. bootstrap.yaml 에 이전 호출 값이 있으면 default 로 제시 가능.
 
 ### 1-c: SSH 인증 방식 (AskUserQuestion)
 
@@ -134,7 +134,7 @@ target:
   host: "192.168.200.109"
   user: "nkia"
   auth_mode: "password" | "ssh_key"
-  ssh_key_path: "/home/sjbang/.ssh/id_rsa"   # auth_mode=ssh_key 시
+  ssh_key_path: "$HOME/.ssh/id_rsa"   # auth_mode=ssh_key 시 (실제 경로는 사용자 환경에 맞춰)
   arch: "arm64"   # uname -m 1회 호출로 자동 (이번 인터뷰의 fallback 슬롯)
 ```
 
