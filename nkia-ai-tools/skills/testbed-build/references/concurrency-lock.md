@@ -8,7 +8,7 @@
 ~/.testbed-build/.locks/<target_host>.lock
 ```
 
-`<target_host>` = interview.target.host 의 IP 또는 hostname (점 그대로, e.g., `192.168.200.109.lock`).
+`<target_host>` = interview.target.host 의 IP 또는 hostname (점 그대로, e.g., `203.0.113.109.lock`).
 
 ## Acquire
 

@@ -4,7 +4,7 @@
 
 ## 배경
 
-타겟 서버 SSH 가 통한 직후 `uname -m` 으로 아키텍처를 자동 감지합니다. ARM64 (109 DGX Spark 같은) 인 경우 KCM 에이전트는 사내 GitLab (cims2.nkia.net) 의 lucida-kcmagent 소스를 빌드합니다. 타겟 서버에는 GitLab 자격증명이 없는 게 일반적이므로 **controller (사용자 머신) 에서 소스 확보 후 scp 로 타겟에 전달** 하는 흐름.
+타겟 서버 SSH 가 통한 직후 `uname -m` 으로 아키텍처를 자동 감지합니다. ARM64 호스트인 경우 KCM 에이전트는 사내 GitLab (cims2.nkia.net) 의 lucida-kcmagent 소스를 빌드합니다. 타겟 서버에는 GitLab 자격증명이 없는 게 일반적이므로 **controller (사용자 머신) 에서 소스 확보 후 scp 로 타겟에 전달** 하는 흐름.
 
 ## Step 1: controller 의 cwd 에서 lucida-kcmagent 자동 검색
 

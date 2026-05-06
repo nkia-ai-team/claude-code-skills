@@ -131,7 +131,7 @@ password 와 같으면 skip. 다르면 자유 입력 prompt.
 산출:
 ```yaml
 target:
-  host: "192.168.200.109"
+  host: "203.0.113.109"
   user: "nkia"
   auth_mode: "password" | "ssh_key"
   ssh_key_path: "$HOME/.ssh/id_rsa"   # auth_mode=ssh_key 시 (실제 경로는 사용자 환경에 맞춰)
@@ -211,7 +211,7 @@ GW=$(ssh "$TESTBED_USER@$TESTBED_HOST" 'ip route | awk "/^default/ {print \$3}"'
 # 2. 타겟 서버의 같은 subnet 추출
 SUBNET=$(ssh "$TESTBED_USER@$TESTBED_HOST" \
   'ip -o -f inet addr show | awk "/scope global/ {print \$4}"' | head -1)
-# 예: 192.168.200.109/24
+# 예: 203.0.113.109/24
 
 # 3. (방법 A) gateway 에 SNMP probe (community public, sysDescr OID)
 SNMP_RESULT=$(timeout 3 ssh "$TESTBED_USER@$TESTBED_HOST" \
@@ -235,9 +235,9 @@ ALREADY_REGISTERED=$(curl -sS --cookie-jar "$JAR" \
 
 ```
 [NMS 자동 감지 결과]
-  ✓ 192.168.200.1   sysDescr: Cisco IOS XE 17.x          → NMS 등록 진행
-  ✓ 192.168.200.10  sysDescr: Juniper EX2300             → NMS 등록 진행
-  ✓ 192.168.200.20  sysDescr: Palo Alto PA-220           → NMS 등록 진행
+  ✓ 203.0.113.1   sysDescr: Cisco IOS XE 17.x          → NMS 등록 진행
+  ✓ 203.0.113.10  sysDescr: Juniper EX2300             → NMS 등록 진행
+  ✓ 203.0.113.20  sysDescr: Palo Alto PA-220           → NMS 등록 진행
 
 총 3 개 장비 자동 NMS 등록 진행합니다 (community: probe 성공 값 사용).
 ```
@@ -278,7 +278,7 @@ nms:
   enabled: true | false   # 발견 + 사용자 confirm 시 true
   detection_method: "snmpwalk" | "nmap" | "manual" | "none"
   devices:
-    - host: "192.168.200.1"
+    - host: "203.0.113.1"
       snmp_version: "v2c"
       community: "public"
       sysDescr: "Cisco IOS XE 17.x"
@@ -340,7 +340,7 @@ polestar10:
 # runs/<RUN_ID>/interview.yaml
 run_id: 2026-04-30-153022
 target:
-  host: "192.168.200.109"
+  host: "203.0.113.109"
   user: "nkia"
   auth_mode: "password"
   arch: "arm64"
@@ -365,7 +365,7 @@ polestar10:
 resume 으로 phase 1 재진입 시:
 ```
 === 이전 인터뷰 답변 ===
-target.host: 192.168.200.109
+target.host: 203.0.113.109
 app.testbed_name: plopvape-shop
 namespace: rca-testbed-v2
 nms.enabled: false

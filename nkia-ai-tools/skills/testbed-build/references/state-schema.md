@@ -12,7 +12,7 @@ testbed-build 의 모든 상태가 살아있는 디렉토리.
 │   └── 2026-05-02-094500-core-banking.md
 ├── learnings.md                                   반복 이슈 누적 (Phase later)
 ├── .locks/                                        runtime 만 존재
-│   └── 192.168.200.109.lock                      flock target
+│   └── 203.0.113.109.lock                      flock target
 ├── archive/                                       (선택) zip 백업
 │   └── 2026-04-30-153022.zip
 └── runs/                                          진행 중 + 실패 케이스만 잔존
@@ -50,7 +50,7 @@ phase 진행 추적. 매 phase 완료 후 즉시 갱신. resume 시 read.
 ```yaml
 run_id: 2026-04-30-153022
 testbed_name: plopvape-shop
-target_host: 192.168.200.109
+target_host: 203.0.113.109
 mode: 1
 created_at: 2026-04-30T15:30:22Z
 last_updated_at: 2026-04-30T15:32:08Z
@@ -90,10 +90,10 @@ testbed-polestar10-register 가 phase 8 에 작성:
 {
   "run_id": "2026-04-30-153022",
   "registered_at": "2026-04-30T15:50:00Z",
-  "polestar10_base": "https://192.168.230.96",
+  "polestar10_base": "https://198.51.100.96",
   "sms_host": {
     "agent_id": "MA_109_20260430153950",
-    "host": "192.168.200.109",
+    "host": "203.0.113.109",
     "status": "UP"
   },
   "kcm_cluster": {

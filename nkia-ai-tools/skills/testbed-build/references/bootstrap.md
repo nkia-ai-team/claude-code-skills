@@ -12,7 +12,7 @@ ssh:
   ssh_key_path: ""            # 비어있으면 password 사용
 
 polestar10:
-  base_url: "https://192.168.230.104"   # 기본 endpoint (NKIA 운영. 인터뷰에서 변경 가능)
+  base_url: "https://198.51.100.104"   # 기본 endpoint (NKIA 운영. 인터뷰에서 변경 가능)
   user: ""                               # 비어있으면 매번 인터뷰
   organization_id: ""                    # SMS install 시 SAAS_TENANT_ID. Polestar10 web 우측 상단 [계정] > 조직명 마우스오버 24-hex
   # password 는 ~/.polestar10rc 에 별도 저장 (testbed-polestar10-register 호환)
@@ -115,12 +115,12 @@ testbed-build 가 `sshpass -e ssh ...` 또는 `ansible-playbook ...` 권한 prom
      (testbed 마다 개수·구성 다름. plopvape-shop 은 5종, social-feed
      는 4종 등) + Polestar10 에이전트 4종 (KCM/APM/WPM/SMS) +
      rca-scenario-runner 가 설치됨.
-     예: 109 DGX Spark (192.168.200.109)
+     예시: ARM64 K3s 호스트 (203.0.113.109)
 
   2. Polestar10 모니터링 서버 (Polestar10 instance) — HTTP(S) 접근 필요
      RCA 분석 백엔드. 자원 등록 / 알람 정책 / 메트릭 시계열 API
      가 여기로 호출됨. 사용자 ID/PW 도 함께 필요.
-     예: NKIA 104 운영 (https://192.168.230.104)
+     예시: Polestar10 운영 인스턴스 (https://198.51.100.104)
 
   ※ 두 서버가 동일 호스트여도 OK (예: 같은 서버에 K3s + Polestar10).
     분리 운영이 더 일반적이지만 강제 X.
@@ -192,7 +192,7 @@ AskUserQuestion(questions=[
     "header": "P10 서버",
     "multiSelect": False,
     "options": [
-      {"label": "104 운영 (Recommended)", "description": "https://192.168.230.104 — NKIA 운영 환경 (기본)"}
+      {"label": "104 운영 (Recommended)", "description": "https://198.51.100.104 — NKIA 운영 환경 (기본)"}
     ]
   },
   {
@@ -316,7 +316,7 @@ testbed-build 의 bootstrap.yaml 은 base_url + user 만 캐시. **password 는 
 
 ```bash
 # ~/.polestar10rc (chmod 600, 기존 testbed-polestar10-register 가 관리)
-export POLESTAR10_BASE_URL="https://192.168.230.96"
+export POLESTAR10_BASE_URL="https://198.51.100.96"
 export POLESTAR10_USER="admin"
 export POLESTAR10_PASS="..."
 export POLESTAR10_CURL_OPTS="-k -sS"   # self-signed cert

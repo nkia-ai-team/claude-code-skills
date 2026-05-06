@@ -20,12 +20,12 @@
 
 ```
 Polestar10 Web 주소를 알려주세요.
-  1) https://192.168.230.104  (NKIA dev / polestar-app-itg-1)
+  1) https://198.51.100.104  (NKIA dev / polestar-app-itg-1)
   2) 자유 입력
 선택:
 ```
 
-- `1` → `URL=https://192.168.230.104`
+- `1` → `URL=https://198.51.100.104`
 - `2` → 사용자에게 URL 직접 입력받기 (https://… 형식 검증)
 
 > 알려진 인스턴스 표는 [knowledge/polestar10/api/README.md "알려진 polestar10 인스턴스"](../../../knowledge/polestar10/api/README.md) 참조.
