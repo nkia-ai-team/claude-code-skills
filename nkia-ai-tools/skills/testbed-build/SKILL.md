@@ -101,9 +101,9 @@ destructive action (kubectl delete / helm uninstall / k3d cluster delete / gh pr
 
 [polestar10-error-handling.md](references/polestar10-error-handling.md). API error → ask-polestar10 호출 → 매뉴얼 답변 → 자동 1회 재시도 → 실패 시 사용자 안내. Network error 는 ask-polestar10 우회하고 인프라 점검 안내.
 
-## "끝까지 자립" 룰의 한계
+## 자립 원칙의 한계
 
-[feedback_solve_independently.md](/home/sjbang/.claude/projects/-home-sjbang-dev/memory/feedback_solve_independently.md) 룰 적용. 단 다음은 manual fallback 정상:
+오케스트레이터는 사용자에게 작업을 떠넘기지 않고 가능한 모든 자동화 경로를 시도. 단 다음은 manual fallback 정상:
 - Polestar10 API endpoint 미정 (PATCH 등 — 매뉴얼 X 영역)
 - 사용자 자격증명 누락 (사내 GitLab PAT 등 — agent 가 만들 수 없음)
 - destructive action 권한 시스템 chat 재승인 (의도 표현이 아닌 실제 승인)
