@@ -84,11 +84,11 @@ spec:
             - name: JAVA_TOOL_OPTIONS
               value: "-javaagent:/opt/apm/opentelemetry-javaagent.jar"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://{{ polestar10_collector_host }}:{{ polestar10_apm_otlp_port | default('6565') }}"
+              value: "${OTLP_ENDPOINT}"             # envsubst placeholder — deploy-time 치환. build-and-deploy.sh 가 OTLP_ENDPOINT env 받아 envsubst. ⚠️ jinja `{{ polestar10_collector_host }}` X, hardcoded IP X. 이유: build-and-deploy.sh 는 단순 kubectl apply — jinja 처리 안 함. 본 placeholder 만 envsubst 가 치환 가능.
             - name: OTEL_EXPORTER_OTLP_PROTOCOL
               value: "grpc"
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "lucida.organizationId={{ polestar_organization_id }},lucida.groupId={{ testbed_name }}"
+              value: "lucida.organizationId=__ORGANIZATION_ID__,lucida.groupId=__TESTBED_NAME__"   # services-author 가 generation 시점에 literal 치환 (organization_id 와 testbed_name 은 testbed identity — 정적 값). collector address 처럼 환경별로 변하지 않으므로 deploy-time envsubst 불필요.
             - name: OTEL_METRIC_EXPORT_INTERVAL
               value: "10000"
 ```
@@ -103,6 +103,39 @@ spec:
 testbed-engineer agent 가 새 Deployment manifest 생성 시 위 5 env + volumes/volumeMounts 자동 포함. plopvape-shop 의 검증된 manifest 를 reference_subdir 로 사용 — 그 패턴 그대로 mimic.
 
 검증: ansible-playbook 직후 SKILL.md Phase 8 의 8-c sanity check (APM standby agent count) 가 자동 검증 — fail 시 manifest 미반영 의심.
+
+### 🚫 매니페스트 치환 패턴 — 강제 룰 (services-author 가 신규 testbed 만들 때 따를 것)
+
+| 변수 | 변환 시점 | 매니페스트 표기 | 누가 치환 |
+|---|---|---|---|
+| OTEL_EXPORTER_OTLP_ENDPOINT | **deploy-time** (collector 주소가 환경마다 다름) | `${OTLP_ENDPOINT}` | build-and-deploy.sh 의 envsubst |
+| OTEL_RESOURCE_ATTRIBUTES (organizationId / groupId) | **generation-time** (testbed identity 정적값) | `__ORGANIZATION_ID__` / `__TESTBED_NAME__` | services-author 가 generation 시점에 sed |
+| 그 외 hardcoded IP / port | 사용 금지 | — | — |
+
+**금지 패턴**:
+- ❌ `value: "http://192.168.230.104:6565"` — 사내 IP leak + 환경별 변경 불가능
+- ❌ `value: "http://{{ polestar10_collector_host }}:6565"` — Jinja 표현은 build-and-deploy.sh 가 처리 못함 (단순 kubectl apply). K8s 가 literal 문자열로 해석 → DNS 실패
+
+**필수 — 신규 testbed 의 build-and-deploy.sh 표준 패턴**:
+
+services-author 가 신규 testbed 의 `<testbed>/k8s/build-and-deploy.sh` 를 만들 때 마지막 phase (kubectl apply 영역) 가 다음 형식이어야 함:
+
+```bash
+# ${OTLP_ENDPOINT} 미설정이면 즉시 실패 — collector 주소 누락된 채 Pod 가 broken endpoint 로 뜨는 사고 차단
+: "${OTLP_ENDPOINT:?OTLP_ENDPOINT 미설정 — ansible 또는 수동 export 필요 (예: http://<collector>:6565)}"
+
+# 매니페스트 안 ${OTLP_ENDPOINT} 만 envsubst 로 치환. 그 외 ${...} 표현은 K8s downward API ($(POD_NAME) 등) 와 충돌 방지 위해 single-quote 로 envsubst 화이트리스트 명시.
+for f in "${PROJECT_ROOT}/k8s/"*.yaml; do
+  envsubst '${OTLP_ENDPOINT}' < "$f" | kubectl apply -f -
+done
+```
+
+ansible service-k8s role 이 build-and-deploy.sh 호출 시 `OTLP_ENDPOINT="http://{{ polestar10_collector_host }}:6565"` env 주입. 사용자가 수동 실행 시엔 직접 export 필요.
+
+이 패턴이 있어야:
+- `polestar10_collector_host` 변경 시 ansible 재실행만으로 APM/WPM/KCM/SMS 모두 새 collector 로 갱신
+- testbed-services 레포가 사내 IP leak 없는 placeholder 만 commit
+- 수동 실행 시 OTLP_ENDPOINT 누락이 silent fail 대신 fail-fast
 
 ## ⚠️ WPM (Scouter) dual-attach — default ON (manifest_requirements.wpm_jvm_attach=true)
 
@@ -126,9 +159,9 @@ spec:
             # OTel + WPM dual-attach (한 JAVA_TOOL_OPTIONS 에 -javaagent 두 개)
             - name: JAVA_TOOL_OPTIONS
               value: "-javaagent:/opt/apm/opentelemetry-javaagent.jar -javaagent:/opt/wpm/wpmagent.jar -Dwpm.config=/opt/wpm/<service>/wpmagent.conf"
-            # OTel env (위와 동일)
+            # OTel env (위와 동일 — envsubst placeholder 형식)
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://{{ polestar10_collector_host }}:6565"
+              value: "${OTLP_ENDPOINT}"
             # ... 나머지 OTel env
             # WPM collector — UDP 31002 / TCP 31005 (Scouter 표준)
             - name: WPM_COLLECTOR_UDP_PORT
