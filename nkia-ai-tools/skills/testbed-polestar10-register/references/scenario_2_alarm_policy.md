@@ -34,6 +34,21 @@ recipe 는 동일하게 `recipes/add-alert-policy.md` 를 사용하되 섹션이
 
 UI: **알람 > 정책 관리 > 공통 정책** 탭. polestar10 의 공통 정책은 **순수 신규 정의가 아니라 기존 default 정책 복사** 흐름.
 
+### 🚫 강제 룰 — "이미 있으니 skip" 분기 절대 X
+
+P10 인스턴스에 시스템 사전 생성 default 정책 (예: "PostgreSQL 기본 임계치", "APM 기본 임계치" 등 15여종) 이 존재해도 **무시하고 testbed 전용 정책을 항상 새로 add** 해야 함. 이유:
+
+1. **시스템 default 정책의 tagValue = null** — 우리 자원의 `alarmPolicyTagValue=<testbed_name 또는 "defaultPolicy">` 와 매칭 X → 자원에 자동 적용 0건
+2. **자원 → 정책 매칭은 tagValue 동등성으로만 작동** — 자원의 `alarmPolicyTagValue` ↔ 정책의 `tagValue` 가 **정확히 일치**해야 발동. null vs "defaultPolicy" 는 매칭 X.
+3. **기존 default 정책 update (PATCH 로 tagValue 채우기) 보다 새 정책 add 가 정상 흐름** — `/api/alarm/policys/add` 는 1급 endpoint 이고 정의됨. update endpoint 는 미확정 (TBD).
+4. **testbed 별로 정책을 분리해야 운영상 관리 편함** — 다른 testbed (다른 도메인) 가 같은 P10 인스턴스 공유 시 정책 충돌 회피.
+
+→ "기본 정책 있으니 새로 안 만들어도 됨" / "사용자가 UI 에서 수동으로 매핑하라고 안내하고 종료" / "tagValue 비어있어서 매핑 안 되는데 update endpoint 없어서 skip" 같은 분기 **절대 금지**. 항상 step 1~9 add 시퀀스 진입.
+
+매핑 실패 패턴 회피:
+- 자원 등록 시 (시나리오 1) `alarmPolicyTagValue` 가 등록됐는지 검증 — 빈값이면 정책 add 후에도 매칭 X
+- 정책 add 시 (step 3) `tagValue` 를 자원의 `alarmPolicyTagValue` 와 **정확히** 동일 값으로 박을 것. 보통 = `<testbed_name>` 또는 `"defaultPolicy"`.
+
 ### Dispatch flow
 
 ```
@@ -83,11 +98,13 @@ UI: **알람 > 정책 관리 > 공통 정책** 탭. polestar10 의 공통 정책
    → 보통 사용자가 UI 에서 직접 조정. 본 스킬에서는 안내만.
 
 8. 자원과 연결
-   ⚠️ 정책 → 자원 매칭은 자원의 tag (`alarmPolicy` 태그) 가 정책의 tagValue 와 같아야 발동.
-       기존 자원에 이 태그를 붙이는 PATCH endpoint 는 미확정 (시나리오 3 PATCH TBD 와 동일 한계).
-   현실적 옵션:
-     a. 신규 자원이라면 → 시나리오 1 의 register payload 의 tag 필드에 새 tagValue 사용
-     b. 기존 자원이라면 → UI fallback: 자원 상세 → 태그 관리 → alarmPolicy 추가
+   정책 → 자원 매칭은 자원의 `alarmPolicyTagValue` 가 정책의 `tagValue` 와 같아야 발동.
+   testbed-build 정상 흐름 (신규 자원) 에선 별도 PATCH 불필요:
+     - 시나리오 1 의 register payload 가 `alarmPolicyTagValue` 박았다면 → step 3 의 tagValue 와 동일 값이면 자동 매핑.
+     - 검증: GET /api/alarm/policys 응답에서 본 정책의 적용 자원 list (또는 count) 확인. 0 이면 tagValue 오타 의심 → 자원 등록 payload 와 cross-check.
+   기존 자원에 태그 추가 케이스 (testbed-build 외):
+     - PATCH endpoint 미확정 → UI fallback: 자원 상세 → 태그 관리 → alarmPolicy 추가
+     - 또는 자원 삭제 후 시나리오 1 로 재등록 (tagValue 박은 채로)
 
 9. 보고
    - 정책 이름 / 도메인 / source 정책 / role
@@ -248,7 +265,7 @@ UI: **알람 > 정책 관리 > 개별 정책** 탭. 자원 1개에 메트릭별 
 |---|---|
 | 같은 도메인 자원 ≥ 5개에 같은 임계치 | Branch A (공통) |
 | 특정 자원 1~2개에만 특별한 임계치 | Branch B (개별) |
-| 테스트베드 처음 셋업 + default 임계치로 시작 | 시나리오 1 의 register 시 anomalyPolicyTagValue 만 사용 (시스템 default 정책) — 별도 알람 정책 불필요 |
+| 테스트베드 처음 셋업 (testbed-build 흐름) | **Branch A 강제** — 도메인별 공통 정책 새로 add (tagValue=`<testbed_name>` 박아 자원과 자동 매핑). 시스템 default 정책 그대로 두고 skip 절대 X (위 § 강제 룰) |
 | default 임계치로 부족함이 확인된 후 | A → 도메인 전반 / B → 핀포인트 |
 
 전부 [add-alert-policy.md](../../../knowledge/polestar10/api/recipes/add-alert-policy.md) 에 self-documented.
