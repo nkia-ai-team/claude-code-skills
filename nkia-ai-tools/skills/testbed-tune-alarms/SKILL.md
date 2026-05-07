@@ -41,6 +41,25 @@ description: NKIA RCA 테스트베드 (또는 일반 Polestar10 환경) 의 알�
 
 ---
 
+## 🚫 강제 룰 — "기본 정책 있으니 skip" 분기 절대 X
+
+P10 인스턴스에 시스템 사전 생성 default 정책이 존재해도 (`PostgreSQL/APM/KCM/Network/Server` 기본 임계치 등 15여종) **무시하고 testbed 전용 정책을 항상 새로 add**. 이유:
+
+- **시스템 default 정책의 tagValue=null** → testbed 자원의 `alarmPolicyTagValue=<testbed_name>` 와 매칭 X → 자원에 자동 적용 0건
+- **자원 ↔ 정책 매핑은 tagValue 동등성으로만 작동** — 정확히 일치해야 발동
+- **새 정책 add 가 정상 흐름** (`/api/alarm/policys/add` 1급 endpoint). default 정책 update 보다 단순.
+
+→ 본 스킬은 propose / apply 분기와 무관하게 **항상 테스트베드 전용 새 정책 add 시퀀스**로 진입. `testbed-polestar10-register` 의 [scenario_2_alarm_policy.md § 강제 룰](../testbed-polestar10-register/references/scenario_2_alarm_policy.md) 참조.
+
+회피 패턴 (절대 금지):
+- "기본 정책 있어서 추가 불필요" → context 한도 / 시간 부족 핑계로 skip
+- "기존 정책 update endpoint 없어서" → fallback 으로 사용자 수동 안내 후 종료
+- "tagValue 매핑 안 되니 manual_action_recommended 표시 후 종료"
+
+위 분기 발견 시 즉시 add 시퀀스 (Step 5 policy yaml 합성 → Step 7 apply) 로 복귀. 사용자 메모리 [feedback_solve_independently.md](/home/sjbang/.claude/projects/-home-sjbang-dev/memory/feedback_solve_independently.md) 의 "끝까지 자립" 룰 적용.
+
+---
+
 ## Dispatch Flow
 
 ### 1. target_scope 결정
