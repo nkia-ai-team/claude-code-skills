@@ -1,6 +1,7 @@
 ---
 name: testbed-generate-scenarios
 description: RCA 테스트베드에 장애 시나리오를 추가/생성. `infra/testbed/scenario-patterns/` 카탈로그에서 패턴 선택 → bash 스크립트 인스턴스화 → service-spec.yaml 갱신 → rca-scenario-runner 레포 PR/push. 사용자가 "시나리오 추가해줘", "장애 시나리오 만들어줘", "/testbed-generate-scenarios", "<service> 에 N개 시나리오 추가" 같은 요청 시 트리거. testbed-build 의 7번 단계가 이를 dispatch.
+allowed-tools: Read, Write, Edit, Grep, Glob, Bash(git:*), Bash(gh:*), Bash(jq:*), Bash(yq:*), Bash(curl:*), Bash(cat:*), Bash(grep:*), Bash(sed:*), Bash(awk:*), Bash(test:*), Bash(echo:*), Bash(mkdir:*), Bash(chmod:*), Bash(date:*)
 ---
 
 # testbed-generate-scenarios

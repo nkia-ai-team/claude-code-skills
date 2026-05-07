@@ -96,9 +96,18 @@ AskUserQuestion(questions=[
 
 ---
 
-## Step 0.5 — 권한 prompt 발생 시 (조건부)
+## Step 0.5 — Skill 사전 권한 (allowed-tools frontmatter)
 
-testbed-build 가 `sshpass -e ssh ...` 또는 `ansible-playbook ...` 권한 prompt 를 **실제로 띄울 때만** 사용자에게 "Always allow Bash(\<prefix\>:*)" 옵션을 권유 (다음부터 자동 통과). prompt 가 안 뜨면 (이미 룰 박혀있는 상태) 안내 출력 X — 미리 안내 금지.
+testbed-build / testbed-polestar10-register / testbed-generate-scenarios / testbed-tune-alarms 4 SKILL.md 의 frontmatter `allowed-tools` 키가 **skill 호출 시점에 필요한 Bash 패턴 (ansible-playbook / sshpass / ssh / curl / jq / git / gh / kubectl / docker / k3d 등) 을 사전 선언**. 사용자가 plugin install 시 workspace trust 한 후엔 sandbox 가 listed tool 들을 자동 허용 — 매 호출 prompt X.
+
+→ 사용자 측 settings.json 추가 작업 불필요. 다른 사용자도 install 만 하면 동일하게 작동.
+
+⚠️ **여전히 ChatPrompt 필요한 케이스** — 다음은 allowed-tools 로도 사전 허용 안 됨:
+- self-modification (settings.json 자체 수정) — 영구 차단
+- 사용자 자격증명 leak 패턴 (e.g., gh auth token 출력) — 차단
+- 명백한 destructive remote 작업이 첫 시도 거부되는 경우 — 같은 명령 재시도 또는 chat 승인 후 재시도
+
+이런 케이스는 § Destructive action chat 승인 룰 섹션 따라 처리.
 
 ## Destructive action — chat 승인 룰 (강제)
 
