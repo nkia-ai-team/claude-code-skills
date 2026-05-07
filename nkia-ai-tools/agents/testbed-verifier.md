@@ -113,41 +113,72 @@ status idle 까지 폴링.
 - **PARTIAL**: expected 중 일부만 매칭 (1개 이상 missed)
 - **FAIL**: expected 중 절반 이상 missed 또는 모두 missed
 
-### 4단계: 출력
+### 4단계: 출력 (표준 verdict JSON)
+
+[verdict-schema.md](../skills/testbed-build/references/verdict-schema.md) 의 표준 envelope 적용.
 
 ```json
 {
-  "overall": "PASS" | "PARTIAL" | "FAIL",
-  "duration_sec": 850,
-  "scenarios": [
-    {
-      "id": "01",
-      "verdict": "PASS",
-      "expected": ["DPM lock wait", "APM inventory response time 증가", "SMS postgres process CPU%"],
-      "fired": [
-        {"name": "DPM Lock Wait Time 초과", "resource": "postgres@rca-testbed", "severity": "LEVEL3", "fired_at": "2026-04-30T15:32:11Z"},
-        {"name": "APM 평균응답시간 초과 — inventory-service", "resource": "inventory-service", "severity": "LEVEL2", "fired_at": "2026-04-30T15:33:05Z"},
-        {"name": "SMS Process CPU% — postgres", "resource": "192.168.200.109", "severity": "LEVEL2", "fired_at": "2026-04-30T15:34:20Z"}
-      ],
-      "missed": [],
-      "spurious": []
-    },
-    {
-      "id": "02",
-      "verdict": "PARTIAL",
-      "expected": ["APM payment 평균응답시간 초과", "DPM 트랜잭션 시간 초과", "..."],
-      "fired": [...],
-      "missed": ["DPM Lock 수 급증 (≥40 Lock)"],
-      "spurious": []
-    }
-  ],
-  "recommendations": [
-    "scenario-02 의 'DPM Lock 수 급증' 미발화. 임계치 LEVEL3 = 40 → 25 권고 (현재 부하에서는 lock 수가 30~35 범위)"
-  ]
+  "phase": "verify-scenarios",
+  "verdict": "ok|warn|fail|skipped",
+  "summary": "4 시나리오 PASS / 0 PARTIAL / 0 FAIL — duration 850s",
+  "outputs": {
+    "overall": "PASS|PARTIAL|FAIL|ERROR",
+    "duration_sec": 850,
+    "scenarios": [
+      {
+        "id": "01",
+        "verdict": "PASS",
+        "expected": ["DPM lock wait", "APM inventory response time 증가", "SMS postgres process CPU%"],
+        "fired": [
+          {"name": "DPM Lock Wait Time 초과", "resource": "postgres@rca-testbed", "severity": "LEVEL3", "fired_at": "2026-04-30T15:32:11Z"},
+          {"name": "APM 평균응답시간 초과 — inventory-service", "resource": "inventory-service", "severity": "LEVEL2", "fired_at": "2026-04-30T15:33:05Z"}
+        ],
+        "missed": [],
+        "spurious": []
+      },
+      {
+        "id": "02",
+        "verdict": "PARTIAL",
+        "expected": ["APM payment 평균응답시간 초과", "DPM 트랜잭션 시간 초과"],
+        "fired": [],
+        "missed": ["DPM Lock 수 급증 (≥40 Lock)"],
+        "spurious": []
+      }
+    ],
+    "recommendations": [
+      "scenario-02 의 'DPM Lock 수 급증' 미발화. 임계치 LEVEL3 = 40 → 25 권고 (현재 부하에서는 lock 수가 30~35 범위)"
+    ]
+  },
+  "errors": [],
+  "next_action": "proceed|tune_and_retry|user-decision"
 }
 ```
 
-`recommendations` 필드는 missed 알람마다 한 줄씩, **임계치 권고** 또는 **시나리오 부하 강화 권고** 중 하나로 작성. 호출자 (오케스트레이터) 가 이를 보고 testbed-tune-alarms 를 재호출할지 결정.
+### verdict 값 의미
+
+- `ok` — overall=PASS (모든 시나리오 expected 매칭). parent 가 finalize 진행. `next_action: proceed`
+- `warn` — overall=PARTIAL (일부 시나리오 missed). orchestrator 가 recommendations 적용 후 재시도. `next_action: tune_and_retry`
+- `fail` — overall=FAIL (대부분 missed) 또는 ERROR (시나리오 실행 자체 실패). `next_action: tune_and_retry` 또는 `user-decision`
+- `skipped` — expected_alarms 비어있는 시나리오만 있는 경우. parent 가 finalize 진행.
+
+### outputs.recommendations[]
+
+missed 알람마다 한 줄씩 — 임계치 조정 권고 또는 시나리오 부하 강화 권고. 호출자 (orchestrator) 가 이를 보고 testbed-tune-alarms 재호출 결정.
+
+### errors[] 예시 (시나리오 실행 실패)
+
+```json
+{
+  "role": "rca-scenario-runner",
+  "task": "POST /api/scenarios/02/run",
+  "fatal_msg": "HTTP 500 Internal Server Error",
+  "cause": "rca-scenario-runner 컨테이너 down 또는 타겟 서버 도달 X",
+  "fix": "ssh <target> 'docker ps | grep rca-scenario-runner' 확인 + 재기동 권고",
+  "severity": "blocking",
+  "pattern_matched": "scenario-runner-down"
+}
+```
 
 ---
 

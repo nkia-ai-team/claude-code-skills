@@ -16,7 +16,7 @@ polestar10_sms_broker_port: 1883
 
 # Polestar 조직(테넌트) ID — SaaS 모드 SMS 가 broker publish 시 organizationId 로 필요.
 # 빠지면 polestar-app-sms-1 backend 가 메시지 라우팅 못 해 standby 등록 안 됨.
-# 폴스타10 web 우측 상단 [계정] > 조직명 마우스오버 툴팁의 24자리 hex(ObjectId).
+# Polestar10 web 우측 상단 [계정] > 조직명 마우스오버 툴팁의 24자리 hex(ObjectId).
 # 주입: env POLESTAR_ORG_ID 또는 ansible-playbook -e polestar_organization_id=<id>.
 polestar_organization_id: "{{ lookup('env', 'POLESTAR_ORG_ID') | default('', true) }}"
 
@@ -34,7 +34,7 @@ go_install_dir: "/usr/local/go"
 # ============================================================
 # 본 ansible 은 빌드 로직을 모름. <app_subdir>/k8s/build-and-deploy.sh 표준
 # 인터페이스만 호출 → 실제 Dockerfile/manifest/script 는 testbed-services repo
-# (NKIAAI-570) 가 책임. "스킬 얇게 / 플레이북 두껍게" 설계 (SoT 542).
+# "스킬 얇게 / 플레이북 두껍게" 설계 (SoT 542).
 #
 # 새 테스트베드 추가 절차:
 #   1. testbed-services repo 에 새 subdir (예: core-banking/) 추가
@@ -55,7 +55,7 @@ go_install_dir: "/usr/local/go"
 app_namespace: "rca-testbed"               # plopvape-shop 의 00-namespace.yaml
 app_repo: "https://github.com/nkia-ai-team/testbed-services"
 app_version: "main"
-app_subdir: "plopvape-shop"                 # monorepo 내부 testbed 폴더 (NKIAAI-570)
+app_subdir: "plopvape-shop"                 # monorepo 내부 testbed 폴더
 testbed_services: [order, product, inventory, payment, notification]
 
 # 에이전트 활성화 플래그 (테스트베드는 6종 고정 스택이라 모두 true 가 기본)
@@ -94,7 +94,7 @@ sms_asset_name: "polestar10_SMS_Linux64_3.4_10.0.0_18.tar.gz"
 # 강제 재설치하려면 inventory 또는 --extra-vars 로 sms_force_reinstall=true.
 sms_force_reinstall: false
 
-# 에이전트 호스트 설치 경로 — NKIAAI-570 표준 (testbed-services/README.md §3 명세).
+# 에이전트 호스트 설치 경로 — 표준 (testbed-services/README.md §3 명세).
 # 모든 testbed manifest 가 이 경로를 hostPath 로 마운트한다고 가정.
 agent_install_root: "/opt/polestar10"
 wpm_install_dir: "{{ agent_install_root }}/wpm"
@@ -105,7 +105,7 @@ apm_jar_name: "opentelemetry-javaagent.jar"
 # KCM ARM 소스 빌드 (target-source-build 방식)
 # kcm_source_repo: 사내 GitLab 의 lucida-kcmagent. public 노출 회피로 default 비움.
 # ARM 타겟에서 KCM 사용 시 inventory 또는 -e 로 override 또는 env KCM_SOURCE_REPO.
-# AMD64 는 kcm_image_url_amd64 (polestar-agents-binaries 후속, NKIAAI-537) 로 우회.
+# AMD64 는 kcm_image_url_amd64 (polestar-agents-binaries 후속) 로 우회.
 kcm_source_repo: "{{ lookup('env', 'KCM_SOURCE_REPO') | default('', true) }}"
 kcm_source_branch: "develop"
 kcm_image_name: "polestar10-kcm"

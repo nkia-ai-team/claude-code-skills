@@ -257,9 +257,9 @@ testbed-engineer 가 반환한 JSON:
    ])
    ```
 
-3. **scenario_hints 저장**:
+3. **scenario_hints 저장** (표준 verdict envelope 의 outputs 안에서 추출):
    ```bash
-   yq -i ".scenario_hints = $(echo "$RESULT" | jq -c '.scenario_hints')" \
+   yq -i ".scenario_hints = $(echo "$RESULT" | jq -c '.outputs.scenario_hints')" \
      "$HOME/.testbed-build/runs/$RUN_ID/manifest.yaml"
    ```
 
