@@ -13,6 +13,7 @@ ssh:
 
 polestar10:
   base_url: "https://198.51.100.104"   # 기본 endpoint (NKIA 운영. 인터뷰에서 변경 가능)
+  collector_host: ""                    # 비우면 base_url 의 hostname 자동 사용. ⚠️ 사내 NAT/방화벽 환경에서 base_url 이 public IP 면 collector_host 는 따로 사내 내부 IP 박을 것. 모든 WPM/APM/SMS/KCM 패킷이 이 host 로 흐르므로 outbound 차단되면 등록 silently 실패. ansible 의 polestar10_collector_host 변수로 흘러감.
   user: ""                               # 비어있으면 매번 인터뷰
   organization_id: ""                    # SMS install 시 SAAS_TENANT_ID. Polestar10 web 우측 상단 [계정] > 조직명 마우스오버 24-hex
   # password 는 ~/.polestar10rc 에 별도 저장 (testbed-polestar10-register 호환)

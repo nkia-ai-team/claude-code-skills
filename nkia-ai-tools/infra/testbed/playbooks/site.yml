@@ -57,6 +57,27 @@
         - polestar10_precheck is defined
         - polestar10_precheck.failed | default(false)
 
+    # group_vars/all.yml 의 polestar10_collector_host 가 RFC5737 placeholder 그대로
+    # 흘러가는 걸 차단. inventory host_vars 또는 -e 로 실제 값 (사내 내부 IP 권장) 박아야 함.
+    # placeholder 그대로면 모든 agent (WPM/APM/SMS/KCM) 가 unroutable 한 198.51.100.104
+    # 로 패킷 송신하다 silently fail.
+    - name: Assert polestar10_collector_host overridden (placeholder block)
+      ansible.builtin.assert:
+        that:
+          - polestar10_collector_host is defined
+          - polestar10_collector_host != "198.51.100.104"
+        fail_msg: |
+          polestar10_collector_host 가 RFC5737 placeholder (198.51.100.104) 그대로입니다.
+          inventory host_vars 또는 -e 로 실제 collector IP 를 박으세요:
+            -e polestar10_collector_host=<실제 IP>
+          사내 NAT/방화벽 환경이면 public IP 가 아닌 사내 내부 IP 권장.
+          (testbed-build 스킬은 bootstrap.yaml 의 polestar10.collector_host 를 inventory
+           host_vars 로 자동 주입 — 빠지면 본 assert 가 fail-fast)
+        success_msg: "polestar10_collector_host = {{ polestar10_collector_host }}"
+      vars:
+        polestar10_collector_host: "{{ hostvars[groups['testbed'][0]]['polestar10_collector_host'] | default('198.51.100.104') }}"
+      when: groups['testbed'] is defined and groups['testbed'] | length > 0
+
 - name: RCA Testbed bootstrap — common stack + agents + service
   hosts: testbed
   become: true

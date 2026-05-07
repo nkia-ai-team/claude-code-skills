@@ -120,7 +120,7 @@ all:
 | `BRANCH` | interview.app.branch | default `main` |
 | `APP_SUBDIR` | interview.app.app_subdir | 그대로 (예: `plopvape-shop`) |
 | `NAMESPACE` | interview.app.namespace | 그대로 |
-| `POLESTAR10_COLLECTOR_HOST` | bootstrap.polestar10.base_url 의 hostname | URL parse → hostname only |
+| `POLESTAR10_COLLECTOR_HOST` | bootstrap.polestar10.collector_host (있으면 그대로) → 없으면 base_url 의 hostname | URL parse → hostname only. ⚠️ base_url hostname 이 public IP (RFC1918 외 — 예: 221.x.x.x) 인데 사내 NAT/방화벽 환경이면 outbound 차단으로 모든 agent 패킷 silently fail. base_url 은 P10 web UI 도달용 public 그대로 두고 collector_host 만 사내 내부 IP (192.168.x.x 등 RFC1918) 로 분리 권장. 자동 추출 시 hostname 이 public 으로 보이면 사용자에게 "사내 내부 IP 가 따로 있나요?" prompt 권장 |
 | `POLESTAR_ORGANIZATION_ID` | bootstrap.polestar10.organization_id | 24-hex. **빈값/누락 X** — Phase 1 인터뷰가 이미 받았어야 함. 빈값이면 SMS install role fail-fast |
 | `POLESTAR10_KCM_COLLECTOR_PORT` | bootstrap.polestar10.kcm_collector_port (없으면 group_vars default `7575`) | KCM helm chart 의 `kcm.addr` (host:port) 의 port 부분. Polestar10 KCM backend 의 정석 port |
 | `POLESTAR10_SMS_BROKER_PORT` | bootstrap.polestar10.sms_broker_port (없으면 group_vars default `1883`) | SMS AgentInstall.sh -m 의 broker port |

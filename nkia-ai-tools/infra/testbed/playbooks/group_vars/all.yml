@@ -1,11 +1,15 @@
 ---
-# Polestar10 collector endpoints — 테스트베드는 104 collector 사용
-polestar10_collector_host: "192.168.230.104"
-# WPM 수집기는 UDP/TCP 두 채널 사용 (109 의 wpmagent-*.conf 검증값)
+# Polestar10 collector endpoints
+# default 는 RFC5737 documentation IP (198.51.100.104). 실제 값은 inventory host_vars
+# 또는 testbed-build bootstrap.yaml 에서 반드시 override. 사내 NAT/방화벽 환경이면
+# public IP 가 아닌 사내 내부 IP 권장 (모든 WPM/APM/SMS/KCM 패킷이 이 host 로 흐르므로
+# outbound 차단되면 등록 실패). site.yml 의 assert 가 placeholder 그대로 흘러가는 걸 차단.
+polestar10_collector_host: "198.51.100.104"
+# WPM 수집기는 UDP/TCP 두 채널 사용 (Polestar10 매뉴얼 default — 환경에 따라 변경 가능)
 polestar10_wpm_collector_udp_port: 31002
 polestar10_wpm_collector_tcp_port: 31005
-# APM (OTel) 은 OTLP gRPC endpoint
-polestar10_apm_collector_otlp_endpoint: "http://192.168.230.104:6565"
+# APM (OTel) 은 OTLP gRPC endpoint — collector_host 와 동일 IP 사용
+polestar10_apm_collector_otlp_endpoint: "http://{{ polestar10_collector_host }}:6565"
 polestar10_kcm_collector_port: 7575
 # SMS 는 AgentInstall.sh 의 -m 인자로 broker_ip:port (MQTT 1883)
 polestar10_sms_broker_port: 1883
