@@ -105,7 +105,8 @@ while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
   VERDICT=$(claude_invoke_agent "testbed-verifier" "$TASK_PROMPT")
 
   echo "$VERDICT" >> "$HOME/.testbed-build/runs/$RUN_ID/verify.log"
-  OVERALL=$(jq -r '.overall' <<< "$VERDICT")
+  # 표준 verdict envelope: outputs.overall / outputs.recommendations (verdict-schema.md)
+  OVERALL=$(jq -r '.outputs.overall' <<< "$VERDICT")
 
   case "$OVERALL" in
     PASS)
@@ -118,7 +119,7 @@ while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
         break
       fi
       # tune-alarms 재호출 (recommendations 기반)
-      RECS=$(jq -c '.recommendations' <<< "$VERDICT")
+      RECS=$(jq -c '.outputs.recommendations' <<< "$VERDICT")
       echo "[verify] FAIL/PARTIAL → testbed-tune-alarms retune"
       claude_invoke_skill "testbed-tune-alarms" \
         --target_scope "$TESTBED_NAME" \

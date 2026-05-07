@@ -56,7 +56,7 @@ P10 인스턴스에 시스템 사전 생성 default 정책이 존재해도 (`Pos
 - "기존 정책 update endpoint 없어서" → fallback 으로 사용자 수동 안내 후 종료
 - "tagValue 매핑 안 되니 manual_action_recommended 표시 후 종료"
 
-위 분기 발견 시 즉시 add 시퀀스 (Step 5 policy yaml 합성 → Step 7 apply) 로 복귀. 사용자 메모리 [feedback_solve_independently.md](/home/sjbang/.claude/projects/-home-sjbang-dev/memory/feedback_solve_independently.md) 의 "끝까지 자립" 룰 적용.
+위 분기 발견 시 즉시 add 시퀀스 (Step 2 tuner agent dispatch → Step 4 apply) 로 복귀. 사용자 메모리 [feedback_solve_independently.md](/home/sjbang/.claude/projects/-home-sjbang-dev/memory/feedback_solve_independently.md) 의 "끝까지 자립" 룰 적용.
 
 ---
 
@@ -72,45 +72,59 @@ P10 인스턴스에 시스템 사전 생성 default 정책이 존재해도 (`Pos
 사용자 직접 servicegroup 명시 가능 (rca-scenario-runner 와 무관한 일반 케이스)
 ```
 
-### 2. 메트릭 수집
+### 2. testbed-tuner agent dispatch (메트릭 수집 + 추론 + yaml 합성 통합)
 
-[references/metric-collection.md](references/metric-collection.md) 가이드 따라 Polestar10 API 호출.
-
-핵심:
-- 도메인별 메트릭 카탈로그 endpoint 조회 (`/api/measurement/metric/{domain}`)
-- 자원별 시계열 fetch (`from=NOW-Nmin&to=NOW`)
-- p50/p95/p99 + max + 표준편차 계산
-
-수집 결과 → `~/.testbed-build/runs/<ts>/metrics-snapshot.json` 또는 일시 변수.
-
-### 3. 현재 정책 조회
+무거운 raw 시계열 (수천 datapoint) 처리 + LLM 임계치 추론을 fork context 로 격리. 본 skill 의 parent context 에는 분포 통계 + 정책 yaml verdict 만 유입.
 
 ```
-GET /api/alarm/policys
-GET /api/alarm/individuals (개별 알람)
+Agent: testbed-tuner
+input (yaml):
+  task: tune-alarms
+  target_scope:
+    testbed_name: <target>
+    service_group: <SG>
+    resources: <register 결과 캐시 또는 인터뷰로 매핑된 자원 ID>
+  domain_filter: <APM/DPM/KCM/SMS 또는 일부>
+  collection_window_min: <default 10>
+  mode: <propose | apply>
+  context:
+    polestar10_base_url: $POLESTAR10_BASE_URL
+    polestar10_cookie_jar: $POLESTAR10_COOKIE_JAR
+    testbed_domain: <인터뷰 또는 service-spec.yaml>
+    baseline_md_path: <plugin_root>/infra/testbed/alert-policies/sre-baseline.md
 ```
 
-→ 자원 × 메트릭 별 현재 임계치 매핑 작성.
+agent 가 internally:
+1. cookie jar 유효성 확인
+2. 메트릭 카탈로그 + 시계열 N분 수집 ([metric-collection.md](references/metric-collection.md) 가이드)
+3. 분포 통계 (p50/p95/p99/max/mean/stdev) 클라이언트 측 계산
+4. 현재 정책 조회 (`/api/alarm/policys`)
+5. SRE baseline + 도메인 특성 + 분포로 LLM 임계치 추론
+6. 정책 yaml 합성 ([policy-yaml-schema.md](references/policy-yaml-schema.md) 형식)
 
-### 4. 권고 임계치 결정 (LLM 추론)
+agent verdict:
+```json
+{
+  "phase": "tune-alarms",
+  "verdict": "ok|warn|fail|skipped",
+  "summary": "<한 줄>",
+  "outputs": {
+    "policy_yaml": "<full yaml>",
+    "summary_table": [/* domain × resource × metric current/recommended/reason */],
+    "stats_by_resource": {/* p50/p95/p99 만 */},
+    "metrics_collected": N,
+    "policies_recommended": M
+  },
+  "errors": [],
+  "next_action": "proceed|user-decision|dispatch_register_scenario_2"
+}
+```
 
-[references/tune-prompt.md](references/tune-prompt.md) 의 prompt 템플릿 인라인으로 LLM 호출 (또는 무거운 케이스는 testbed-engineer agent 위임 가능).
+자세한 절차 + verdict 스키마: [agents/testbed-tuner.md](../../agents/testbed-tuner.md)
 
-입력:
-- 메트릭 분포 (p50/p95/p99)
-- sre-baseline 의 LEVEL1~4 표
-- 서비스 도메인 (예: 결제·정산 / 주문·재고 / 검색·조회)
-- 현재 적용된 임계치
+raw 시계열 (수천 datapoint) 은 **agent context 에서만** 머물고 verdict 에 X. 본 skill 의 parent context 안에 메트릭 raw 데이터 유입 X.
 
-출력 (LLM):
-- 메트릭별 권고 LEVEL1~4
-- 변경 사유 (한 줄)
-
-### 5. policy yaml 합성
-
-[references/policy-yaml-schema.md](references/policy-yaml-schema.md) 형식. testbed-polestar10-register 가 입력으로 받음.
-
-### 6. 사용자 승인 ⛔ (AskUserQuestion)
+### 3. 사용자 승인 ⛔ (AskUserQuestion)
 
 권고 임계치 표 사용자에게 표시 후:
 
@@ -150,7 +164,7 @@ AskUserQuestion(questions=[
 ])
 ```
 
-### 7. mode 에 따라 분기
+### 4. mode 에 따라 분기
 
 #### mode = propose
 정책 yaml 을 사용자에게 보여주고 종료. 등록 X.
@@ -166,7 +180,7 @@ Skill: testbed-polestar10-register
 
 testbed-polestar10-register 가 시나리오 2 dispatch flow ([scenario_2_alarm_policy.md](../testbed-polestar10-register/references/scenario_2_alarm_policy.md)) 따라 공통 정책 + 개별 알람 등록.
 
-### 8. 등록 결과 확인
+### 5. 등록 결과 확인
 
 ```
 GET /api/alarm/policys
@@ -197,21 +211,24 @@ Polestar10 API 호출 실패 (errorCode != 0 또는 HTTP 5xx) 시:
 사용자: /testbed-tune-alarms "plopvape-shop APM 알람 점검"
 
 스킬:
-  1. target=plopvape-shop, domain=APM
-  2. ~/.polestar10rc 부트스트랩
-  3. 10분 메트릭 수집
-  4. 현재 정책 조회: order/inventory/payment/product/notification 각각 평균응답시간 알람 정책 있음
-  5. 분포 분석:
-     order   p95=820ms  p99=1.4s
-     payment p95=2.1s   p99=4.3s
-     ...
-  6. 권고:
-     order   LEVEL3 5s → 3s (p99 의 2.5배 권고에 비해 현재 너무 관대)
-     payment LEVEL3 5s → 6s (실제 p99 가 baseline 초과 — 도메인 특성 반영)
-  7. 사용자 승인 prompt
-  8. apply: testbed-polestar10-register dispatch
-  9. /api/alarm/policys 응답에서 변경 확인
+  Step 0  bootstrap — ~/.polestar10rc 로그인 (cookie jar 확보)
+  Step 1  target_scope 결정 — testbed=plopvape-shop, domain=APM
+  Step 2  Agent: testbed-tuner dispatch
+            (fork context — agent 가 메트릭 수집 + 분포 통계 + 추론 + yaml 합성 통합 처리)
+          ← verdict.outputs:
+              policy_yaml:        <full yaml>
+              summary_table:
+                order   AvgResponseTime  현재 LEVEL3=5s → 권고 LEVEL3=3s  (p99=1.4s, 결제 SLA 강함)
+                payment AvgResponseTime  현재 LEVEL3=5s → 권고 LEVEL3=6s  (p99=4.3s, 도메인 특성 반영)
+                ...
+              metrics_collected: 18
+              policies_recommended: 4
+  Step 3  사용자 승인 prompt (AskUserQuestion 카드)
+  Step 4  apply: testbed-polestar10-register dispatch (시나리오 2)
+  Step 5  GET /api/alarm/policys 응답에서 변경 확인
 ```
+
+raw 시계열 (수천 datapoint) 은 Step 2 의 agent fork context 안에서만 머물고 본 skill 의 parent context 에 X.
 
 ---
 
