@@ -1,6 +1,7 @@
 ---
 name: testbed-tune-alarms
 description: NKIA RCA 테스트베드 (또는 일반 Polestar10 환경) 의 알람 임계치를 SRE 관점에서 점검·재튜닝. 메트릭 수집 → sre-baseline + 도메인 특성으로 권고 임계치 LLM 추론 → 사용자 승인 → testbed-polestar10-register 호출하여 정책 등록. 단독 호출 1급 — "/testbed-tune-alarms", "알람 임계치 점검", "APM 알람 다시 봐줘", "<service> 알람 정책 튜닝" 같은 요청 시 트리거. testbed-build 의 8번 단계가 이를 dispatch.
+allowed-tools: Read, Write, Edit, Grep, Glob, Bash(curl:*), Bash(jq:*), Bash(yq:*), Bash(python3:*), Bash(grep:*), Bash(awk:*), Bash(sed:*), Bash(cat:*), Bash(tee:*), Bash(date:*), Bash(echo:*), Bash(test:*), Bash(mkdir:*), Bash(chmod:*)
 ---
 
 # testbed-tune-alarms
