@@ -189,7 +189,7 @@ ssh <target> 'sudo /usr/local/bin/k3s kubectl top nodes'
 | agent-kcm/ARM | `git: clone fail (auth)` | 사내 GitLab 인증 | git config + PAT 또는 ssh key 인증 |
 | agent-kcm | `kubectl rollout status timeout` | metrics-server 누락 또는 helm install 실패 | `kubectl logs -n kcm-monitoring ds/kcm-node-agent` + `kubectl logs -n kcm-monitoring deploy/kcm-master-agent` |
 | agent-sms/ARM | `Exec format error` | binfmt_misc 미등록 | `sudo update-binfmts --enable qemu-x86_64` |
-| agent-sms | "already running — skip" | 호스트에 이미 SMS 도는 중 (정상) | 강제 재설치 시 `--extra-vars sms_force_reinstall=true` |
+| agent-sms | "already running — skip" | 호스트에 이미 SMS 도는 중 (정상) | 강제 재설치 시 `--extra-vars sms_force_reinstall=1` (또는 `--extra-vars '{"sms_force_reinstall": true}'`). ⚠️ `=true` 는 ansible 이 string 으로 파싱 — boolean true 인식 X. `=1` 또는 JSON 형식 사용 |
 
 ---
 

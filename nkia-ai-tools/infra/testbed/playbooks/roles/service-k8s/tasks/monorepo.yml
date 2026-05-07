@@ -67,8 +67,20 @@
   ansible.builtin.set_fact:
     applied_rev: "{{ (applied_rev_b64.content | b64decode | trim) if (applied_rev_b64 is not failed and applied_rev_b64.content is defined) else '' }}"
 
+# envsubst 가 build-and-deploy.sh 의 매니페스트 placeholder (${OTLP_ENDPOINT}) 치환에 필요.
+# Ubuntu/Debian 면 보통 기본 깔려있지만 minimal 이미지/일부 ARM 환경에서 부재 가능 — 보장.
+- name: Ensure envsubst (gettext-base) installed for manifest placeholder substitution
+  ansible.builtin.package:
+    name: gettext-base
+    state: present
+  become: true
+  when: ansible_facts.os_family in ['Debian', 'RedHat']
+
 # build-and-deploy.sh 가 docker build + kubectl apply 호출. testbed 별 cluster 의
 # KUBECONFIG 명시 필수 (cluster_kind=k3d 면 testbed-별 kubeconfig_path).
+# OTLP_ENDPOINT — APM(OTel) collector 주소를 deploy-time 에 매니페스트에 주입. 신규 testbed 의
+# build-and-deploy.sh 가 envsubst 로 치환 (services-author-task.md § 매니페스트 치환 패턴).
+# 기존 plopvape-shop (envsubst 미적용 매니페스트) 도 호환 — env 무시하고 그대로 apply.
 - name: Run build-and-deploy.sh (only when repo rev changed or first run)
   ansible.builtin.shell: bash k8s/build-and-deploy.sh
   args:
@@ -76,6 +88,7 @@
     executable: /bin/bash
   environment:
     KUBECONFIG: "{{ kubeconfig_path }}"
+    OTLP_ENDPOINT: "http://{{ polestar10_collector_host }}:{{ polestar10_apm_otlp_port | default(6565) }}"
   register: bds_run
   changed_when: bds_run.rc == 0
   when:

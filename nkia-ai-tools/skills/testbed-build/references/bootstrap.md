@@ -13,6 +13,7 @@ ssh:
 
 polestar10:
   base_url: "https://198.51.100.104"   # 기본 endpoint (NKIA 운영. 인터뷰에서 변경 가능)
+  collector_host: ""                    # 비우면 base_url 의 hostname 자동 사용. ⚠️ 사내 NAT/방화벽 환경에서 base_url 이 public IP 면 collector_host 는 따로 사내 내부 IP 박을 것. 모든 WPM/APM/SMS/KCM 패킷이 이 host 로 흐르므로 outbound 차단되면 등록 silently 실패. ansible 의 polestar10_collector_host 변수로 흘러감.
   user: ""                               # 비어있으면 매번 인터뷰
   organization_id: ""                    # SMS install 시 SAAS_TENANT_ID. Polestar10 web 우측 상단 [계정] > 조직명 마우스오버 24-hex
   # password 는 ~/.polestar10rc 에 별도 저장 (testbed-polestar10-register 호환)
@@ -98,6 +99,24 @@ AskUserQuestion(questions=[
 ## Step 0.5 — 권한 prompt 발생 시 (조건부)
 
 testbed-build 가 `sshpass -e ssh ...` 또는 `ansible-playbook ...` 권한 prompt 를 **실제로 띄울 때만** 사용자에게 "Always allow Bash(\<prefix\>:*)" 옵션을 권유 (다음부터 자동 통과). prompt 가 안 뜨면 (이미 룰 박혀있는 상태) 안내 출력 X — 미리 안내 금지.
+
+## Destructive action — chat 승인 룰 (강제)
+
+`git push` / `gh pr create` / `git merge --no-ff main` / `kubectl delete ns` / `helm uninstall` 같은 **destructive action** (data 변경 / 외부 시스템 영향) 은 Claude Code 권한 정책상 별도 chat 승인 (사용자 자연어 응답) 을 요구. AskUserQuestion 카드 응답은 의도 표현일 뿐 — 권한 시스템은 카드 응답을 destructive action 승인으로 인정 X.
+
+→ destructive action 직전에는 **반드시 chat 으로 한 번 더 묻고 사용자 자연어 응답 받기**. 카드 → 자동 진행 패턴 사용 X (권한 시스템에 막혀 결국 chat 으로 다시 응답해야 하는 이중 응답 발생).
+
+예시:
+```
+이 시나리오를 추가하고 push 할까요? 자연어로 답해 주세요:
+  "응 / 진행 / PR" → git commit + push + gh pr create
+  "direct push" → main 직접 push
+  "로컬만" → 로컬 commit 만
+  "취소" → 변경 폐기
+→ _
+```
+
+오케스트레이터가 자동 진행 모드여도 **destructive action 게이트는 chat 응답 필수** — 자동화 의도 vs 권한 정책 안전망의 합의점.
 
 ---
 

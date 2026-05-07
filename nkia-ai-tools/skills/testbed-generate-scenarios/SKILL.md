@@ -77,14 +77,58 @@ ls "$RUNNER_ROOT/scenarios/services/"
 ### 2. 패턴 카탈로그 표시
 [scenario-patterns/README.md](../../infra/testbed/scenario-patterns/README.md) 의 표 그대로 사용자에게 보여주고 선택 받기. (또는 "자동" → LLM 이 service-spec.yaml 도메인 메타 + 기존 시나리오 목록 보고 미커버 패턴 추천)
 
-### 3. 패턴 카드 → 인스턴스 변환
+### 3. 패턴 카드 → 인스턴스 변환 (도메인-specific 합성 강제)
 
-선택된 패턴 카드 read (예: `<patterns_root>/db-lock-contention.md`). 카드의 `## 치환 슬롯` 섹션 변수 들에 대해 사용자 인터뷰 또는 자동 추론:
+선택된 패턴 카드 read (예: `<patterns_root>/db-lock-contention.md`). 카드는 generic placeholder (`<table_name>` / `<row_key>` / `<endpoint>`) 만 — testbed 도메인에 맞는 실제 값으로 합성해야 함.
 
-- service-spec.yaml 의 service.namespace → `NAMESPACE`
-- service.api_base → `SERVICE_API`
-- 도메인 추론: e-commerce 면 `LOCK_TABLE=inventory` `LOAD_ENDPOINT=/api/orders`
-- 인스턴스 시 치환할 placeholder 들 (`<table_name>`, `<row_key>` 등) 채움
+🚫 **절대 금지** — plopvape-shop 의 `scenarios/services/plopvape-shop/scripts/*.sh` 를 **read 후 sed 치환** 으로 변환 X. plopvape 시나리오는 e-commerce 도메인 전용 (orders 테이블 / pg-mock 컨테이너 / 30080 NodePort 가정). 다른 도메인 (food-delivery / banking / IoT 등) 에 sed 치환 시 비즈니스 의미 X + SQL error 가능. **패턴 카드 → 도메인-specific 합성** 만 정답.
+
+#### 합성 우선순위 (위에서부터 — 첫 번째 만족 항목 사용)
+
+1. **manifest.scenario_hints** (services-author Phase 6 산출 — 신규 testbed 자동 생성 시):
+   - `lock_table` / `lock_endpoint` / `external_container` / `primary_load_endpoint` 등이 채워져있음
+   - 그대로 사용. 별 분석 X.
+
+2. **도메인 룩업 표** (e-commerce / banking / 예약 — pattern-to-script.md §4 표):
+   - `interview.app.domain` 이 룩업 키 매치 → 표의 매핑 사용
+
+3. **auto 모드 — 코드 분석 강제** (룩업 표에 없는 도메인 + scenario_hints 부재):
+   - LLM 이 다음 read **필수**:
+     - `<TESTBED_SVC_REPO>/<testbed_name>/*-service/src/main/java/.../*Controller.java` — endpoint + HTTP method + body schema
+     - `<TESTBED_SVC_REPO>/<testbed_name>/db/init.sql` — 테이블 + 컬럼 + PK + seed
+     - `<TESTBED_SVC_REPO>/<testbed_name>/k8s/*.yaml` — NodePort 실제 값, 외부 의존성 컨테이너
+     - `<TESTBED_SVC_REPO>/<testbed_name>/docker-compose.dev.yml` (있다면) — mock 컨테이너 이름
+   - 분석 결과로 도메인-specific 매핑 합성:
+     - food-delivery 면 `LOCK_TABLE=orders` 또는 `restaurant_inventory` (init.sql 분석 결과 핫 row 후보)
+     - 외부 의존성 컨테이너 = k8s manifest 에서 발견된 정확한 이름 (`pg-mock` 그대로 가정 X)
+     - NodePort = manifest 의 실제 값 (30080 가정 X)
+
+4. **사용자 인터뷰** (auto 결과 confidence 낮음 — 후보 여러 개):
+   - 사용자에게 후보 표시 + 도메인 의도 묻기
+
+5. **fail-fast** (위 모든 단계 결정 안 됨):
+   - 시나리오 생성 abort. plopvape sed 치환으로 fallback **절대 금지**.
+
+#### 합성 결과 검증 (사용자 confirm 필수)
+
+LLM 이 합성한 시나리오 변수 (LOCK_TABLE / LOAD_ENDPOINT / EXTERNAL_CONTAINER 등) + 사용한 source (init.sql / Controller.java / k8s manifest) 를 사용자에게 명시:
+
+```
+=== food-delivery 도메인 합성 결과 ===
+
+소스:
+  - controllers: order-service/OrderController.java (POST /api/orders, /api/orders/cancel)
+  - tables:      orders, order_items, restaurants, deliveries (init.sql)
+  - k8s:         NodePort 30090 (food-delivery-nginx), mock 컨테이너: pg-mock-fd
+
+scenario-01 (db-lock-contention):
+  LOCK_TABLE=orders  ← 트랜잭션 핫 테이블 (orders.id PK)
+  LOAD_ENDPOINT=POST /api/orders  ← 주문 생성 — order row 갱신
+  LOAD_PAYLOAD={...}  ← OrderRequest schema 기반
+  ...
+```
+
+사용자 confirm 후만 Step 4 (스크립트 + yaml entry 작성) 진입.
 
 **자세한 변환 룰**: [pattern-to-script.md](references/pattern-to-script.md)
 **스크립트 골격 변환 가이드**: [script-template.md](references/script-template.md)
@@ -104,9 +148,11 @@ ls "$RUNNER_ROOT/scenarios/services/"
 
 > **중요**: rca-scenario-runner 백엔드는 [scenarios.py](https://github.com/nkia-ai-team/rca-scenario-runner/blob/develop/backend/app/scenarios.py) 가 service-spec.yaml glob 으로 시나리오 자동 발견. yaml 만 떨어뜨리면 컨테이너 재시작 후 자동 등록.
 
-### 5. 사용자 미리보기 + 승인 ⛔ (AskUserQuestion 게이트 — 강제)
+### 5. 사용자 미리보기 + 승인 ⛔ (chat 응답 게이트 — 강제)
 
-🚫 **강제 룰**: 본 step 의 AskUserQuestion 답변을 받기 전에는 **git commit / push / PR 생성 절대 X**. LLM 이 SKILL.md 따르며 "곧바로 git commit 해버리는" 패턴 금지. step 6 진입 조건 = 사용자가 옵션 1/2/3 중 하나를 명시 선택.
+🚫 **강제 룰**: 본 step 의 사용자 chat 응답을 받기 전에는 **git commit / push / PR 생성 절대 X**. LLM 이 SKILL.md 따르며 "곧바로 git commit 해버리는" 패턴 금지. step 6 진입 조건 = 사용자가 자연어로 명시 승인 ("응" / "진행" / "PR" / "direct push" 등).
+
+⚠️ **AskUserQuestion 카드 사용 X** — Claude Code 의 권한 정책상 destructive action (git push / gh pr create) 은 카드 응답이 의도 표현일 뿐 **별도 chat 승인을 요구**. 카드 → 자동 진행 패턴이 권한 시스템에 막혀 결국 chat 으로 다시 응답해야 함. 처음부터 chat 으로 받아 한 번에 처리.
 
 #### 미리보기 — 의미 + 발화 조건까지 풀어서 설명
 
@@ -153,25 +199,24 @@ ls "$RUNNER_ROOT/scenarios/services/"
   ~ service-spec.yaml (entry 추가, 12 lines)
 ```
 
-#### AskUserQuestion 카드 (위 미리보기 출력 직후)
+#### chat prompt (위 미리보기 출력 직후)
 
-```python
-AskUserQuestion(questions=[
-  {
-    "question": "위 시나리오를 추가하고 push 할까요?",
-    "header": "시나리오 승인",
-    "multiSelect": False,
-    "options": [
-      {"label": "진행 + PR (Recommended)", "description": "git commit + push + gh pr create"},
-      {"label": "진행 + direct push", "description": "PR 없이 main 직접 push (신뢰 환경만)"},
-      {"label": "로컬만", "description": "로컬 commit 만, push 는 사용자 결정"},
-      {"label": "취소", "description": "변경사항 폐기"}
-    ]
-  }
-])
+미리보기 끝에 다음과 같이 묻고 사용자 자연어 응답 대기:
+
+```
+위 시나리오를 추가할까요? 다음 중 자연어로 답해 주세요:
+
+  - "응" / "진행" / "PR" → git commit + push + gh pr create (default, Recommended)
+  - "direct push" / "main 직접" → PR 없이 main 직접 push (신뢰 환경만)
+  - "로컬만" / "local" → 로컬 commit 만, push 는 사용자 결정
+  - "취소" / "no" → 변경사항 폐기
+
+→ _
 ```
 
-⚠️ **AskUserQuestion 발사 전 git 작업 X / Step 6 은 사용자 답변 후에만 진입**. 사용자가 (4) 취소 선택 시 임시 파일 정리 + 종료. testbed-build 오케스트레이터가 호출한 경우라도 반드시 본 게이트 통과 필수 — 자동 진행 모드에서도 이 게이트는 강제.
+LLM 이 응답 자연어 파싱하여 push_mode 결정. 권한 prompt 가 한 번 더 뜰 수 있으나 chat 응답으로 한 번에 처리되는 형태 (카드 + 별도 권한 chat 의 이중 응답 회피).
+
+⚠️ **chat 응답 받기 전 git 작업 X / Step 6 은 사용자 응답 후에만 진입**. 사용자가 "취소" 응답 시 임시 파일 정리 + 종료. testbed-build 오케스트레이터가 호출한 경우라도 반드시 본 게이트 통과 필수 — 자동 진행 모드에서도 이 게이트는 강제.
 
 ### 6. git commit + push (push_mode 에 따라)
 
