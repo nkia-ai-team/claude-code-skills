@@ -88,7 +88,7 @@ limit 대비:
 |---|---|---|---|
 | 60% | 75% | 85% | 95% |
 
-> ⚠️ K3s metrics-server 미설치 시 측정 자체 안 됨 ([memory: K3s metrics-server 필수](../../../../.claude/projects/-home-sjbang-dev/memory/infra_k3s_metrics_server.md)). `--kubelet-insecure-tls` 플래그 필요.
+> ⚠️ K3s metrics-server 미설치 시 측정 자체 안 됨. K3s default 에는 metrics-server 가 안 깔려 있어 KCM Pod CPU/MEM 알람 + `kubectl top` + HPA 모두 작동 X. `--kubelet-insecure-tls` 플래그로 설치 필수 ([infra/testbed/playbooks/roles/common/tasks/metrics-server.yml](../../playbooks/roles/common/tasks/metrics-server.yml) 참조).
 
 ### Pod CPU Throttling (%)
 | LEVEL1 | LEVEL2 | LEVEL3 | LEVEL4 |

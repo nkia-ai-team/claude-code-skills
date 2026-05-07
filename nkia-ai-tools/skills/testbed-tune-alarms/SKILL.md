@@ -56,7 +56,7 @@ P10 인스턴스에 시스템 사전 생성 default 정책이 존재해도 (`Pos
 - "기존 정책 update endpoint 없어서" → fallback 으로 사용자 수동 안내 후 종료
 - "tagValue 매핑 안 되니 manual_action_recommended 표시 후 종료"
 
-위 분기 발견 시 즉시 add 시퀀스 (Step 2 tuner agent dispatch → Step 4 apply) 로 복귀. 사용자 메모리 [feedback_solve_independently.md](/home/sjbang/.claude/projects/-home-sjbang-dev/memory/feedback_solve_independently.md) 의 "끝까지 자립" 룰 적용.
+위 분기 발견 시 즉시 add 시퀀스 (Step 2 tuner agent dispatch → Step 4 apply) 로 복귀. 자동화 가능한 경로가 남아있는 한 사용자 수동 작업으로 떠넘기지 X.
 
 ---
 

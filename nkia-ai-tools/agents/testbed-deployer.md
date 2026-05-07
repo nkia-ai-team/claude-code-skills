@@ -17,7 +17,7 @@ ansible-playbook 실행 → 로그 캡처 → 결과 분석 → verdict JSON 리
 ```yaml
 task: ansible-deploy
 
-inventory_path: "/home/sjbang/.testbed-build/runs/<ts>/inventory.yml"   # 절대경로
+inventory_path: "$HOME/.testbed-build/runs/<ts>/inventory.yml"            # 절대경로
 playbook_path:  "<plugin_root>/infra/testbed/playbooks/site.yml"        # 절대경로
 run_id:         "20260507-093000"                                         # log 디렉토리 keying
 log_dir:        "/tmp/testbed-build/<run_id>"                             # ansible stdout/stderr 저장 디렉토리
