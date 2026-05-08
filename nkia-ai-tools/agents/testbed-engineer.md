@@ -352,7 +352,7 @@ git push 인증 실패 (401) 시 verdict=`auth-failed` + ask-polestar10 우회 (
 
 ```json
 {
-  "phase": "services-author",
+  "phase": "services_author",
   "verdict": "ok|warn|fail|skipped",
   "summary": "core-banking 4 services 합성 + 빌드 통과 + PR 12 생성",
   "outputs": {

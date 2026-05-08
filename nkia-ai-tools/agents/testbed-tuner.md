@@ -179,7 +179,7 @@ verdict 에 동일 정보 + `next_action: "dispatch_register_scenario_2"` 명시
 
 ```json
 {
-  "phase": "tune-alarms",
+  "phase": "tune_alarms",
   "verdict": "ok|warn|fail|skipped",
   "summary": "<한 줄, 80자 이내 — 예: '4 도메인 18 메트릭 권고. 변경 12 / 신규 3 / 유지 3'>",
   "outputs": {
