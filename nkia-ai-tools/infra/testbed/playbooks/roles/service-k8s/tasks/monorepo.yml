@@ -89,6 +89,7 @@
   environment:
     KUBECONFIG: "{{ kubeconfig_path }}"
     OTLP_ENDPOINT: "http://{{ polestar10_collector_host }}:{{ polestar10_apm_otlp_port | default(6565) }}"
+    POLESTAR_ORG_ID: "{{ polestar_organization_id }}"
   register: bds_run
   changed_when: bds_run.rc == 0
   when:
