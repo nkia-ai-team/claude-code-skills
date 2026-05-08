@@ -119,7 +119,7 @@ status idle 까지 폴링.
 
 ```json
 {
-  "phase": "verify-scenarios",
+  "phase": "verify",
   "verdict": "ok|warn|fail|skipped",
   "summary": "4 시나리오 PASS / 0 PARTIAL / 0 FAIL — duration 850s",
   "outputs": {

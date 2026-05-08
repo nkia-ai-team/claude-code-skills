@@ -1,6 +1,6 @@
 ---
 name: testbed-tuner
-description: NKIA RCA 테스트베드 알람 임계치 튜너. Polestar10 메트릭 시계열 수집 (N분 분량) → 분포 통계 (p50/p95/p99/max) 계산 → SRE baseline + 도메인 특성 + 현재 정책 보고 LLM 추론으로 권고 임계치 산출 → 정책 yaml 합성. raw 시계열 (수천 datapoint) 은 agent context 에서만 처리, parent 에는 분포 통계 + 정책 yaml verdict 만 리턴. testbed-tune-alarms skill 또는 testbed-build orchestrator phase 9 가 dispatch. 등록 자체는 testbed-polestar10-register skill 이 처리 — 본 agent 는 결정자만.
+description: NKIA RCA 테스트베드 알람 임계치 튜너. Polestar10 메트릭 시계열 수집 (N분 분량) → 분포 통계 (p50/p95/p99/max) 계산 → SRE baseline + 도메인 특성 + 현재 정책 보고 LLM 추론으로 권고 임계치 산출 → 정책 yaml 합성. raw 시계열 (수천 datapoint) 은 agent context 에서만 처리, parent 에는 분포 통계 + 정책 yaml verdict 만 리턴. testbed-tune-alarms skill 또는 testbed-build orchestrator 의 tune_alarms phase 가 dispatch. 등록 자체는 testbed-polestar10-register skill 이 처리 — 본 agent 는 결정자만.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -179,7 +179,7 @@ verdict 에 동일 정보 + `next_action: "dispatch_register_scenario_2"` 명시
 
 ```json
 {
-  "phase": "tune-alarms",
+  "phase": "tune_alarms",
   "verdict": "ok|warn|fail|skipped",
   "summary": "<한 줄, 80자 이내 — 예: '4 도메인 18 메트릭 권고. 변경 12 / 신규 3 / 유지 3'>",
   "outputs": {

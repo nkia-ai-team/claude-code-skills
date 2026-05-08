@@ -1,4 +1,4 @@
-# Phase 12 — Closed-loop verify retry 루프
+# `verify` — Closed-loop verify retry 루프
 
 orchestrator-side 재시도 로직. testbed-verifier agent 는 단발 verdict 만 리턴 — 재시도 결정은 orchestrator 가 owns.
 
@@ -65,7 +65,9 @@ done
 
 ## 재시도 한계 도달 후
 
-3 attempts 가 모두 PASS 미달 → finalize 단계로 진입. report.md 에 "verify 미통과 — last verdict" 명시.
+3 attempts 가 모두 PASS 미달 → 사용자 결정 후 `finalize` 단계로 진입 가능.
+이 경우 `finalize.status=finalized_partial` 로 기록하고 report.md 에
+"verify 미통과 — last verdict" 를 명시한다. PASS 와 동일한 성공으로 취급하지 않는다.
 
 사용자에게 매뉴얼 점검 안내:
 - expected_alarms 가 정확한지 (시나리오 yaml 의 expected_alarms vs 실제 발화 알람)

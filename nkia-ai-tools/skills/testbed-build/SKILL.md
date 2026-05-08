@@ -8,10 +8,19 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash(ansible-playbook:*), Bash(ans
 
 ## Overview
 
-**얇은 오케스트레이터**. 14 phases 를 sub-agent / sub-skill dispatch + manifest checkpoint. 각 phase 의 raw 데이터는 sub-agent fork context 에 격리, parent 에는 verdict JSON 만 흐름.
+**얇은 오케스트레이터**. canonical phase contract 를 기준으로 sub-agent /
+sub-skill dispatch + manifest checkpoint 를 수행한다. 각 phase 의 raw 데이터는
+sub-agent fork context 에 격리, parent 에는 verdict JSON 만 흐름.
 
 ✅ 책임: 인터뷰 → 인벤토리/아키텍처 → phase loop dispatch → closed-loop 재시도 → 보고서
-❌ 비책임: cleanup (사용자 직접 또는 Phase 14), 시나리오만 추가 (`/testbed-generate-scenarios`), 알람만 재튜닝 (`/testbed-tune-alarms`)
+❌ 비책임: cleanup 단독 실행, 시나리오만 추가 (`/testbed-generate-scenarios`), 알람만 재튜닝 (`/testbed-tune-alarms`)
+
+## Canonical Contract
+
+모든 phase id / 순서 / manifest 상태 / resume 판단은
+[phase-contract.md](references/phase-contract.md) 를 단일 source of truth 로 따른다.
+다른 reference 에 남아있는 숫자 phase 표기는 사용자 설명용으로만 보고,
+분기 판단에는 `phase_id` 를 사용한다.
 
 ## 인터뷰 도구
 
@@ -28,18 +37,18 @@ multi-choice 인터뷰 (인증 / 옵션 / yes-no / 승인) 는 **AskUserQuestion
 5. Concurrency lock (`<target_host>_<cluster_name>` 키)
 6. Polestar10 부트스트랩 (`~/.polestar10rc` 재사용)
 
-⚠️ `polestar10.organization_id` 빈값으로 진행 X — Phase 9 fail-fast.
+⚠️ `polestar10.organization_id` 빈값으로 진행 X — `polestar10_register` 전에 fail-fast.
 
 ## Sub-agent / Sub-skill 매트릭스
 
-| Phase | Dispatcher | Type | Verdict 핵심 outputs |
+| phase_id | Dispatcher | Type | Verdict 핵심 outputs |
 |---|---|---|---|
-| 6 | testbed-engineer | agent (services-author) | branch / pr_url / scenario_hints |
-| 8 | testbed-deployer | agent | play_recap / log_path / errors |
-| 9 | testbed-polestar10-register | skill | resource_ids per agent type |
-| 10 | testbed-generate-scenarios | skill | scenario_ids / yaml_path |
-| 11 | testbed-tune-alarms | skill (→ testbed-tuner agent) | policy_yaml / policies_recommended |
-| 12 | testbed-verifier | agent | overall verdict / recommendations |
+| `services_author` | testbed-engineer | agent (services-author) | branch / pr_url / scenario_hints |
+| `ansible_deploy` | testbed-deployer | agent | play_recap / log_path / errors |
+| `polestar10_register` | testbed-polestar10-register | skill | resource_ids per agent type |
+| `generate_scenarios` | testbed-generate-scenarios | skill | scenario_ids / yaml_path |
+| `tune_alarms` | testbed-tune-alarms | skill (→ testbed-tuner agent) | policy_yaml / policies_recommended |
+| `verify` | testbed-verifier | agent | overall verdict / recommendations |
 
 표준 verdict JSON 스키마: [verdict-schema.md](references/verdict-schema.md).
 
@@ -47,53 +56,53 @@ multi-choice 인터뷰 (인증 / 옵션 / yes-no / 승인) 는 **AskUserQuestion
 
 진행 상태는 매 phase 후 `runs/<RUN_ID>/manifest.yaml` 즉시 저장 ([phase-checkpoint.md](references/phase-checkpoint.md)).
 
-### Phase 1 — 인터뷰
+### `interview` — 인터뷰
 [interview-flow.md](references/interview-flow.md) 의 4 단계 질문지 (target / 배포 앱 / NMS / Polestar10 모드). 답변 → `runs/<RUN_ID>/interview.yaml`.
 
-### Phase 2 — Polestar10 reachability precheck
-HTTP 도달성만 (auth 동작은 Phase 9 의 login.md 가 검증). 실패 시 사용자 안내 + 종료. 상세: [polestar10-error-handling.md](references/polestar10-error-handling.md).
+### `precheck` — Polestar10 reachability precheck
+HTTP 도달성만 (auth 동작은 `polestar10_register` 의 login.md 가 검증). 실패 시 사용자 안내 + 종료. 상세: [polestar10-error-handling.md](references/polestar10-error-handling.md).
 
-### Phase 3 — Architecture-draft
+### `architecture` — Architecture-draft
 [architecture-template.md](references/architecture-template.md) 변수 채움 (mermaid + 6 agent 표 + 알람/시나리오 자리). 산출: `architecture.md`.
 
-### Phase 4 — 사용자 승인 ⛔
+### `user_approval` — 사용자 승인 ⛔
 AskUserQuestion: 진행 / 수정 / 취소.
 
-### Phase 4.5 — 기존 testbed 감지 게이트
+### `existing_testbed_detect` — 기존 testbed 감지 게이트
 [existing-testbed-detect.md](references/existing-testbed-detect.md). cluster 동명 발견 시 사용자 의도 카드 (장애 시나리오만 / 다른 testbed / 삭제 후 / idempotent / 중단).
 
-### Phase 5 — Lock 획득
+### `lock_acquired` — Lock 획득
 [concurrency-lock.md](references/concurrency-lock.md). lock key = `<target_host>_<cluster_name>`. 같은 host 다른 cluster 동시 빌드 가능 (k3d 격리).
 
-### Phase 6 — Services-Author (조건부)
-`interview.app.is_new_variant=true` 일 때만. testbed-engineer agent dispatch — 신규 testbed 코드 생성 + mvnw 빌드 + git push (PR / direct / local). 상세: [services-author-task.md](references/services-author-task.md). verdict.outputs.scenario_hints 보존 → Phase 10 입력.
+### `services_author` — Services-Author (조건부)
+`interview.app.is_new_variant=true` 일 때만. testbed-engineer agent dispatch — 신규 testbed 코드 생성 + mvnw 빌드 + git push (PR / direct / local). 상세: [services-author-task.md](references/services-author-task.md). verdict.outputs.scenario_hints 보존 → `generate_scenarios` 입력.
 
-### Phase 7 — Dynamic inventory 생성
+### `inventory_generated` — Dynamic inventory 생성
 [dynamic-inventory-generator.md](references/dynamic-inventory-generator.md). 인터뷰 답 + bootstrap → `runs/<RUN_ID>/inventory.yml`. group_vars/all.yml 변수 모두 채움 (collector hosts / org id / app subdir / 등).
 
-### Phase 8 — Ansible 배포 + 진단
+### `ansible_deploy` — Ansible 배포 + 진단
 testbed-deployer agent dispatch (run + 캡처 + 진단 단일 호출 통합). 상세: [ansible-failure-diagnosis.md](references/ansible-failure-diagnosis.md). raw 로그 (수만 줄) 는 agent fork context 에 격리, parent 에는 PLAY RECAP 카운트 + errors 만.
 
 verdict=ok 면 8-c sanity check ([phase-8-sanity-check.md](references/phase-8-sanity-check.md)) → APM standby heartbeat 검증 (round-7 silent failure 차단). 실패 시 manifest OTLP env / collector_host 점검 안내.
 
-### Phase 9 — Polestar10 관리대상 등록
+### `polestar10_register` — Polestar10 관리대상 등록
 [polestar10-register-flow.md](references/polestar10-register-flow.md). agent install 후 60초 grace → testbed-polestar10-register 시나리오 1 dispatch (KCM/APM/WPM/SMS/DPM/NMS 6종 자동 분기). PARTIAL 처리 사용자 prompt.
 
-### Phase 10 — 시나리오 생성
-testbed-generate-scenarios dispatch. Phase 6 의 scenario_hints 가 있으면 LLM 인터뷰 없이 직접 변수 채움. 산출: `runs/<RUN_ID>/scenarios.json`.
+### `generate_scenarios` — 시나리오 생성
+testbed-generate-scenarios dispatch. `services_author` 의 scenario_hints 가 있으면 LLM 인터뷰 없이 직접 변수 채움. 산출: `runs/<RUN_ID>/scenarios.json`.
 
-### Phase 11 — 알람 정책
+### `tune_alarms` — 알람 정책
 testbed-tune-alarms dispatch (skill 내부에서 testbed-tuner agent 가 메트릭 + 추론 + yaml 합성). mode=apply 시 사용자 승인 후 testbed-polestar10-register 시나리오 2 dispatch. 산출: `runs/<RUN_ID>/alarms.json`.
 
 ⚠️ 시스템 default 정책 존재해도 testbed 전용 always add ([scenario_2_alarm_policy.md § 강제 룰](../testbed-polestar10-register/references/scenario_2_alarm_policy.md)).
 
-### Phase 12 — Closed-loop verify (orchestrator 재시도 max 3)
+### `verify` — Closed-loop verify (orchestrator 재시도 max 3)
 [phase-12-verify-loop.md](references/phase-12-verify-loop.md). testbed-verifier agent dispatch (단발 verdict). PARTIAL/FAIL → tune-alarms recommendations 적용 → 재시도. PASS 시나리오 skip 으로 시간 절약.
 
-### Phase 13 — Finalize
+### `finalize` — Finalize
 [finalize-report-template.md](references/finalize-report-template.md). architecture + register 표 + alarms 표 + verify 결과 요약 → `~/.testbed-build/reports/<RUN_ID>-<testbed_name>.md`.
 
-### Phase 14 — Cleanup
+### `cleanup` — Cleanup
 [phase-14-cleanup.md](references/phase-14-cleanup.md). 정상 종료는 자동 정리, 사용자 cancel / phase failed 케이스는 진행된 phase 별 cleanup 옵션 prompt (services-author 산출물 / ansible 자원 / Polestar10 자원 / 정리 안 함).
 
 destructive action (kubectl delete / helm uninstall / k3d cluster delete / gh pr close) 은 카드 응답 후 자연어 chat 재승인.
@@ -112,7 +121,7 @@ destructive action (kubectl delete / helm uninstall / k3d cluster delete / gh pr
 회피 패턴 (절대 금지):
 - "context 한도 가까움" 핑계로 finalize escape
 - "endpoint 없으니 사용자 수동" 으로 도망 (모든 길 시도 후만 manual fallback)
-- "기본 정책 있으니 skip" (Phase 11 강제 룰 위반)
+- "기본 정책 있으니 skip" (`tune_alarms` 강제 룰 위반)
 
 context 한도 도달 시 사용자에게 `/compact` 권고. 사용자가 "그냥 끝내자" 명시 응답 시에만 finalize 허용.
 
@@ -127,19 +136,20 @@ context 한도 도달 시 사용자에게 `/compact` 권고. 사용자가 "그�
 
 ### Phase 가이드
 - [bootstrap.md](references/bootstrap.md) — 자격증명 + 레포 부트스트랩
+- [phase-contract.md](references/phase-contract.md) — canonical phase id + manifest contract
 - [interview-flow.md](references/interview-flow.md) — 4단계 인터뷰 + AskUserQuestion 묶음
-- [architecture-template.md](references/architecture-template.md) — Phase 3 마크다운 템플릿
-- [existing-testbed-detect.md](references/existing-testbed-detect.md) — Phase 4.5 cluster 감지
-- [concurrency-lock.md](references/concurrency-lock.md) — Phase 5 flock
-- [services-author-task.md](references/services-author-task.md) — Phase 6 testbed-engineer 입력 spec
-- [dynamic-inventory-generator.md](references/dynamic-inventory-generator.md) — Phase 7 inventory.yml 생성
-- [ansible-failure-diagnosis.md](references/ansible-failure-diagnosis.md) — Phase 8 testbed-deployer dispatch
-- [phase-8-sanity-check.md](references/phase-8-sanity-check.md) — Phase 8 APM standby heartbeat
-- [polestar10-register-flow.md](references/polestar10-register-flow.md) — Phase 9 6종 등록 분기
-- [verify-task.md](references/verify-task.md) — Phase 12 testbed-verifier task spec
-- [phase-12-verify-loop.md](references/phase-12-verify-loop.md) — Phase 12 재시도 루프
-- [finalize-report-template.md](references/finalize-report-template.md) — Phase 13 보고서
-- [phase-14-cleanup.md](references/phase-14-cleanup.md) — Phase 14 사용자 prompt + 옵션
+- [architecture-template.md](references/architecture-template.md) — `architecture` 마크다운 템플릿
+- [existing-testbed-detect.md](references/existing-testbed-detect.md) — `existing_testbed_detect` cluster 감지
+- [concurrency-lock.md](references/concurrency-lock.md) — `lock_acquired` flock
+- [services-author-task.md](references/services-author-task.md) — `services_author` testbed-engineer 입력 spec
+- [dynamic-inventory-generator.md](references/dynamic-inventory-generator.md) — `inventory_generated` inventory.yml 생성
+- [ansible-failure-diagnosis.md](references/ansible-failure-diagnosis.md) — `ansible_deploy` testbed-deployer dispatch
+- [phase-8-sanity-check.md](references/phase-8-sanity-check.md) — `sanity_check` APM standby heartbeat
+- [polestar10-register-flow.md](references/polestar10-register-flow.md) — `polestar10_register` 6종 등록 분기
+- [verify-task.md](references/verify-task.md) — `verify` testbed-verifier task spec
+- [phase-12-verify-loop.md](references/phase-12-verify-loop.md) — `verify` 재시도 루프
+- [finalize-report-template.md](references/finalize-report-template.md) — `finalize` 보고서
+- [phase-14-cleanup.md](references/phase-14-cleanup.md) — `cleanup` 사용자 prompt + 옵션
 
 ### 표준 / 공통
 - [phase-checkpoint.md](references/phase-checkpoint.md) — manifest.yaml + resume

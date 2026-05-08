@@ -1,14 +1,17 @@
 # Concurrency Lock
 
-같은 target_host 에 두 사용자가 동시에 testbed-build 를 돌리면 K3s install / namespace 충돌 / Ansible race. flock 으로 가드.
+같은 target_host + cluster_name 에 두 사용자가 동시에 testbed-build 를 돌리면 K3s/k3d
+cluster / namespace / Ansible race 가 발생한다. flock 으로 가드한다.
 
 ## Lock 파일 위치
 
 ```
-~/.testbed-build/.locks/<target_host>.lock
+~/.testbed-build/.locks/<target_host>_<cluster_name>.lock
 ```
 
-`<target_host>` = interview.target.host 의 IP 또는 hostname (점 그대로, e.g., `203.0.113.109.lock`).
+`<target_host>` = interview.target.host 의 IP 또는 hostname.
+`<cluster_name>` = testbed 이름. 파일명 안전성을 위해 `/`, 공백, `:` 는 `_` 로 치환한다.
+예: `203.0.113.109_plopvape-shop.lock`.
 
 ## Acquire
 
@@ -17,7 +20,9 @@ Phase 5 (interview 끝 + architecture 승인 후) 에서:
 ```bash
 LOCK_DIR="$HOME/.testbed-build/.locks"
 mkdir -p "$LOCK_DIR"
-LOCK_FILE="$LOCK_DIR/$TARGET_HOST.lock"
+SAFE_TARGET=$(printf '%s' "$TARGET_HOST" | tr '/: ' '___')
+SAFE_CLUSTER=$(printf '%s' "$CLUSTER_NAME" | tr '/: ' '___')
+LOCK_FILE="$LOCK_DIR/${SAFE_TARGET}_${SAFE_CLUSTER}.lock"
 
 # flock fd 9 사용 (관습)
 exec 9>"$LOCK_FILE"
@@ -27,7 +32,7 @@ if ! flock -n 9; then
   cat <<EOF
 === Lock 충돌 ===
 
-타겟 $TARGET_HOST 에 이미 진행 중인 run 이 있습니다.
+타겟 $TARGET_HOST / cluster $CLUSTER_NAME 에 이미 진행 중인 run 이 있습니다.
 Lock holder: $HOLDER
 
 조치:
@@ -49,7 +54,7 @@ update_manifest_phase "lock_acquired" "completed"
 
 ## Release
 
-phase 13 (cleanup) 또는 fatal exit:
+`cleanup` 또는 fatal exit:
 
 ```bash
 release_lock() {
@@ -63,7 +68,7 @@ trap release_lock EXIT
 
 스크립트 내부에서 명시적으로 호출:
 ```bash
-# phase 13 정상 완료 시
+# cleanup 정상 완료 시
 release_lock
 ```
 

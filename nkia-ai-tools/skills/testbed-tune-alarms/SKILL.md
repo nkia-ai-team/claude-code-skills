@@ -106,7 +106,7 @@ agent 가 internally:
 agent verdict:
 ```json
 {
-  "phase": "tune-alarms",
+  "phase": "tune_alarms",
   "verdict": "ok|warn|fail|skipped",
   "summary": "<한 줄>",
   "outputs": {

@@ -1,6 +1,7 @@
 # Finalize Report Template
 
-testbed-build Phase 12 인라인으로 채워 `~/.testbed-build/reports/<RUN_ID>-<TESTBED_NAME>.md` 에 저장.
+testbed-build `finalize` phase 에서 채워
+`~/.testbed-build/reports/<RUN_ID>-<TESTBED_NAME>.md` 에 저장.
 
 ## 변수 substitution
 
@@ -35,7 +36,7 @@ manifest.yaml + register.json + scenarios.json + alarms.json + verify.log 모두
 
 ---
 
-## 2. 서비스 배포 결과 (Phase 7)
+## 2. 서비스 배포 결과 (`ansible_deploy`)
 
 | 항목 | 결과 |
 |---|---|
@@ -50,7 +51,7 @@ manifest.yaml + register.json + scenarios.json + alarms.json + verify.log 모두
 
 ---
 
-## 3. Polestar10 자원 등록 (Phase 8)
+## 3. Polestar10 자원 등록 (`polestar10_register`)
 
 {{REGISTER_TABLE}}
 
@@ -67,7 +68,7 @@ manifest.yaml + register.json + scenarios.json + alarms.json + verify.log 모두
 
 ---
 
-## 4. 시나리오 (Phase 9)
+## 4. 시나리오 (`generate_scenarios`)
 
 {{SCENARIOS_TABLE}}
 
@@ -85,7 +86,7 @@ PR: {{SCENARIOS_PR_URL}}
 
 ---
 
-## 5. 알람 정책 (Phase 10)
+## 5. 알람 정책 (`tune_alarms`)
 
 ### 공통 정책 ({{COMMON_POLICY_COUNT}} 개)
 
@@ -107,7 +108,7 @@ PR: {{SCENARIOS_PR_URL}}
 
 ---
 
-## 6. Closed-loop Verify (Phase 11)
+## 6. Closed-loop Verify (`verify`)
 
 {{VERIFY_SECTION}}
 
@@ -182,7 +183,7 @@ substitutions = {
     "TARGET_HOST": manifest.target_host,
     "STARTED_AT": manifest.created_at,
     "FINISHED_AT": manifest.last_updated_at,
-    "FINAL_VERDICT": last_attempt(verify_log).overall,
+    "FINAL_VERDICT": final_verdict_from_manifest_or_verify(manifest, verify_log),
     # ...
     "REGISTER_TABLE": render_register_table(register),
     "SCENARIOS_TABLE": render_scenarios_table(scenarios),

@@ -142,7 +142,7 @@ AskUserQuestion(questions=[
 ```
 선택 후 LLM 이 새 DB 에 맞게 스키마 재생성 → 다시 2-d-c 승인.
 
-승인 시 phase 6 (services-author dispatch) 진입. **사용자 입력 최소화 — 도메인 1개 선택 + (필요 시) 일부 수정** 으로 끝나는 가벼운 흐름.
+승인 시 `services_author` dispatch 진입. **사용자 입력 최소화 — 도메인 1개 선택 + (필요 시) 일부 수정** 으로 끝나는 가벼운 흐름.
 
 ## 옵션 3 산출 (interview.yaml 의 app 섹션)
 

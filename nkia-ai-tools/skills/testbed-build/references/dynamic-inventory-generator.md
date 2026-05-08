@@ -1,6 +1,6 @@
 # Dynamic Inventory Generator
 
-Phase 7 — interview.yaml + bootstrap.yaml → `runs/<RUN_ID>/inventory.yml`.
+`inventory_generated` — interview.yaml + bootstrap.yaml → `runs/<RUN_ID>/inventory.yml`.
 
 ## ⚠️ Ansible 변수 우선순위 함정 — host-level vars 강제
 
@@ -70,7 +70,7 @@ all:
           # scenario_runner_install_dir 는 group_vars 의 default 가 cluster_name 기반이라 별도 override 불필요
 
           # === 신규 testbed 시 services-author 가 만든 정보 ===
-          # is_new_variant=true 면 Phase 6 산출 (manifest.scenario_hints) 도 vars 로 흘려보내
+          # is_new_variant=true 면 services_author 산출 (manifest.scenario_hints) 도 vars 로 흘려보내
           # 시나리오 생성 phase 가 host vars 로 직접 읽을 수 있게.
       # === 옵션 외 항목은 group vars 가능 (덜 민감) ===
       vars:
@@ -85,6 +85,8 @@ all:
 ## 골격 — arm64-sample.yml 기반
 
 [playbooks/inventory/arm64-sample.yml](../../../infra/testbed/playbooks/inventory/arm64-sample.yml) 형식 그대로 mimic.
+아래 골격은 connection vars 뿐 아니라 testbed 식별 / Polestar10 / k3d 변수까지
+host-level 에 포함해야 한다.
 
 ```yaml
 all:
@@ -102,6 +104,25 @@ all:
           ansible_become_password: "{{ lookup('env', 'TESTBED_BECOME_PASSWORD') }}"
           {% endif %}
           ansible_python_interpreter: /usr/bin/python3
+          app_repo: "{{APP_REPO}}"
+          app_version: "{{BRANCH}}"
+          app_subdir: "{{APP_SUBDIR}}"
+          app_namespace: "{{NAMESPACE}}"
+          testbed_services: {{TESTBED_SERVICES}}
+          db_kind: "{{DB_KIND}}"
+          polestar10_collector_host: "{{POLESTAR10_COLLECTOR_HOST}}"
+          polestar_organization_id: "{{POLESTAR_ORGANIZATION_ID}}"
+          polestar10_kcm_collector_port: {{POLESTAR10_KCM_COLLECTOR_PORT}}
+          polestar10_sms_broker_port: {{POLESTAR10_SMS_BROKER_PORT}}
+          cluster_kind: "{{CLUSTER_KIND}}"
+          cluster_name: "{{CLUSTER_NAME}}"
+          kubeconfig_path: "{{KUBECONFIG_PATH}}"
+          k3d_api_port: {{K3D_API_PORT}}
+          k3d_node_http_port: {{K3D_NODE_HTTP_PORT}}
+          k3d_node_https_port: {{K3D_NODE_HTTPS_PORT}}
+          k3d_node_nodeport_offset: {{K3D_NODE_NODEPORT_OFFSET}}
+          k3d_node_nodeport_max: {{K3D_NODE_NODEPORT_MAX}}
+          scenario_runner_port: {{SCENARIO_RUNNER_PORT}}
       # ⚠️ testbed 식별 / Polestar10 broker 변수는 모두 host-level 에 있어야 함
       # (위 hosts: <ALIAS>: 영역). group vars 영역에 두면 group_vars/all.yml 의
       # default 가 이김 (회고 P0 #3 의 root cause). 본 vars: 영역에는 진짜 group-wide
@@ -176,7 +197,7 @@ NMS 는 ansible role 이 없으니 inventory 변경 X. testbed-polestar10-regist
 
 ## 검증
 
-inventory.yml 작성 후 phase 7 진입 전:
+inventory.yml 작성 후 `ansible_deploy` 진입 전:
 
 ```bash
 # 1. yaml 문법 검증

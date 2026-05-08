@@ -256,7 +256,7 @@ docker-compose -f docker-compose.dev.yml up --build
 - WPM 은 Java 21 미지원 — 본 testbed 는 Java 17 고정.
 ```
 
-서비스 분할 / DB / failure_surfaces 가 사람이 읽기 쉬운 표·리스트 형태로 렌더링. testbed-build 오케스트레이터가 phase 6 services-author 직후 사용자에게 README 경로 알림 + finalize 보고서에도 링크 포함.
+서비스 분할 / DB / failure_surfaces 가 사람이 읽기 쉬운 표·리스트 형태로 렌더링. testbed-build 오케스트레이터가 `services_author` 직후 사용자에게 README 경로 알림 + finalize 보고서에도 링크 포함.
 
 #### `k8s/build-and-deploy.sh`
 ```bash
@@ -352,7 +352,7 @@ git push 인증 실패 (401) 시 verdict=`auth-failed` + ask-polestar10 우회 (
 
 ```json
 {
-  "phase": "services-author",
+  "phase": "services_author",
   "verdict": "ok|warn|fail|skipped",
   "summary": "core-banking 4 services 합성 + 빌드 통과 + PR 12 생성",
   "outputs": {

@@ -46,7 +46,7 @@ AskUserQuestion(questions=[
 
 ## Step 3: 선택별 분기
 
-- (1) → Phase 5~9 skip, Phase 10 (generate-scenarios) 로 점프
+- (1) → `lock_acquired` / `services_author` / `inventory_generated` / `ansible_deploy` / `sanity_check` / `polestar10_register` skip, `generate_scenarios` 로 점프
 - (2) → Phase 1 으로 복귀
 - (3) → k3d: `sshpass -e ssh ${TARGET_USER}@${TARGET_HOST} "k3d cluster delete ${CLUSTER_NAME}"` 후 Phase 5 / k3s: `kubectl delete ns ${APP_NAMESPACE} --wait=true`
 - (4) → 그대로 Phase 5 진행 (helm upgrade --install 이 idempotent)

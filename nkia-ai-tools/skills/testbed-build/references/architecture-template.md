@@ -139,36 +139,38 @@ graph TB
 
 ---
 
-## 알람 정책 (Phase 10 후 채워짐)
+## 알람 정책 (`tune_alarms` 후 채워짐)
 
-> 본 단계에서는 placeholder. Phase 10 (testbed-tune-alarms) 완료 후 자동 재작성됨.
+> 본 단계에서는 placeholder. `tune_alarms` 완료 후 자동 재작성됨.
 
 ---
 
-## 시나리오 (Phase 9 후 채워짐)
+## 시나리오 (`generate_scenarios` 후 채워짐)
 
-> 본 단계에서는 placeholder. Phase 9 (testbed-generate-scenarios) 완료 후 자동 재작성됨.
+> 본 단계에서는 placeholder. `generate_scenarios` 완료 후 자동 재작성됨.
 
 ---
 
 ## 사용 phase 목록 (오케스트레이터 흐름)
 
-| Phase | 작업 | 주요 컴포넌트 |
+| phase_id | 작업 | 주요 컴포넌트 |
 |---|---|---|
-| 1 | 인터뷰 4단계 (+ 새 testbed 시 deep interview) | 인라인 |
-| 2 | Polestar10 도달성 precheck | curl root URL — auth path 는 server 버전마다 다름, login.md 가 처리 |
-| 3 | 아키텍처 v1 작성 | 인라인 (이 문서) |
-| 4 | 사용자 승인 ⛔ | — |
-| 5 | Concurrency lock | flock |
-| 6 | Services-author (새 testbed 시만) | testbed-engineer agent — testbed-services 레포에 코드 생성 + git push |
-| 7 | Dynamic inventory 생성 | 인라인 |
-| 8 | ansible-playbook 실행 | site.yml + 7 roles (common / agent-wpm / agent-apm / service-k8s / agent-kcm / agent-sms / scenario-runner) |
-| 9 | Polestar10 자원 등록 | testbed-polestar10-register |
-| 10 | 시나리오 생성 | testbed-generate-scenarios (scenario_hints 활용) |
-| 11 | 알람 정책 합성 + 등록 | testbed-tune-alarms |
-| 12 | Closed-loop verify (max 3) | testbed-verifier agent + tune-alarms 재호출 |
-| 13 | Finalize 보고서 | 인라인 |
-| 14 | Cleanup | runs 디렉토리 + lock release |
+| `interview` | 인터뷰 4단계 (+ 새 testbed 시 deep interview) | 인라인 |
+| `precheck` | Polestar10 도달성 precheck | curl root URL — auth path 는 server 버전마다 다름, login.md 가 처리 |
+| `architecture` | 아키텍처 v1 작성 | 인라인 (이 문서) |
+| `user_approval` | 사용자 승인 ⛔ | — |
+| `existing_testbed_detect` | 기존 cluster 감지 | ssh/k3d/kubectl |
+| `lock_acquired` | Concurrency lock | flock |
+| `services_author` | Services-author (새 testbed 시만) | testbed-engineer agent — testbed-services 레포에 코드 생성 + git push |
+| `inventory_generated` | Dynamic inventory 생성 | 인라인 |
+| `ansible_deploy` | ansible-playbook 실행 | site.yml + roles |
+| `sanity_check` | standby heartbeat 확인 | Polestar10 API |
+| `polestar10_register` | Polestar10 자원 등록 | testbed-polestar10-register |
+| `generate_scenarios` | 시나리오 생성 | testbed-generate-scenarios (scenario_hints 활용) |
+| `tune_alarms` | 알람 정책 합성 + 등록 | testbed-tune-alarms |
+| `verify` | Closed-loop verify (max 3) | testbed-verifier agent + tune-alarms 재호출 |
+| `finalize` | Finalize 보고서 | 인라인 |
+| `cleanup` | Cleanup | runs 디렉토리 + lock release |
 
 ---
 
@@ -178,20 +180,20 @@ graph TB
 - **rca-scenario-runner refactor 가 머지 전이면** 시나리오는 yaml 만 떨어뜨리고 컨테이너 재시작 시점부터 활성화.
 - **closed-loop max retry = 3**. 실패 시 PARTIAL/FAIL 결과로 finalize. 수동 분석 필요할 수 있음.
 - **단일 target 동시 실행 X**. flock 으로 가드.
-- **새 testbed 시 PR 머지 대기**: push_mode=pr 면 PR 생성 후 사람이 머지해야 Phase 8 ansible 진행. push_mode=direct-push 시 자동.
+- **새 testbed 시 PR 머지 대기**: push_mode=pr 면 PR 생성 후 사람이 머지해야 `ansible_deploy` 진행. push_mode=direct-push 시 자동.
 
 ---
 
 이 아키텍처대로 진행하시겠습니까?
 
-(승인 → Phase 5 lock 획득 → ansible 배포 시작. 25~45분 소요 예상.)
+(승인 → `lock_acquired` → ansible 배포 시작. 25~45분 소요 예상.)
 ```
 
 ---
 
-## 동적 부분 — Phase 9, 10 후 재작성
+## 동적 부분 — `generate_scenarios`, `tune_alarms` 후 재작성
 
-[Phase 9] testbed-generate-scenarios 완료 후 architecture.md 의 "## 시나리오" 섹션을 다음으로 교체:
+[`generate_scenarios`] testbed-generate-scenarios 완료 후 architecture.md 의 "## 시나리오" 섹션을 다음으로 교체:
 
 ```markdown
 ## 시나리오
@@ -202,7 +204,7 @@ graph TB
 | ... |
 ```
 
-[Phase 10] testbed-tune-alarms 완료 후 "## 알람 정책" 섹션 교체:
+[`tune_alarms`] testbed-tune-alarms 완료 후 "## 알람 정책" 섹션 교체:
 
 ```markdown
 ## 알람 정책
