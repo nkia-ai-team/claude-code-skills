@@ -102,6 +102,57 @@ CUSTOM tag key 목록 (사용자 정의 가능):
 
 ---
 
+## 자원 → 그룹 link 변경 (기존 자원의 서비스 그룹 갱신)
+
+기존 등록된 자원의 `serviceGroup` 태그값을 다른 값으로 바꿀 때. 같은 endpoint 가 **신규 link / 기존 link 갱신 모두** 수행 (upsert).
+
+```bash
+CONF_ID="-395796245_mysql.MySQL"   # 자원의 confId (resourceId + "_" + resourceType)
+NEW_GROUP="social-feed"
+
+curl $POLESTAR10_CURL_OPTS -X POST \
+  --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -d "$(jq -cn --arg c "$CONF_ID" --arg v "$NEW_GROUP" \
+        '{confId:$c, tagType:"CUSTOM", key:"serviceGroup", value:$v, tagDataType:"STRING"}')" \
+  "$POLESTAR10_BASE_URL/api/cm/tag/resource/insert"
+```
+
+> **body 핵심**: `confId` (path 아님 body), `tagType:"CUSTOM"`, `key`/`value` (tagKey/tagValue 아님), `tagDataType:"STRING"` 5개 모두 필수. parameter wrapping 없음. 누락 시 `POLESTAR_00004`.
+
+응답 (성공):
+```json
+{
+  "success": true,
+  "data": {
+    "id": "-395796245_mysql.MySQL",
+    "tags": [ ... 갱신된 tag 목록 ..., {"key":"serviceGroup","value":"social-feed","tagType":"CUSTOM"} ],
+    "managementStatus": "MANAGED",
+    ...
+  }
+}
+```
+
+검증:
+```bash
+curl $POLESTAR10_CURL_OPTS -X POST --cookie "$POLESTAR10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  "$POLESTAR10_BASE_URL/api/cm/tag/resource/select/$CONF_ID" \
+  | jq '.data[] | select(.key=="serviceGroup")'
+```
+
+> **CUSTOM tag 일반 변경 패턴**: 같은 endpoint 로 다른 CUSTOM key (`logType` 등) 도 갱신 가능. `tagType:"SYSTEM"` 으로는 거부됨.
+
+> **confId 형식**: 자원 타입별 prefix 가 다름.
+> - DPM: `<resourceId>_<dbType>.<DBType>` (예: `-395796245_mysql.MySQL`)
+> - 서버: `MA_<host>_<ts>_server.Server`
+> - APM: `<resourceId>_apm.Agent`
+> - Web URL: `weburl_<id>` (자체가 이미 confId 형태)
+>
+> list-filter 응답의 `confId` 또는 `id` 필드 또는 `tag/resource/select` 응답의 `confId` tag 값에서 추출.
+
+---
+
 ## 사용 흐름 — 테스트베드 시나리오
 
 ```bash
