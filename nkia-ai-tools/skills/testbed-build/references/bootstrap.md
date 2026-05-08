@@ -26,8 +26,8 @@ git:
   default_branch_strategy: "feature-pr" # feature-pr | direct-develop
 
 agents:
-  kcm_source_repo: ""                   # ARM64 KCM source-build 시 사내 GitLab URL (예: https://cims2.nkia.net:8443/gitlab/lucida-kcmagent). 비우면 KCM 자동 skip
-  kcm_source_credentials_help: ""       # 사용자 메모용 — clone 시 자격증명 어떻게 통과시키는지 (예: "git config credential.helper store 후 한 번 수동 clone")
+  kcm_source_repo: "https://cims2.nkia.net:8443/gitlab/lucida-kcmagent.git"   # ARM64 KCM source-build 시 사내 GitLab URL. default 박혀있어 사용자 인터뷰 X. 다른 GitLab 인스턴스 사용 환경이면 케이스 B 캐시 confirm 카드의 "일부 변경" 으로 수정.
+  kcm_source_branch: "develop"          # default branch. 변경 빈도 낮음 — 인터뷰 X.
 
 paths:
   testbed_services_repo: ""             # 자동 발견 결과 또는 인터뷰. 비우면 cwd → ~/dev → ~/projects → ~ 순회
@@ -331,9 +331,10 @@ Polestar10 web (https://<base_url>) 로그인 → 우측 상단 [계정] 아이�
 
 ARM64 타겟의 KCM 은 사내 GitLab 의 lucida-kcmagent 소스 빌드 패턴. controller 에서 소스 확보 후 scp 로 타겟에 전달.
 
+⚠️ **bootstrap 단계에선 URL/자격증명 prompt X** — `kcm_source_repo` default 가 이미 박혀있어 첫 인터뷰는 흐름 끊지 X. 실제 처리는 phase loop 진입 후 ARM64 감지된 시점에 [kcm-arm64-setup.md](kcm-arm64-setup.md) 의 Step 1~3 (cwd 자동 검색 → 사용자 path 입력 → fallback clone) 만 발동. clone 실패 (사내망 X / 자격증명 만료) 시 그때 통과 방법 사용자 prompt — lazy.
+
 **상세 절차**: [kcm-arm64-setup.md](kcm-arm64-setup.md) 를 read.
 - target.arch == arm64 일 때만 read. AMD64 면 본 reference skip.
-- cwd 자동 검색 → 사용자 path 입력 → fallback clone 의 3 단계
 - 결정된 path 는 bootstrap.yaml 의 `paths.kcm_local_source` 저장
 
 → 모든 답변 종합 → `~/.testbed-build/bootstrap.yaml` (chmod 600) + `~/.polestar10rc` (chmod 600). 다음 호출부터 묻지 않음. 자격증명 변경 시 사용자가 직접 yaml 편집 또는 파일 삭제 후 재인터뷰.
