@@ -1,6 +1,8 @@
 # Sub-agent verdict JSON 표준
 
-testbed-build orchestrator 와 모든 sub-agent (testbed-engineer / testbed-deployer / testbed-tuner / testbed-verifier) 사이의 통신 계약.
+testbed-build orchestrator 와 모든 sub-agent (testbed-engineer / testbed-deployer /
+testbed-tuner / testbed-verifier) 사이의 통신 계약. `phase` 값은
+[phase-contract.md](phase-contract.md) 의 canonical `phase_id` 를 사용한다.
 
 ## 디자인 원칙
 
@@ -14,7 +16,7 @@ testbed-build orchestrator 와 모든 sub-agent (testbed-engineer / testbed-depl
 
 ```json
 {
-  "phase": "<phase-id>",
+  "phase": "<phase_id from phase-contract.md>",
   "verdict": "ok|warn|fail|skipped",
   "summary": "<한 줄, 80자 이내>",
   "outputs": { /* phase-specific 구조 */ },
@@ -45,11 +47,11 @@ testbed-build orchestrator 와 모든 sub-agent (testbed-engineer / testbed-depl
 
 ## phase 별 outputs 스키마
 
-### Phase 6 — testbed-engineer (services-author)
+### `services_author` — testbed-engineer
 
 ```json
 {
-  "phase": "services-author",
+  "phase": "services_author",
   "outputs": {
     "testbed_name": "core-banking",
     "subdir_created": "<paths.testbed_services_repo>/core-banking",
@@ -70,13 +72,13 @@ testbed-build orchestrator 와 모든 sub-agent (testbed-engineer / testbed-depl
 }
 ```
 
-`scenario_hints` 는 Phase 10 (testbed-generate-scenarios) 가 변수 매핑에 사용.
+`scenario_hints` 는 `generate_scenarios` 가 변수 매핑에 사용.
 
-### Phase 8 — testbed-deployer (ansible-deploy)
+### `ansible_deploy` — testbed-deployer
 
 ```json
 {
-  "phase": "ansible-deploy",
+  "phase": "ansible_deploy",
   "outputs": {
     "ansible_rc": 0,
     "play_recap": {"ok": 42, "changed": 15, "unreachable": 0, "failed": 0, "skipped": 3},
@@ -88,11 +90,11 @@ testbed-build orchestrator 와 모든 sub-agent (testbed-engineer / testbed-depl
 
 raw 로그는 `outputs.log_path` 에만 보존 (parent verdict 에 인용 X).
 
-### Phase 11 — testbed-tuner (tune-alarms)
+### `tune_alarms` — testbed-tuner
 
 ```json
 {
-  "phase": "tune-alarms",
+  "phase": "tune_alarms",
   "outputs": {
     "policy_yaml": "<full yaml string>",
     "summary_table": [
@@ -110,11 +112,11 @@ raw 로그는 `outputs.log_path` 에만 보존 (parent verdict 에 인용 X).
 
 raw 시계열 (수천 datapoint) 은 agent 안에서만 머물고 verdict 에 X.
 
-### Phase 12 — testbed-verifier (verify-scenarios)
+### `verify` — testbed-verifier
 
 ```json
 {
-  "phase": "verify-scenarios",
+  "phase": "verify",
   "outputs": {
     "overall": "PASS|PARTIAL|FAIL|ERROR",
     "scenarios": [
@@ -175,7 +177,7 @@ raw 시계열 (수천 datapoint) 은 agent 안에서만 머물고 verdict 에 X.
 | `retry` | 같은 phase 재실행 | retry counter ++ 후 동일 dispatch (max 2) |
 | `user-decision` | 사용자 결정 필수 | AskUserQuestion 카드 또는 자유 prompt |
 | `dispatch_register_scenario_2` | 후속 sub-skill 호출 | testbed-polestar10-register 시나리오 2 dispatch |
-| `dispatch_tune_and_retry` | tune-alarms → 다시 verify | recommendations 적용 → Phase 12 재진입 |
+| `dispatch_tune_and_retry` | tune-alarms → 다시 verify | recommendations 적용 → `verify` 재진입 |
 
 ## 멱등성 + 재시도 룰
 
@@ -207,4 +209,4 @@ fi
 
 본 표준은 [Anthropic Agent Skills Best Practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) + [Equipping agents for the real world](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) 의 orchestrator-worker 패턴 적용. 무거운 raw 데이터를 sub-agent fork context 에 격리하고 parent 는 verdict JSON 만 받아 next phase 결정.
 
-라운드 9 dogfooding 누적 학습 (NKIAAI-583): "context 한도 가득 차서 finalize escape" 패턴이 monolithic 디자인의 자연 결과였음. sub-agent 격리로 각 phase 의 verdict 가 ~1KB 수준으로 일정 → orchestrator context 가 phase 12 까지 가도 여유.
+라운드 9 dogfooding 누적 학습 (NKIAAI-583): "context 한도 가득 차서 finalize escape" 패턴이 monolithic 디자인의 자연 결과였음. sub-agent 격리로 각 phase 의 verdict 가 ~1KB 수준으로 일정 → orchestrator context 가 `verify` 까지 가도 여유.

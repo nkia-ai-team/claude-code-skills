@@ -1,19 +1,19 @@
 # Services-Author Task Spec
 
-testbed-build Phase 6 (services-author) 가 testbed-engineer agent 에 넘기는 task spec.
+testbed-build `services_author` 가 testbed-engineer agent 에 넘기는 task spec.
 
-**조건**: interview.app.testbed_name 이 testbed-services 레포에 **없는 새 testbed** 일 때만 실행. 기존 testbed (plopvape-shop 등) 이면 skip 하고 바로 Phase 7 (inventory) 진행.
+**조건**: interview.app.testbed_name 이 testbed-services 레포에 **없는 새 testbed** 일 때만 실행. 기존 testbed (plopvape-shop 등) 이면 skip 하고 바로 `inventory_generated` 진행.
 
 ## Trigger 조건
 
 ```bash
 TESTBED_DIR="${TESTBED_SVC_REPO}/${INTERVIEW_TESTBED_NAME}"
 if [ -d "$TESTBED_DIR" ]; then
-  echo "[phase 6] testbed-services 에 ${INTERVIEW_TESTBED_NAME} 이미 존재. services-author skip."
+  echo "[services_author] testbed-services 에 ${INTERVIEW_TESTBED_NAME} 이미 존재. services_author skip."
   update_manifest_phase "services_author" "completed"
   return 0
 fi
-echo "[phase 6] 신규 testbed → services-author dispatch"
+echo "[services_author] 신규 testbed → testbed-engineer dispatch"
 ```
 
 ## Task prompt (testbed-engineer 에게 전달)
@@ -102,7 +102,7 @@ spec:
 
 testbed-engineer agent 가 새 Deployment manifest 생성 시 위 5 env + volumes/volumeMounts 자동 포함. plopvape-shop 의 검증된 manifest 를 reference_subdir 로 사용 — 그 패턴 그대로 mimic.
 
-검증: ansible-playbook 직후 SKILL.md Phase 8 의 8-c sanity check (APM standby agent count) 가 자동 검증 — fail 시 manifest 미반영 의심.
+검증: ansible-playbook 직후 `sanity_check` (APM standby agent count) 가 자동 검증 — fail 시 manifest 미반영 의심.
 
 ### 🚫 매니페스트 치환 패턴 — 강제 룰 (services-author 가 신규 testbed 만들 때 따를 것)
 
@@ -232,7 +232,7 @@ testbed-engineer 가 반환한 JSON:
 
 오케스트레이터:
 1. **verdict 확인**:
-   - `ok` → manifest.phases.services_author = completed. scenario_hints 를 manifest 에 보존 (Phase 10 generate-scenarios 가 사용).
+   - `ok` → manifest.phases.services_author.status = completed. scenario_hints 를 manifest 에 보존 (`generate_scenarios` 가 사용).
    - `conflict` → 사용자 prompt: "이름 충돌. 다른 이름?"
    - `build-failed` → testbed-engineer 가 자동 fix 3회 시도 후도 실패. 사용자에게 로그 + 디렉토리 보존 + manual fix 권고.
    - `auth-failed` → git push 인증 실패. PAT 점검 안내.
@@ -245,7 +245,7 @@ testbed-engineer 가 반환한 JSON:
    ```python
    AskUserQuestion(questions=[
      {
-       "question": "PR 머지 후 Phase 7 (ansible deploy) 진행을 어떻게 하시겠어요?",
+       "question": "PR 머지 후 inventory 생성과 ansible 배포를 어떻게 진행할까요?",
        "header": "PR 머지",
        "multiSelect": False,
        "options": [
@@ -264,7 +264,7 @@ testbed-engineer 가 반환한 JSON:
    ```
 
 4. **architecture.md 갱신**:
-   생성된 services_created + scenario_hints 를 architecture.md 에 추가 (Phase 12 finalize 가 보고서에 포함).
+   생성된 services_created + scenario_hints 를 architecture.md 에 추가 (`finalize` 가 보고서에 포함).
 
 ## Push mode 선택 가이드
 
@@ -278,18 +278,18 @@ testbed-engineer 가 반환한 JSON:
 
 ## services-author 미사용 (skip) 시나리오
 
-다음 경우 phase 6 skip:
+다음 경우 `services_author` skip:
 1. interview.app.testbed_name 이 testbed-services 레포에 이미 존재 (= 기존 plopvape-shop 등)
 2. 사용자가 인터뷰에서 옵션 1 (plopvape-shop 레퍼런스) 또는 2 (다른 기존 testbed) 선택
 
-→ manifest.phases.services_author = `skipped` 로 기록. Phase 7 진행.
+→ manifest.phases.services_author.status = `skipped` 로 기록. `inventory_generated` 진행.
 
 ## 실패 시 manifest 상태
 
 | 상태 | 처리 |
 |---|---|
-| completed | scenario_hints 보존 + Phase 7 진행 |
-| skipped | Phase 7 진행 |
+| completed | scenario_hints 보존 + `inventory_generated` 진행 |
+| skipped | `inventory_generated` 진행 |
 | failed (build) | run dir 보존 + 사용자 manual fix 권고. resume 시 재시도 prompt. |
 | failed (auth) | run dir 보존 + PAT 점검 안내. |
 | failed (conflict) | run dir 보존 + 인터뷰 다시 prompt (이름 변경) |

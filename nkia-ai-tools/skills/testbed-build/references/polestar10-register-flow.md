@@ -1,6 +1,6 @@
-# Phase 9 — Polestar10 관리대상 등록 (KCM / APM / WPM / SMS / DPM / NMS — 사전 점검 + dispatch + PARTIAL 처리)
+# `polestar10_register` — Polestar10 관리대상 등록 (KCM / APM / WPM / SMS / DPM / NMS — 사전 점검 + dispatch + PARTIAL 처리)
 
-**조건부 적용**: Phase 8 (ansible-playbook) 완료 직후 read. agent install 끝난 시점.
+**조건부 적용**: `ansible_deploy` + `sanity_check` 완료 직후 read. agent install 끝난 시점.
 
 ## 9-a. 사전 점검 (testbed-polestar10-register dispatch 전)
 
@@ -25,7 +25,7 @@ ORG_ID=$(yq '.polestar10.organization_id' ~/.testbed-build/bootstrap.yaml)
 ### 3. agent install 후 standby polling delay
 
 ```bash
-echo "[phase 9] Polestar10 backend 가 SMS/KCM/APM heartbeat 받아 standby 에 등록할 시간 확보 (60초)..."
+echo "[polestar10_register] Polestar10 backend 가 SMS/KCM/APM heartbeat 받아 standby 에 등록할 시간 확보 (60초)..."
 sleep 60
 ```
 
@@ -52,7 +52,7 @@ testbed-polestar10-register 가 일부 자원 등록 실패 시 PARTIAL 반환. 
    - APM (OTel) 자동 등록 안 됨 → Polestar10 web UI 직접 안내
    - DPM mysql 도달성 X → NodePort 방화벽 / network policy 확인
 3. 사용자 선택:
-   - (1) 그대로 진행 (Phase 10 시나리오 생성으로) — 부분 등록 자원만으로 verify
+   - (1) 그대로 진행 (`generate_scenarios` 로) — 부분 등록 자원만으로 verify
    - (2) 등록 재시도 (특정 자원만)
-   - (3) Phase 9 전체 retry (60초 추가 sleep + dispatch)
+   - (3) `polestar10_register` 전체 retry (60초 추가 sleep + dispatch)
    - (4) 중단 (run 보존, 사용자가 web UI 에서 보강 후 재호출)

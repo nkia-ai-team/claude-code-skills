@@ -1,6 +1,6 @@
 # Verify Task — testbed-verifier 에 넘기는 spec
 
-testbed-build Phase 11 closed-loop 의 단발 호출 task.
+testbed-build `verify` closed-loop 의 단발 호출 task.
 
 ## Agent 호출 prompt 템플릿
 
@@ -83,7 +83,7 @@ context:
 
 ## 오케스트레이터 retry 루프
 
-[SKILL.md Phase 11 의 의사코드 그대로]:
+[SKILL.md `verify` 의 의사코드 그대로]:
 
 ```bash
 ATTEMPT=1
@@ -137,7 +137,7 @@ done
 
 # 최종 verdict 를 manifest 에 기록
 update_manifest "verify_attempts" "$ATTEMPT"
-update_manifest "phases.verify" "completed"   # 또는 failed
+update_manifest "phases.verify.status" "completed"   # 또는 failed
 ```
 
 ## attempt 사이 sleep

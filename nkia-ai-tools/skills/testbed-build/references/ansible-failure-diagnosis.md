@@ -1,6 +1,8 @@
 # Ansible 배포 + 실패 진단 — testbed-deployer agent dispatch 패턴
 
-Phase 6 (ansible deploy) 의 dispatch 표준. orchestrator 는 ansible-playbook 을 직접 호출 X — testbed-deployer agent 에게 위임. agent 가 단일 호출에서 run + 로그 캡처 + 진단까지 통합 처리.
+`ansible_deploy` 의 dispatch 표준. orchestrator 는 ansible-playbook 을 직접 호출 X —
+testbed-deployer agent 에게 위임. agent 가 단일 호출에서 run + 로그 캡처 + 진단까지
+통합 처리.
 
 이유: ansible 로그 (수만 줄, 수십 MB) 를 parent context 에 유입시키지 않음. agent 가 fork context 에서 처리 후 verdict JSON 만 리턴.
 
@@ -19,7 +21,15 @@ input (yaml):
     polestar10_collector_host: <bootstrap.polestar10.collector_host>
     polestar_organization_id:  <bootstrap.polestar10.organization_id>
     # ... 그 외 inventory override
+
+  env:
+    TESTBED_PASSWORD: "<ssh password, password auth 일 때만>"
+    TESTBED_BECOME_PASSWORD: "<sudo password, 필요 시>"
+    TESTBED_SSH_KEY: "<ssh key path, key auth 일 때만>"
 ```
+
+`env` 값은 verdict JSON / deploy.log / diagnosis.log 에 출력하지 않는다. testbed-deployer 는
+위 env 를 ansible-playbook process 에만 전달한다.
 
 Agent 가 internally:
 1. log_dir 준비
@@ -40,8 +50,8 @@ SUMMARY=$(jq -r '.summary' <<< "$VERDICT_JSON")
 
 | verdict | next_action | orchestrator 동작 |
 |---|---|---|
-| `ok` | `proceed` | manifest phase=completed → phase 7 진행 |
-| `warn` | `proceed` | manifest phase=completed (changed=0 멱등성 케이스) → phase 7 |
+| `ok` | `proceed` | manifest `ansible_deploy.status=completed` → `sanity_check` 진행 |
+| `warn` | `proceed` | manifest `ansible_deploy.status=completed_with_warnings` → `sanity_check` 진행 |
 | `fail` (severity=recoverable) | `retry` | 사용자 prompt: "fix 적용 후 재시도?" → yes 면 retry counter (max 2) |
 | `fail` (severity=blocking) | `user-decision` | 사용자에게 cause + fix 표시 + run 보존하고 종료 (resume 가능) |
 | `skipped` | `user-decision` | 사전 조건 미충족 안내 |
@@ -88,4 +98,4 @@ yes → ask-polestar10 trigger → 매뉴얼 답변 + 사용자 안내. 그 후 
 
 deploy.log 는 testbed-deployer agent 가 `/tmp/testbed-build/<run_id>/deploy.log` 에 저장. orchestrator 는 verdict.outputs.log_path 만 안고, 사용자가 필요 시 직접 read.
 
-phase 12 finalize 단계에서 gzip 또는 tail -1000 만 보존 (디스크 절약).
+`finalize` 단계에서 gzip 또는 tail -1000 만 보존 (디스크 절약).

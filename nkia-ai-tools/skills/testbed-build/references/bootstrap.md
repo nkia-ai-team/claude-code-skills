@@ -49,7 +49,7 @@ cluster:
 
 ## ⚠️ Step 0 — 컨트롤러 도구 사전 검증
 
-본격 인터뷰 진입 전, 컨트롤러 (Claude Code 가 실행 중인 머신) 에 필요한 CLI 도구들이 깔려있는지 확인합니다. 부재 시 자동 설치 옵션을 제공해 사용자가 phase 7~8 시점에 cryptic 에러를 보지 않도록 사전 차단.
+본격 인터뷰 진입 전, 컨트롤러 (Claude Code 가 실행 중인 머신) 에 필요한 CLI 도구들이 깔려있는지 확인합니다. 부재 시 자동 설치 옵션을 제공해 사용자가 `inventory_generated` / `ansible_deploy` 시점에 cryptic 에러를 보지 않도록 사전 차단.
 
 ```bash
 required=(ansible-playbook sshpass ssh git curl jq yq gh)

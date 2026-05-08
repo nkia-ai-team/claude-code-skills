@@ -1,6 +1,7 @@
 # State Schema — `~/.testbed-build/`
 
-testbed-build 의 모든 상태가 살아있는 디렉토리.
+testbed-build 의 모든 상태가 살아있는 디렉토리. phase id, 순서, 상태 enum 은
+[phase-contract.md](phase-contract.md) 를 따른다.
 
 ## 디렉토리 레이아웃
 
@@ -18,14 +19,14 @@ testbed-build 의 모든 상태가 살아있는 디렉토리.
 └── runs/                                          진행 중 + 실패 케이스만 잔존
     └── 2026-04-30-153022/                         RUN_ID = $(date +%Y%m%d-%H%M%S)
         ├── manifest.yaml                           phase-checkpoint
-        ├── interview.yaml                          Phase 1 결과
-        ├── architecture.md                          Phase 3 산출 (Phase 9, 10 재작성)
-        ├── inventory.yml                           Phase 6 산출 (ansible 입력)
-        ├── deploy.log                              Phase 7 stdout/stderr (testbed-engineer 진단 입력)
-        ├── register.json                           Phase 8 산출 (자원 ID 매핑)
-        ├── scenarios.json                          Phase 9 산출 (생성 파일 목록)
-        ├── alarms.json                             Phase 10 산출 (등록 정책 목록)
-        ├── verify.log                              Phase 11 attempt 누적
+        ├── interview.yaml                          interview 결과
+        ├── architecture.md                          architecture 산출 (scenarios/alarms 후 재작성)
+        ├── inventory.yml                           inventory_generated 산출 (ansible 입력)
+        ├── deploy.log                              ansible_deploy stdout/stderr
+        ├── register.json                           polestar10_register 산출 (자원 ID 매핑)
+        ├── scenarios.json                          generate_scenarios 산출
+        ├── alarms.json                             tune_alarms 산출
+        ├── verify.log                              verify attempt 누적
         └── metrics-snapshot.json                   testbed-tune-alarms 가 캐시
 ```
 
@@ -33,15 +34,15 @@ testbed-build 의 모든 상태가 살아있는 디렉토리.
 
 | 파일 | 작성 phase | 읽는 phase | 누가 |
 |---|---|---|---|
-| bootstrap.yaml | 첫 호출 인터뷰 | 모든 phase | testbed-build 자체 |
-| interview.yaml | 1 | 3, 6, 7, 8, 11, 12 | testbed-build 자체 |
-| architecture.md | 3 | 4 (사용자 승인), 12 (보고서) | testbed-build 자체 |
-| inventory.yml | 6 | 7 | ansible-playbook |
-| deploy.log | 7 | 7 (실패 시) | testbed-engineer agent |
-| register.json | 8 | 9, 10, 11 | testbed-polestar10-register |
-| scenarios.json | 9 | 11, 12 | testbed-generate-scenarios |
-| alarms.json | 10 | 11, 12 | testbed-tune-alarms |
-| verify.log | 11 | 12 | testbed-verifier agent (append per attempt) |
+| bootstrap.yaml | `bootstrap` | 모든 phase | testbed-build 자체 |
+| interview.yaml | `interview` | `architecture`, `inventory_generated`, `ansible_deploy`, `tune_alarms`, `verify` | testbed-build 자체 |
+| architecture.md | `architecture` | `user_approval`, `finalize` | testbed-build 자체 |
+| inventory.yml | `inventory_generated` | `ansible_deploy` | ansible-playbook |
+| deploy.log | `ansible_deploy` | `ansible_deploy` 실패 진단, `finalize` | testbed-deployer agent |
+| register.json | `polestar10_register` | `generate_scenarios`, `tune_alarms`, `verify`, `finalize` | testbed-polestar10-register |
+| scenarios.json | `generate_scenarios` | `verify`, `finalize` | testbed-generate-scenarios |
+| alarms.json | `tune_alarms` | `verify`, `finalize` | testbed-tune-alarms |
+| verify.log | `verify` | `finalize` | testbed-verifier agent (append per attempt) |
 
 ## manifest.yaml — 단일 source of truth
 
@@ -55,20 +56,63 @@ mode: 1
 created_at: 2026-04-30T15:30:22Z
 last_updated_at: 2026-04-30T15:32:08Z
 
+manifest_version: 2
+current_phase: ansible_deploy
+
 phases:
-  bootstrap: completed       # pending | in_progress | completed | failed
-  interview: completed
-  precheck: completed
-  architecture: completed
-  user_approval: completed
-  lock_acquired: completed
-  inventory_generated: completed
-  ansible_deploy: in_progress
-  polestar10_register: pending
-  generate_scenarios: pending
-  tune_alarms: pending
-  verify: pending
-  finalize: pending
+  bootstrap:
+    status: completed       # pending | in_progress | completed | completed_with_warnings | skipped | failed | finalized_partial
+    attempts: 1
+  interview:
+    status: completed
+    attempts: 1
+  precheck:
+    status: completed
+    attempts: 1
+  architecture:
+    status: completed
+    attempts: 1
+  user_approval:
+    status: completed
+    attempts: 1
+  existing_testbed_detect:
+    status: skipped
+    attempts: 0
+  lock_acquired:
+    status: completed
+    attempts: 1
+  services_author:
+    status: skipped
+    attempts: 0
+  inventory_generated:
+    status: completed
+    attempts: 1
+  ansible_deploy:
+    status: in_progress
+    attempts: 1
+    artifact_paths:
+      deploy_log: deploy.log
+  sanity_check:
+    status: pending
+    attempts: 0
+  polestar10_register:
+    status: pending
+    attempts: 0
+  generate_scenarios:
+    status: pending
+    attempts: 0
+  tune_alarms:
+    status: pending
+    attempts: 0
+  verify:
+    status: pending
+    attempts: 0
+  finalize:
+    status: pending
+    attempts: 0
+  cleanup:
+    status: pending
+    attempts: 0
 
 verify_attempts: []          # phase=verify 진행 시 attempt 누적: [{n: 1, verdict: PARTIAL, missed: [...]}, ...]
 last_error: null              # 실패 phase 의 err 메시지 (resume 안내용)
@@ -78,13 +122,13 @@ artifacts:                    # 산출 파일 inventory (relative paths)
   architecture: architecture.md
   inventory: inventory.yml
   deploy_log: deploy.log
-  register: register.json     # phase 8 후
+  register: register.json
   # ...
 ```
 
 ## register.json 스키마
 
-testbed-polestar10-register 가 phase 8 에 작성:
+testbed-polestar10-register 가 `polestar10_register` 에 작성:
 
 ```json
 {
@@ -119,7 +163,7 @@ testbed-polestar10-register 가 phase 8 에 작성:
 
 ## scenarios.json 스키마
 
-testbed-generate-scenarios 가 phase 9 에 작성:
+testbed-generate-scenarios 가 `generate_scenarios` 에 작성:
 
 ```json
 {
@@ -142,7 +186,7 @@ testbed-generate-scenarios 가 phase 9 에 작성:
 
 ## alarms.json 스키마
 
-testbed-tune-alarms 가 phase 10 에 작성:
+testbed-tune-alarms 가 `tune_alarms` 에 작성:
 
 ```json
 {
@@ -165,7 +209,7 @@ testbed-tune-alarms 가 phase 10 에 작성:
 
 ## verify.log 스키마
 
-testbed-verifier 가 phase 11 attempt 마다 append:
+testbed-verifier 가 `verify` attempt 마다 append:
 
 ```
 === attempt 1 (2026-04-30T16:10:00Z) ===
@@ -192,14 +236,17 @@ all 4 scenarios PASS
 
 ## 정리 룰
 
-testbed-build phase 13 (cleanup):
+testbed-build `finalize` / `cleanup`:
 
 | 종료 상태 | 처리 |
 |---|---|
-| 모든 phase=completed | 1) report.md → reports/<RUN_ID>-<name>.md<br>2) (선택) zip → archive/<RUN_ID>.zip<br>3) runs/<RUN_ID>/ 삭제<br>4) lock release |
+| 모든 required phase=completed | 1) report.md → reports/<RUN_ID>-<name>.md<br>2) (선택) zip → archive/<RUN_ID>.zip<br>3) runs/<RUN_ID>/ 삭제<br>4) lock release |
+| verify PARTIAL/FAIL 후 사용자 finalize 선택 | finalize.status=`finalized_partial`, runs/<RUN_ID>/ 보존 권장, report 에 미통과 명시 |
 | 일부 phase=failed | runs/<RUN_ID>/ 보존. lock release. 사용자 안내. |
 | 일부 phase=in_progress (cancel) | runs/<RUN_ID>/ 보존. lock release. resume 가능 표시. |
 
 ## 마이그레이션 가이드
 
-manifest.yaml 스키마가 변경되면 `manifest_version` 필드 도입 권장 (현재는 V1 가정 — 단일 세션 구현이라 마이그레이션 안 함).
+manifest.yaml 스키마가 변경되면 `manifest_version` 을 올린다. 현재 canonical schema 는 V2.
+V1 manifest 를 resume 할 때는 [phase-contract.md](phase-contract.md) 의 누락 phase 를
+`pending` 으로 삽입한 뒤 저장한다.

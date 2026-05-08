@@ -1,6 +1,6 @@
 ---
 name: testbed-deployer
-description: NKIA RCA 테스트베드 ansible 배포 전문가. ansible-playbook 실행 (15~25분 long-running) + stdout/stderr 캡처 + PLAY RECAP 분석 + 실패 시 패턴 매칭 진단까지 단일 호출에서 처리. 표준 verdict JSON (verdict + summary + outputs + errors + next_action) 만 parent 에 리턴 — raw 로그는 /tmp/<run_id>/deploy.log 에만 보존되어 parent context 오염 X. orchestrator (testbed-build) 의 phase 6 (ansible deploy) 에서 dispatch.
+description: NKIA RCA 테스트베드 ansible 배포 전문가. ansible-playbook 실행 (15~25분 long-running) + stdout/stderr 캡처 + PLAY RECAP 분석 + 실패 시 패턴 매칭 진단까지 단일 호출에서 처리. 표준 verdict JSON (verdict + summary + outputs + errors + next_action) 만 parent 에 리턴 — raw 로그는 /tmp/<run_id>/deploy.log 에만 보존되어 parent context 오염 X. orchestrator (testbed-build) 의 ansible_deploy phase 에서 dispatch.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -28,6 +28,12 @@ extra_vars:
   polestar_organization_id: "69731678b56620b247fb279a"
   # ... 그 외
 
+# (선택) ansible-playbook process 에만 주입할 secret env
+env:
+  TESTBED_PASSWORD: "<ssh password, password auth 일 때만>"
+  TESTBED_BECOME_PASSWORD: "<sudo password, 필요 시>"
+  TESTBED_SSH_KEY: "<ssh key path, key auth 일 때만>"
+
 # (선택) timeout — default 1800 (30분)
 timeout_sec: 1800
 ```
@@ -52,7 +58,9 @@ if [ -n "${extra_vars}" ]; then
   EXTRA_VARS_ARG="-e ${EXTRA_VARS_JSON}"
 fi
 
-# 실행 + stdout/stderr 모두 로그 파일로
+# 실행 + stdout/stderr 모두 로그 파일로.
+# 호출 input 의 env 값을 process 환경에만 주입하고 로그/verdict 에 출력하지 않는다.
+# 실제 실행 전 agent 는 env.TESTBED_PASSWORD 등을 같은 이름의 환경변수로 export 한다.
 timeout "${timeout_sec:-1800}" \
   ansible-playbook -i "${inventory_path}" "${playbook_path}" ${EXTRA_VARS_ARG} \
   > "${DEPLOY_LOG}" 2>&1
@@ -136,7 +144,7 @@ FIRST_FATAL_LINE=$(grep -n 'fatal:\|FAILED!' "${DEPLOY_LOG}" | head -1 | cut -d:
 
 ```json
 {
-  "phase": "ansible-deploy",
+  "phase": "ansible_deploy",
   "verdict": "ok|warn|fail|skipped",
   "summary": "<한 줄, 80자 이내 — 예: 'PLAY RECAP: 1 ok=42 changed=15 failed=0' or 'agent-kcm role failed: KCM source clone auth-failed'>",
   "outputs": {
