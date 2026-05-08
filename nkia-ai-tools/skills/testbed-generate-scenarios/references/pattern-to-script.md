@@ -53,7 +53,7 @@ Read: <patterns_root>/<pattern>.md
 새 testbed 생성 시 testbed-engineer 의 services-author 모드가 코드 생성 후 `scenario_hints` 를 manifest 에 보존:
 
 ```yaml
-# manifest.yaml.scenario_hints (Phase 6 산출, Phase 10 입력)
+# manifest.yaml.scenario_hints (services_author 산출, generate_scenarios 입력)
 scenario_hints:
   lock_table: "accounts"               # services-author 가 db.schemas 에서 핫 row 후보 추출
   lock_key_example: "account-1"        # seed 데이터 PK

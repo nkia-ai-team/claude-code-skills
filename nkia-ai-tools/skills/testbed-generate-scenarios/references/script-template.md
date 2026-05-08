@@ -87,8 +87,10 @@ NAMESPACE=rca-testbed-v2 ./scenario-01.sh
 
 호스트 kubeconfig 마운트 가정:
 ```bash
-# 절대경로 hardcoded — rca-scenario-runner 의 docker-compose.yml 마운트와 일치
-export KUBECONFIG=/home/nkia/.kube/config
+# rca-scenario-runner 의 docker-compose.yml 이 마운트한 kubeconfig.
+# KUBECONFIG env 가 이미 set 돼있으면 그대로, 아니면 ssh user 의 default 경로로 fallback.
+# 사용자 환경마다 username 다르므로 hardcoded /home/<user> X — env 우선 + $HOME/.kube/config fallback.
+export KUBECONFIG="${KUBECONFIG:-${HOME}/.kube/config}"
 
 kubectl -n "$NAMESPACE" exec "$POD" -- ...
 ```

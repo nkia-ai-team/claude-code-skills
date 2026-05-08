@@ -151,15 +151,15 @@ status idle 까지 폴링.
     ]
   },
   "errors": [],
-  "next_action": "proceed|tune_and_retry|user-decision"
+  "next_action": "proceed|dispatch_tune_and_retry|user-decision"
 }
 ```
 
 ### verdict 값 의미
 
 - `ok` — overall=PASS (모든 시나리오 expected 매칭). parent 가 finalize 진행. `next_action: proceed`
-- `warn` — overall=PARTIAL (일부 시나리오 missed). orchestrator 가 recommendations 적용 후 재시도. `next_action: tune_and_retry`
-- `fail` — overall=FAIL (대부분 missed) 또는 ERROR (시나리오 실행 자체 실패). `next_action: tune_and_retry` 또는 `user-decision`
+- `warn` — overall=PARTIAL (일부 시나리오 missed). orchestrator 가 recommendations 적용 후 재시도. `next_action: dispatch_tune_and_retry`
+- `fail` — overall=FAIL (대부분 missed) 또는 ERROR (시나리오 실행 자체 실패). `next_action: dispatch_tune_and_retry` 또는 `user-decision`
 - `skipped` — expected_alarms 비어있는 시나리오만 있는 경우. parent 가 finalize 진행.
 
 ### outputs.recommendations[]

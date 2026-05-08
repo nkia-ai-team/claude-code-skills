@@ -1,6 +1,6 @@
 ---
 name: testbed-polestar10-register
-description: polestar10 (NKIA APM/AIOps 통합 모니터링) 인스턴스에 RCA 테스트베드용 관리대상을 등록·정리·알람 설정하는 오케스트레이터. 사용자가 "polestar10에 <리소스> 등록해줘", "테스트베드 자원 묶어 올려줘", "polestar10 자원 삭제", "알람 정책 추가" 같은 요청을 하면 적절한 recipe 들을 dispatch. 세션 처음에는 ~/.polestar10rc 셋업 + 로그인을 자동 처리하고, 이후 리소스 타입(서버/DB/APM/WPM/K8s/NMS/Web URL/사용자정의)별로 register·delete·service-group·alert·anomaly recipe 를 조합해 인터뷰 흐름으로 진행. 실제 API 호출은 knowledge/polestar10/api/recipes/ 의 9개 recipe 가 담당.
+description: Polestar10 (NKIA AIOps) 관리대상 등록·정리·알람 설정 오케스트레이터. "polestar10 등록" / "자원 묶어 올려줘" / "자원 삭제" / "알람 정책 추가" 요청 시 트리거. ~/.polestar10rc 자동 부트스트랩 + 리소스 타입 (서버/DB/APM/WPM/K8s/NMS/Web URL) 별 recipe dispatch (9 recipe). testbed-build 의 polestar10_register phase + testbed-tune-alarms 가 dispatch.
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash(curl:*), Bash(jq:*), Bash(yq:*), Bash(grep:*), Bash(awk:*), Bash(sed:*), Bash(cat:*), Bash(tee:*), Bash(date:*), Bash(echo:*), Bash(printf:*), Bash(test:*), Bash(chmod:*), Bash(mkdir:*), Bash(head:*), Bash(tail:*), Bash(tr:*)
 ---
 

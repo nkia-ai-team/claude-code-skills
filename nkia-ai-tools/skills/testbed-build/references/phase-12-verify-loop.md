@@ -59,8 +59,8 @@ done
 | verdict | next_action | orchestrator 동작 |
 |---|---|---|
 | `PASS` (overall) | `proceed` | finalize 진행 |
-| `PARTIAL` | `tune_and_retry` | tune-alarms recommendations 적용 → 다음 attempt |
-| `FAIL` | `tune_and_retry` 또는 `user-decision` | recoverable 면 자동 retry, blocking 이면 사용자 prompt |
+| `PARTIAL` | `dispatch_tune_and_retry` | tune-alarms recommendations 적용 → 다음 attempt |
+| `FAIL` | `dispatch_tune_and_retry` 또는 `user-decision` | recoverable 면 자동 retry, blocking 이면 사용자 prompt |
 | `ERROR` (시나리오 자체 실패) | `user-decision` | rca-scenario-runner 도달성 점검 안내 |
 
 ## 재시도 한계 도달 후
