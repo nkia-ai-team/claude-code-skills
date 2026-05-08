@@ -161,7 +161,7 @@ ensure_logged_in() {
     | jq -r '.success' | grep -q true \
     || {
       echo "[login] 세션 만료. 재로그인."
-      bash <plugin_root>/knowledge/polestar10/api/recipes/login.md
+      bash "${CLAUDE_PLUGIN_ROOT}/knowledge/polestar10/api/recipes/login.md"   # bootstrap.md § Plugin install 경로 발견 패턴 따라 resolution
     }
 }
 ```

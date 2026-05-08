@@ -32,7 +32,7 @@ agents:
 paths:
   testbed_services_repo: ""             # 자동 발견 결과 또는 인터뷰. 비우면 cwd → ~/dev → ~/projects → ~ 순회
   scenario_runner_repo: ""              # 동일
-  ansible_playbook_root: ""             # 비우면 plugin install 디렉토리 발견
+  ansible_playbook_root: ""             # 비우면 $CLAUDE_PLUGIN_ROOT/infra/testbed/playbooks 자동 사용. 사용자 환경마다 다른 dev clone 경로 주입 X — 항상 plugin install 경로 사용 (§ Plugin install 경로 발견 섹션)
 
 cluster:
   # production 모사 — testbed 별 별 K8s cluster 격리 (default: k3d).
@@ -108,6 +108,54 @@ testbed-build / testbed-polestar10-register / testbed-generate-scenarios / testb
 - 명백한 destructive remote 작업이 첫 시도 거부되는 경우 — 같은 명령 재시도 또는 chat 승인 후 재시도
 
 이런 케이스는 § Destructive action chat 승인 룰 섹션 따라 처리.
+
+## Plugin install 경로 발견 (강제 룰)
+
+⚠️ **사용자 환경마다 다른 dev clone 경로 (`/home/<user>/dev/claude-code-skills/...`) 를 명령에 박지 X.** 모든 사용자는 marketplace install 만 했을 수 있어 그 경로 부재. 반드시 **plugin install 경로** 사용.
+
+### `$CLAUDE_PLUGIN_ROOT` env var 활용
+
+Claude Code 가 plugin skill 실행 시 자동으로 set 하는 env var:
+- 본 plugin: `~/.claude/plugins/cache/nkia-ai-marketplace/nkia-ai-tools/<version>/`
+- skill 안의 모든 ansible-playbook / recipe / install-spec 호출은 이 경로 기준
+
+### Bash 사용 패턴
+
+```bash
+# 1순위 — Claude Code 가 set 한 env var
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
+
+# 2순위 fallback — env 미설정 시 marketplace cache 직접 glob (latest version)
+if [ -z "$PLUGIN_ROOT" ]; then
+  PLUGIN_ROOT=$(ls -d "$HOME/.claude/plugins/cache/nkia-ai-marketplace/nkia-ai-tools"/*/ 2>/dev/null \
+    | sort -V | tail -1 | sed 's:/*$::')
+fi
+
+# 3순위 fallback — 위 둘 다 실패 시 사용자에게 prompt (dev clone 직접 입력)
+[ -z "$PLUGIN_ROOT" ] && {
+  echo "FATAL: plugin install 경로 자동 발견 실패. CLAUDE_PLUGIN_ROOT env 또는 dev clone 절대 경로 입력 필요."
+  exit 1
+}
+
+# 검증 — 핵심 자산 존재 확인
+[ -f "$PLUGIN_ROOT/infra/testbed/playbooks/site.yml" ] || {
+  echo "FATAL: $PLUGIN_ROOT 가 nkia-ai-tools plugin 루트가 아님. site.yml 부재."
+  exit 1
+}
+
+# 사용 예시
+ansible-playbook -i "$INVENTORY" "$PLUGIN_ROOT/infra/testbed/playbooks/site.yml"
+```
+
+### 룰
+
+- skill / agent 가 ansible-playbook / recipe / install-spec.yaml 호출 시 **항상** 위 패턴으로 `$PLUGIN_ROOT` 결정 후 사용
+- `<plugin_root>` placeholder 가 docs 에 보이면 → 위 bash resolution 로 실제 경로 binding
+- 사용자 환경별 dev clone 경로 (`/home/<user>/dev/...`) 직접 박는 것 **절대 금지** — 다른 사용자 환경에서 작동 X
+
+### bootstrap.yaml 의 `paths.ansible_playbook_root`
+
+비워두는 게 정상. 위 resolution 이 매 호출 동작. 사용자가 다른 dev clone 으로 강제 override 하려는 특수 케이스만 수동 입력. 이 경우 캐시 confirm 카드의 "일부 변경" 으로.
 
 ## Destructive action — chat 승인 룰 (강제)
 

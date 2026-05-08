@@ -8,12 +8,14 @@ testbed-deployer agent 에게 위임. agent 가 단일 호출에서 run + 로그
 
 ## Dispatch
 
+⚠️ **`<plugin_root>` resolution**: orchestrator 가 dispatch 시 `$CLAUDE_PLUGIN_ROOT` (Claude Code env var) 또는 marketplace cache glob fallback 으로 실제 경로 결정. 사용자 dev clone 경로 직접 박기 금지. 자세한 패턴: [bootstrap.md § Plugin install 경로 발견](bootstrap.md).
+
 ```
 Agent: testbed-deployer
 input (yaml):
   task: ansible-deploy
   inventory_path: "$HOME/.testbed-build/runs/$RUN_ID/inventory.yml"
-  playbook_path:  "<plugin_root>/infra/testbed/playbooks/site.yml"
+  playbook_path:  "${CLAUDE_PLUGIN_ROOT}/infra/testbed/playbooks/site.yml"   # bootstrap.md § Plugin install 경로 발견 패턴 따라 resolution
   run_id:         "$RUN_ID"
   log_dir:        "/tmp/testbed-build/$RUN_ID"
   timeout_sec:    1800   # 30분

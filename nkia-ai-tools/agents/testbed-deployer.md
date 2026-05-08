@@ -18,7 +18,7 @@ ansible-playbook 실행 → 로그 캡처 → 결과 분석 → verdict JSON 리
 task: ansible-deploy
 
 inventory_path: "$HOME/.testbed-build/runs/<ts>/inventory.yml"            # 절대경로
-playbook_path:  "<plugin_root>/infra/testbed/playbooks/site.yml"        # 절대경로
+playbook_path:  "${CLAUDE_PLUGIN_ROOT}/infra/testbed/playbooks/site.yml"  # Claude Code env var. orchestrator 가 dispatch 시 실제 경로 (예: ~/.claude/plugins/cache/nkia-ai-marketplace/nkia-ai-tools/<ver>/) 로 resolution. 사용자 dev clone 경로 절대 박기 X. 자세한 패턴: skills/testbed-build/references/bootstrap.md § Plugin install 경로 발견
 run_id:         "20260507-093000"                                         # log 디렉토리 keying
 log_dir:        "/tmp/testbed-build/<run_id>"                             # ansible stdout/stderr 저장 디렉토리
 
