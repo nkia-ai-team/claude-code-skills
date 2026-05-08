@@ -31,7 +31,9 @@ multi-choice 인터뷰 (인증 / 옵션 / yes-no / 승인) 는 **AskUserQuestion
 상세: [bootstrap.md](references/bootstrap.md).
 
 1. `~/.testbed-build/{runs,reports,.locks}` 디렉토리 init (chmod 700)
-2. `~/.testbed-build/bootstrap.yaml` 부재 시 인터뷰 강제 (캐시 파일 존재해도 default value 제시용으로만 사용 — skip 금지)
+2. `~/.testbed-build/bootstrap.yaml` 처리:
+   - 부재 시: 인터뷰 강제 (캐시 파일 존재해도 default value 제시용으로만 사용 — skip 금지)
+   - 존재 시: **캐시 confirm 카드 강제** (캐시값 표시 + 그대로 진행 / 일부 변경 / 전체 재인터뷰 3 옵션). "yaml 있으니 인터뷰 skip" 패턴 금지.
 3. 외부 레포 (testbed-services / rca-scenario-runner) 부재 시 git clone
 4. Resume 결정 — 진행 중 manifest 있으면 사용자 prompt
 5. Concurrency lock (`<target_host>_<cluster_name>` 키)
