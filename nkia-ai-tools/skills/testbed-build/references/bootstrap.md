@@ -388,7 +388,9 @@ git clone 실패: <error>
 
 매 호출 진입 시 sanity check.
 
-⚠️ **bootstrap.yaml 부재 → 인터뷰 무조건 실행**. 다른 캐시 파일 (`~/.polestar10rc` / 레포 디렉토리 / `~/.git-credentials`) 이 모두 존재하더라도 skip 금지. 캐시는 인터뷰 옵션의 default value 자동 채우기에만 사용.
+### 케이스 A — bootstrap.yaml 부재
+
+**인터뷰 무조건 실행**. 다른 캐시 파일 (`~/.polestar10rc` / 레포 디렉토리 / `~/.git-credentials`) 이 모두 존재하더라도 skip 금지. 캐시는 인터뷰 옵션의 default value 자동 채우기에만 사용.
 
 ```bash
 if [ ! -f ~/.testbed-build/bootstrap.yaml ]; then
@@ -405,13 +407,63 @@ if [ ! -f ~/.testbed-build/bootstrap.yaml ]; then
     --testbed-svc-default "$TESTBED_SVC_DEFAULT" \
     --runner-default "$RUNNER_DEFAULT"
 fi
+```
 
-# 추가 sanity check (bootstrap.yaml 이 있는 정상 케이스)
+### 케이스 B — bootstrap.yaml 존재 (캐시 confirm 카드 강제) ⭐
+
+**캐시값을 사용자에게 표시 + AskUserQuestion 카드로 확인 받기**. "yaml 있으니 인터뷰 전체 skip 하고 바로 다음 phase" 패턴 **금지**. 사용자는 매 세션 시작 시 캐시값 명시적으로 확인할 권리가 있음.
+
+```bash
+if [ -f ~/.testbed-build/bootstrap.yaml ]; then
+  # 1. 캐시값 추출
+  P10_URL=$(yq '.polestar10.base_url' ~/.testbed-build/bootstrap.yaml)
+  P10_USER=$(yq '.polestar10.user' ~/.testbed-build/bootstrap.yaml)
+  ORG_ID=$(yq '.polestar10.organization_id' ~/.testbed-build/bootstrap.yaml)
+  SSH_USER=$(yq '.ssh.default_user' ~/.testbed-build/bootstrap.yaml)
+  TESTBED_SVC=$(yq '.paths.testbed_services_repo' ~/.testbed-build/bootstrap.yaml)
+  RUNNER=$(yq '.paths.scenario_runner_repo' ~/.testbed-build/bootstrap.yaml)
+
+  # 2. 사용자에게 표시
+  cat <<EOF
+=== 캐시된 부트스트랩 설정 발견 ===
+
+Polestar10:        ${P10_URL} (user: ${P10_USER})
+조직 ID:            ${ORG_ID:-(빈값 — 인터뷰 필요)}
+SSH default user:   ${SSH_USER}
+testbed-services:   ${TESTBED_SVC}
+scenario-runner:    ${RUNNER}
+EOF
+
+  # 3. AskUserQuestion 카드
+  AskUserQuestion(questions=[
+    {
+      "question": "위 캐시된 설정으로 진행할까요? 환경이 바뀌었으면 재인터뷰 또는 일부 변경 가능합니다.",
+      "header": "캐시 설정 확인",
+      "multiSelect": False,
+      "options": [
+        {"label": "캐시 그대로 진행 (Recommended)", "description": "값 변경 X. 즉시 다음 phase 진행"},
+        {"label": "일부 슬롯 변경", "description": "어느 슬롯 (P10 URL / SSH user / 레포 경로 등) 변경할지 추가 prompt"},
+        {"label": "전체 재인터뷰", "description": "bootstrap.yaml 백업 후 처음부터 인터뷰 (다른 환경/머신 으로 이동 시)"}
+      ]
+    }
+  ])
+fi
+```
+
+선택 별 분기:
+- **캐시 그대로 진행** → 다음 phase 로 즉시
+- **일부 슬롯 변경** → 변경할 슬롯 multi-select → 해당 슬롯만 자유 입력으로 받아 yaml patch
+- **전체 재인터뷰** → `mv ~/.testbed-build/bootstrap.yaml ~/.testbed-build/bootstrap.yaml.bak.<ts>` 후 케이스 A 루트로
+
+### 케이스 A/B 공통 — 추가 sanity check
+
+```bash
+# 추가 sanity check (양쪽 케이스 모두)
 [ -f ~/.polestar10rc ] || trigger_polestar10_bootstrap
 [ -d "$TESTBED_SVC_PATH/.git" ] || prompt_clone_testbed_services
 [ -d "$RUNNER_PATH/.git" ] || prompt_clone_runner
 
-# polestar10 connectivity 사전 체크 (Phase 2 에서)
+# polestar10 connectivity 사전 체크 (precheck phase 에서)
 ```
 
 ## 인터뷰 슬롯 정책 표
@@ -435,4 +487,4 @@ bootstrap.yaml 부재 시 인터뷰에서 어떤 슬롯이 **always ask** / **de
 - **always ask** = 캐시 파일이 있어도 AskUserQuestion 의 첫 옵션 (Recommended) 으로 표시한 후 사용자 confirm 필요. "확인 없이 캐시값 그대로 yaml 작성" 은 금지.
 - **skip if cached** = 해당 캐시 파일이 있으면 인터뷰 자체를 생략. 부재 시에만 인터뷰 트리거.
 
-위 규칙은 첫 호출 (bootstrap.yaml 부재) 에만 해당. bootstrap.yaml 이 있으면 모든 인터뷰 skip (값 변경은 사용자가 yaml 직접 편집 또는 파일 삭제 후 재인터뷰).
+위 규칙은 첫 호출 (bootstrap.yaml 부재 — 케이스 A) 에만 해당. bootstrap.yaml 이 있으면 (케이스 B) 위 § 부트스트랩 검증의 **캐시 confirm 카드** 가 진입점. 사용자가 "캐시 그대로 진행" 선택 시에만 인터뷰 skip — "일부 변경" / "전체 재인터뷰" 선택 시는 해당 슬롯들 다시 인터뷰.
