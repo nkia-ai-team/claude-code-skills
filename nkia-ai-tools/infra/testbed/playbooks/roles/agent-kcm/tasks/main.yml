@@ -222,7 +222,7 @@
     # multi-tenant 배포: helm release name / namespace / master·node 이름 모두
     # testbed (app_namespace) 별로 분리. 같은 K3s 클러스터에 여러 testbed 의
     # KCM agent 가 공존 가능 (각자 별개 cluster 로 polestar10 등록).
-    - name: helm upgrade --install (testbed 별 release: kcm-{{ app_namespace }})
+    - name: "helm upgrade --install (testbed 별 release: kcm-{{ app_namespace }})"
       ansible.builtin.command: >
         helm upgrade --install kcm-{{ app_namespace }}
         /opt/lucida-kcmagent/deploy/kcm-agent
