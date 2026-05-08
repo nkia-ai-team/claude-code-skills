@@ -52,6 +52,13 @@ architecture:
                                    # → JAVA_TOOL_OPTIONS 에 -javaagent:/opt/wpm/wpmagent.jar 추가
                                    # → WPM collector env (UDP 31002 / TCP 31005) 추가
                                    # 사용자가 명시적으로 OTel only 만 원하면 deep interview 에서 false 로 변경
+    db_nodeport_required: true     # default ON. DPM (DB 모니터링) 은 Polestar10 backend 가
+                                   # DB 인스턴스에 직접 TCP 연결 — k3d cluster 안 postgres 면
+                                   # NodePort 노출 필수. 매니페스트 강제:
+                                   # → postgres Service: type: NodePort + nodePort 명시 (예: 30432)
+                                   # → 다중 cluster 동시 운영 시 inventory 의 k3d_node_nodeport_offset
+                                   #   에 맞춰 cluster 별 다른 nodePort (예: cluster-1=30432, cluster-2=30532)
+                                   # → 누락 시 register 단계 DPM 사전 점검 (nc -zv) 가 fail-fast.
 
 context:
   testbed_services_repo: "{{TESTBED_SVC_REPO}}"     # bootstrap.paths.testbed_services_repo

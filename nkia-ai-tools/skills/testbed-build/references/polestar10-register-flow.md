@@ -29,7 +29,9 @@ echo "[polestar10_register] Polestar10 backend 가 SMS/KCM/APM heartbeat 받아 
 sleep 60
 ```
 
-ansible 마지막 task (agent install) 직후 즉시 register 시도하면 standby 미등록 → register API 가 빈 응답. 60초 grace period 가 필수.
+ansible 마지막 task (agent install) 직후 즉시 register 시도하면 standby 미등록 → register API 가 빈 응답. 60초 base grace 가 필수.
+
+⚠️ **WPM 은 더 오래 걸림** — 새 pod 의 JVM startup + `-javaagent:wpmagent.jar` 로딩 + UDP 31002 heartbeat + collector sync = 60~120초 추가. WPM 등록 분기는 60초 단발 wait 대신 **10초 간격 × 최대 30회 (5분) polling** 패턴 사용 ([scenario_1_full_testbed.md § WPM (Scouter) path](../../testbed-polestar10-register/references/scenario_1_full_testbed.md)).
 
 ## 9-b. dispatch
 

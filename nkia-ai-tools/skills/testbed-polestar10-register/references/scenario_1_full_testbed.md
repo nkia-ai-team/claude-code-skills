@@ -80,9 +80,38 @@
    [agent-standby — 서버 (SMS)]
      a. recipes/list-targets.md "Standby 조회" → /api/sms/standby-hosts-filter-step1
         hostStatus:"READY" 인 agentId 추출
-        안 보이면 사용자에게 "에이전트 heartbeat 대기 (5~10분)" 안내 후 retry/skip
+
+     a-fallback. **standby 미발견 시 already-MANAGED 검사**:
+        SMS systemd agent 가 호스트에 이미 깔려있는데 다른 serviceGroup 에서 MANAGED 상태이면
+        standby 필터에 안 잡힘 (이건 fail 아니라 정상). 다음 endpoint 로 확인:
+
+        ```bash
+        # /api/sms/hosts-filter (MANAGED list) 에서 hostname 매칭
+        MGD=$(curl ... -X POST -H 'Content-Type: application/json' \
+          -d '{"pageNumber":1,"pagePerSize":200,"gridFilters":[],"sortFieldSets":[],
+               "tagFilters":["confType = server"],"arguments":{}}' \
+          "$BASE/api/sms/hosts-filter" | \
+          jq --arg ip "$TARGET_HOST" '[.data.content[]
+            | select(.ip == $ip or (.hostname // "" | contains($ip)))] | length')
+
+        if [ "$MGD" -gt 0 ]; then
+          # 이미 다른 serviceGroup 에서 모니터링 중 — verdict=ok (already-managed)
+          echo "[SMS] host already MANAGED in another serviceGroup — fail 아닌 already-managed 분류"
+          # 사용자에게 안내:
+          #   "host $TARGET_HOST 는 이미 Polestar10 에 등록돼 모니터링 중입니다.
+          #    이번 testbed (food-delivery) 의 자원으로 함께 묶을지 결정:
+          #     1) 그대로 두기 (default — 기존 serviceGroup 유지)
+          #     2) serviceGroup 을 $TESTBED_NAME 로 이전 (수동 — Polestar10 UI 또는 별도 API)"
+          # verdict.outputs.sms_status = "already_managed_other_group"
+        else
+          # 진짜 heartbeat 미도달 — agent 설치 안 됐거나 broker 도달 X
+          # 사용자에게 "에이전트 heartbeat 대기 (5~10분)" 안내 후 retry/skip
+        fi
+        ```
+
      b. recipes/add-target.md "서버 등록" Step 2 → /api/sms/standby-hosts/register
         payload 의 serviceGroupTagValue / groupId / anomalyPolicyTagValue 에 인터뷰 슬롯 주입
+        (a-fallback 의 already-managed 케이스에선 b 단계 skip)
 
    [agent-standby — KCM]
      a. recipes/add-target.md "KCM Step 1" → /api/kcm/standby-clusters-filter-step1
@@ -94,10 +123,36 @@
      a. recipes/dpm-lifecycle.md "지원 DB" → /api/dpm/preregister/dbtypes
         응답 배열을 사용자에게 dropdown 으로 표시 (PostgreSQL/Oracle/MySQL/...)
      b. 인터뷰 (모델별 슬롯 표 참조): hostName, port, dbName, userName, password
+
+     b-precheck. **NodePort 도달성 사전 점검 (필수)**:
+        DPM 은 Polestar10 backend (`polestar10_collector_host`) 가 DB 인스턴스에 **직접 TCP 연결**.
+        k3d cluster 안 postgres 면 NodePort 노출 + 호스트 firewall 통과 필요.
+
+        ```bash
+        # controller 에서 사전 점검 — backend 가 도달할 경로 시뮬레이션
+        nc -zv -w 5 "$DB_HOST" "$DB_PORT" 2>&1
+        DPM_REACHABLE=$?
+
+        if [ $DPM_REACHABLE -ne 0 ]; then
+          echo "[DPM] backend → ${DB_HOST}:${DB_PORT} 도달 X. 원인 후보:"
+          echo "  1. testbed-services 매니페스트의 postgres Service 가 NodePort 미노출"
+          echo "     → kubectl -n <ns> get svc postgres -o yaml 에서 type=NodePort + nodePort 명시 확인"
+          echo "  2. k3d 다중 cluster 운영 시 NodePort 충돌 → inventory 의 k3d_node_nodeport_offset 분리"
+          echo "  3. 호스트 firewall (ufw/iptables) 가 NodePort 차단"
+          echo "  4. Polestar10 backend (\${polestar10_collector_host}) 가 사내망 외부 → 사내 내부 IP 로 변경 (PR #62 collector_host 룰)"
+          echo ""
+          echo "사용자 결정:"
+          echo "  - (1) NodePort 노출 후 재시도 (kubectl edit svc postgres + ansible 재실행)"
+          echo "  - (2) DPM 만 skip (KCM/APM/WPM/SMS/NMS 5종으로 진행)"
+          # verdict.errors[].cause="dpm-db-unreachable" + severity=blocking
+          return
+        fi
+        ```
+
      c. recipes/dpm-lifecycle.md "Step 1" → /api/dpm/preregister
         ⚠️ polestar10 가 직접 DB 접속 검증. 실패 시:
             - 자격증명 잘못 → 재입력 prompt
-            - 네트워크 불통 → 방화벽/포트 확인 안내 후 skip
+            - 네트워크 불통 → b-precheck 가 사전 차단했으므로 여기 도달 시 backend 측 routing 문제로 한정
      d. recipes/dpm-lifecycle.md "Step 2" → /api/dpm/preregister/list 에서 resourceId 추출
      e. recipes/dpm-lifecycle.md "Step 3" → /api/dpm/register (resourceId 명시)
 
@@ -133,7 +188,38 @@
    ⚠️ 기존 plopvape-shop / social-feed / food-delivery 의 OTel only manifest 는 1.9.x 라운드에서 만든 것 — 향후 RCA 6종 풀 스택 검증을 위해 WPM dual-attach 로 재배포 권장. 새 testbed 는 default ON 이라 자동 dual-attach.
 
    ━━ WPM (Scouter) path ━━
-     w-a. /api/apm/standby-agents-filter-step1 polling (60초 grace period — heartbeat 도달 대기)
+     w-a. /api/apm/standby-agents-filter-step1 polling — **10초 간격 × 최대 30회 (5분)**.
+          새 pod 의 WPM JVM startup + heartbeat 도달 + collector sync 가 60~120초 소요.
+          단발 60초 grace 는 부족.
+
+          ```bash
+          for i in $(seq 1 30); do
+            COUNT=$(curl ... -X POST -H 'Content-Type: application/json' \
+              -d '{"pageNumber":1,"pagePerSize":100,"gridFilters":[],"sortFieldSets":[],
+                   "tagFilters":[],"arguments":{}}' \
+              "$BASE/api/apm/standby-agents-filter-step1" | \
+              jq --arg n "$TESTBED_NAME" '[.data.content[]
+                | select((.serviceName // "" | startswith($n))
+                      or (.hostName // "" | contains($n))
+                      or (.agentName // "" | startswith($n + "-")))
+                | select(.agentType == "scouter" or .category == "WPM")] | length')
+
+            [ "$COUNT" -gt 0 ] && { echo "[WPM] $COUNT agents UP — register 진입"; break; }
+            echo "[WPM] polling $i/30 — 0 standby. 10초 후 재시도"
+            [ $i -eq 30 ] && {
+              echo "[WPM] 5분 후 standby 미도달."
+              echo "원인 후보:"
+              echo "  1. JAVA_TOOL_OPTIONS 의 -javaagent:wpmagent.jar 누락 — kubectl describe pod"
+              echo "  2. wpmagent.conf 의 manager_ip 가 collector 도달 X (PR #62 collector_host 룰)"
+              echo "  3. UDP 31002 차단 (사내 NAT 환경)"
+              echo "사용자 안내 후 WPM 만 skip 또는 fix 후 재호출"
+              # verdict.errors[].cause="wpm-standby-timeout" + severity=blocking
+              return
+            }
+            sleep 10
+          done
+          ```
+
           응답: service 목록만 (agents=null) — 어떤 service 가 떴는지 확인용
      w-b. 같은 serviceName 의 agent 들 묶음 표시
      w-c. 사용자에게 등록할 service 선택 (한 번에 올릴 service 1개~N개)
