@@ -12,6 +12,16 @@ image: "{{ kcm_image_name }}:{{ kcm_agent_version }}-{{ target_arch }}"
 # local image 라 IfNotPresent (Always 면 K3s 가 외부 registry pull 시도 → fail)
 pullPolicy: "IfNotPresent"
 
+# multi-tenant 분리: master/node Deployment·DaemonSet·ServiceAccount·ClusterRole·
+# ClusterRoleBinding 의 metadata.name 이 모두 helm chart template 에서 이 값으로
+# 생성됨. testbed 별로 다른 release 가 같은 K3s 클러스터에 공존하려면 testbed
+# 식별자 (app_namespace) prefix 가 필수. 같은 ClusterRole 이름 충돌 시 helm install
+# 자체가 실패.
+master:
+  name: "{{ app_namespace }}-kcm-master"
+node:
+  name: "{{ app_namespace }}-kcm-node"
+
 # ================================================================
 # KCM Backend Connection
 # ================================================================

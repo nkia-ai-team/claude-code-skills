@@ -219,11 +219,14 @@
         dest: /tmp/kcm-values.yaml
         mode: '0644'
 
-    - name: helm upgrade --install kcm-agent (master + node 둘 다 자동 배포)
+    # multi-tenant 배포: helm release name / namespace / master·node 이름 모두
+    # testbed (app_namespace) 별로 분리. 같은 K3s 클러스터에 여러 testbed 의
+    # KCM agent 가 공존 가능 (각자 별개 cluster 로 polestar10 등록).
+    - name: helm upgrade --install (testbed 별 release: kcm-{{ app_namespace }})
       ansible.builtin.command: >
-        helm upgrade --install kcm-agent
+        helm upgrade --install kcm-{{ app_namespace }}
         /opt/lucida-kcmagent/deploy/kcm-agent
-        -n {{ kcm_namespace | default('kcm-monitoring') }}
+        -n {{ kcm_namespace | default('kcm-' + app_namespace) }}
         --create-namespace
         -f /tmp/kcm-values.yaml
         --wait --timeout 5m
@@ -234,16 +237,16 @@
 
     - name: Wait for KCM master Deployment rollout
       ansible.builtin.command: >
-        kubectl -n {{ kcm_namespace | default('kcm-monitoring') }}
-        rollout status deployment/kcm-master-agent --timeout=300s
+        kubectl -n {{ kcm_namespace | default('kcm-' + app_namespace) }}
+        rollout status deployment/{{ app_namespace }}-kcm-master --timeout=300s
       environment:
         KUBECONFIG: "{{ kubeconfig_path }}"
       changed_when: false
 
     - name: Wait for KCM node DaemonSet rollout
       ansible.builtin.command: >
-        kubectl -n {{ kcm_namespace | default('kcm-monitoring') }}
-        rollout status daemonset/kcm-node-agent --timeout=300s
+        kubectl -n {{ kcm_namespace | default('kcm-' + app_namespace) }}
+        rollout status daemonset/{{ app_namespace }}-kcm-node --timeout=300s
       environment:
         KUBECONFIG: "{{ kubeconfig_path }}"
       changed_when: false
