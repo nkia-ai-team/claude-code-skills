@@ -33,6 +33,11 @@
         k3d_cluster_exists: "{{ (k3d_cluster_list.stdout | from_json | map(attribute='name') | list) | intersect([cluster_name]) | length > 0 }}"
 
     - name: k3d cluster 생성 (없는 경우만)
+      # `--volume {{ agent_install_root }}:{{ agent_install_root }}` —
+      # WPM/APM JVM agent jar 가 호스트 109 의 /opt/polestar10/{wpm,apm}/ 에 깔려있고
+      # service Pod 매니페스트가 hostPath 로 마운트하기 때문에 k3d 노드 컨테이너에
+      # 이 경로가 보여야 함. 이 mount 가 없으면 hostPath:DirectoryOrCreate 가 빈
+      # 디렉토리만 만들고 Pod 가 `Error opening zip file ... wpmagent.jar` 로 부팅 실패.
       ansible.builtin.shell: |
         set -e
         k3d cluster create "{{ cluster_name }}" \
@@ -42,6 +47,7 @@
           --port "{{ k3d_node_http_port | default(8080) }}:80@loadbalancer" \
           --port "{{ k3d_node_https_port | default(8443) }}:443@loadbalancer" \
           --port "{{ k3d_node_nodeport_offset | default(30000) }}-{{ k3d_node_nodeport_max | default(30100) }}:{{ k3d_node_nodeport_offset | default(30000) }}-{{ k3d_node_nodeport_max | default(30100) }}@loadbalancer" \
+          --volume "{{ agent_install_root }}:{{ agent_install_root }}@server:0" \
           --k3s-arg "--disable=traefik@server:0" \
           --kubeconfig-update-default=false \
           --kubeconfig-switch-context=false \
