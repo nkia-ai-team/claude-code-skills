@@ -159,6 +159,69 @@ all:
 | `K3D_NODE_NODEPORT_OFFSET` / `K3D_NODE_NODEPORT_MAX` | 30000 / 30100 default | NodePort range. 다중 testbed 시 testbed 마다 다른 range (예: 30000-30100, 30200-30300) |
 | `SCENARIO_RUNNER_PORT` | interview / 8091 default | rca-scenario-runner web port. 다중 testbed 시 8091, 8092, 8093 등 |
 
+## ⚠️ POLESTAR10_COLLECTOR_HOST resolution + RFC1918 검사 (강제)
+
+`polestar10_collector_host` 는 모든 WPM/APM/SMS/KCM 패킷 흐름의 destination. 사내 NAT 환경에서 public IP 박히면 outbound 차단으로 silently fail (라운드 10 macOS 케이스). inventory 생성 시 다음 logic 강제:
+
+```bash
+# 1. bootstrap.polestar10.collector_host 우선
+COLL=$(yq '.polestar10.collector_host // ""' ~/.testbed-build/bootstrap.yaml)
+
+# 2. 비어있으면 base_url 의 hostname 자동 추출
+if [ -z "$COLL" ]; then
+  BASE=$(yq '.polestar10.base_url' ~/.testbed-build/bootstrap.yaml)
+  COLL=$(echo "$BASE" | sed -E 's|^[^:]+://||; s|[:/].*$||')   # https://host:port/path → host
+fi
+
+# 3. RFC1918 검사 — public IP 면 사용자에게 prompt
+is_rfc1918() {
+  local ip="$1"
+  # 호스트명 (IP 가 아닌 경우) 은 통과 — DNS 라 가정
+  echo "$ip" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || return 0
+  # RFC1918 범위: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+  echo "$ip" | grep -qE '^10\.|^172\.(1[6-9]|2[0-9]|3[01])\.|^192\.168\.' && return 0
+  # localhost 도 통과
+  echo "$ip" | grep -qE '^127\.|^0\.0\.0\.0$' && return 0
+  return 1
+}
+
+if ! is_rfc1918 "$COLL"; then
+  cat <<EOF >&2
+=== ⚠️ collector_host = $COLL 가 public IP 입니다 ===
+
+WPM/APM/SMS/KCM 모든 텔레메트리 패킷이 이 host 로 향합니다.
+사내 NAT/방화벽 환경에서는 outbound 차단으로 silently fail 가능성 있음.
+
+권장: base_url 은 P10 web UI 도달용 public 그대로 두고,
+       collector_host 만 사내 내부 IP (192.168.x.x / 10.x.x.x / 172.16~31.x.x) 로 분리.
+
+진행 방식?
+  1. 현재 값 그대로 진행 (Recommended only if outbound 확인됨) — public IP 도 도달 가능한 환경
+  2. 사내 내부 IP 직접 입력 — bootstrap.yaml.polestar10.collector_host 에 저장 (영구)
+  3. 이번 run 만 다른 값 — inventory host_vars 에 override (캐시 보존)
+EOF
+
+  AskUserQuestion(questions=[
+    {
+      "question": "collector_host = $COLL (public IP) 로 진행할까요? 사내 NAT 환경이면 silently fail 가능.",
+      "header": "Collector IP",
+      "multiSelect": False,
+      "options": [
+        {"label": "현재 값 그대로", "description": "public IP 도 outbound 도달 가능한 환경"},
+        {"label": "사내 내부 IP 입력", "description": "bootstrap.yaml 영구 저장 + 이번 run 사용"},
+        {"label": "이번 run 만 변경", "description": "inventory host_vars override, 캐시 보존"}
+      ]
+    }
+  ])
+  # 사용자 응답 별 분기
+fi
+
+# 4. 최종 결정값 → POLESTAR10_COLLECTOR_HOST 변수로 inventory 에 박힘
+POLESTAR10_COLLECTOR_HOST="$COLL"
+```
+
+이 검사가 라운드 10 macOS 케이스 (57: public 221.141.145.157) 같은 silent fail 차단. 라운드 11 의 109→104 케이스는 104 가 RFC1918 (192.168.230.104) 이라 검사 통과 — 진짜 원인은 polling 부족 (PR #73).
+
 ## 환경 변수 export (ansible-playbook 호출 직전)
 
 비밀 값 (SSH password / become password) 만 env var 로 전달. organization_id / collector / broker port 등 비-비밀 변수는 inventory yaml 에 host-level 로 평문 박힘 (위 골격 참조).

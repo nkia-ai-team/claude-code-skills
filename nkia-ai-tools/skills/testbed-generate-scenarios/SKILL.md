@@ -1,6 +1,6 @@
 ---
 name: testbed-generate-scenarios
-description: RCA 테스트베드에 장애 시나리오를 추가/생성. `infra/testbed/scenario-patterns/` 카탈로그에서 패턴 선택 → bash 스크립트 인스턴스화 → service-spec.yaml 갱신 → rca-scenario-runner 레포 PR/push. 사용자가 "시나리오 추가해줘", "장애 시나리오 만들어줘", "/testbed-generate-scenarios", "<service> 에 N개 시나리오 추가" 같은 요청 시 트리거. testbed-build 의 7번 단계가 이를 dispatch.
+description: RCA 테스트베드 장애 시나리오 추가/생성. 패턴 카탈로그 → bash 스크립트 → service-spec.yaml → rca-scenario-runner PR. "시나리오 추가" / "/testbed-generate-scenarios" 요청 시 트리거. testbed-build orchestrator 의 generate_scenarios phase 가 dispatch.
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash(git:*), Bash(gh:*), Bash(jq:*), Bash(yq:*), Bash(curl:*), Bash(cat:*), Bash(grep:*), Bash(sed:*), Bash(awk:*), Bash(test:*), Bash(echo:*), Bash(mkdir:*), Bash(chmod:*), Bash(date:*)
 ---
 
@@ -25,7 +25,7 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash(git:*), Bash(gh:*), Bash(jq:*
 | `pattern` | 후보 카탈로그 prompt | 사용자 선택 또는 "자동" |
 | `script_id_prefix` | 기존 service-spec.yaml 마지막 ID + 1 | 변경 가능 |
 | `push_mode` | default `pr` | `pr` / `direct-push` / `local-only` |
-| `scenario_hints` | testbed-build Phase 6 (services-author) 결과 — 신규 도메인 시 manifest.yaml 에 보존 | 단독 호출 시 X (룩업 표 / 코드 자동 분석 fallback) |
+| `scenario_hints` | testbed-build `services_author` phase 결과 — 신규 도메인 시 manifest.yaml 에 보존 | 단독 호출 시 X (룩업 표 / 코드 자동 분석 fallback) |
 
 `scenario_hints` 가 있으면 [pattern-to-script.md §4-b](references/pattern-to-script.md) 의 신규 도메인 모드 활성화 — 룩업 표 / 사용자 인터뷰 X. 코드의 실제 schema/endpoint 기반.
 
@@ -86,7 +86,7 @@ ls "$RUNNER_ROOT/scenarios/services/"
 
 #### 합성 우선순위 (위에서부터 — 첫 번째 만족 항목 사용)
 
-1. **manifest.scenario_hints** (services-author Phase 6 산출 — 신규 testbed 자동 생성 시):
+1. **manifest.scenario_hints** (services_author 산출 — 신규 testbed 자동 생성 시):
    - `lock_table` / `lock_endpoint` / `external_container` / `primary_load_endpoint` 등이 채워져있음
    - 그대로 사용. 별 분석 X.
 
