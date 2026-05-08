@@ -53,15 +53,17 @@
      - 그 외 type: 해당 list-filter (TBD 면 UI fallback)
 
 5. 자원에 그룹 적용
-   ⚠️ polestar10 의 자원 → 서비스 그룹 변경은 "register payload 갱신" 으로만 가능 (현 캡처 기준).
-       기존 자원의 serviceGroupTagValue 를 직접 patch 하는 endpoint 는 미확정 (TBD).
 
-   현실적 옵션:
-     a. 신규 자원이라면 → 시나리오 1 흐름의 register payload 에 새 그룹 사용
-     b. 기존 자원이라면 → UI fallback: 자원 상세 → 우측 정보 패널 → 서비스 그룹 dropdown 변경
-        (또는 follow-up 캡처로 PATCH endpoint 확정)
+   - **신규 자원**: 시나리오 1 흐름의 register payload 에 `serviceGroupTagValue` 로 그룹 이름 포함.
+   - **기존 자원**: `recipes/service-group-tag.md` 의 "자원 → 그룹 link 변경" 사용.
+       endpoint: `POST /api/cm/tag/resource/insert`
+       body: `{confId, tagType:"CUSTOM", key:"serviceGroup", value:"<NEW_GROUP>", tagDataType:"STRING"}`
+       (upsert — 신규 link · 기존 link 갱신 둘 다 동일 endpoint)
 
-   본 시나리오는 b 의 안내를 사용자에게 표시하고, 자동화 가능한 부분 (a) 만 dispatch.
+   대상 자원의 `confId` 추출 패턴:
+     - DPM: `<dbtype>/list` 응답의 `confId` 또는 `<resourceId>_<dbtype>.<DBType>`
+     - 서버: `sms/hosts-filter` 응답의 `confId` 또는 `MA_<host>_<ts>_server.Server`
+     - 그 외: `tag/resource/select/<id>` 로 검증 후 사용
 
 6. 검증
    recipes/cm/tag/key/list 또는 cm/tag/resource/select/<resourceId> 로
@@ -99,11 +101,11 @@ recipes/service-group-tag.md "서비스 그룹 삭제"
 
 ---
 
-## TBD — 자원 → 그룹 이동 PATCH endpoint
+## 해소된 항목 — 자원 → 그룹 이동
 
-현 캡처에서 미확정. 후속 작업:
-1. 크롬 DevTools 로 UI 의 "서비스 그룹 변경" 클릭 시 발생하는 POST 요청 캡처
-2. recipes/service-group-tag.md 에 추가 섹션 (`## 자원 → 그룹 link 변경`) 으로 추가
-3. 본 시나리오 Step 5 의 b 옵션을 자동화로 승격
+이전 미확정(TBD) 이었던 PATCH endpoint 가 HAR 캡처(2026-05-08)로 확정:
+- endpoint: `POST /api/cm/tag/resource/insert`
+- body: `{confId, tagType, key, value, tagDataType}` (parameter wrapping 없음)
+- 동작: upsert — 같은 (confId, key) 조합에 link 가 이미 있으면 value 갱신, 없으면 신규 link
 
-위 작업이 완료되기 전까지 Step 5 는 신규 자원만 자동, 기존 자원은 UI fallback.
+상세 body shape · 검증 절차는 `recipes/service-group-tag.md` "자원 → 그룹 link 변경" 섹션.
