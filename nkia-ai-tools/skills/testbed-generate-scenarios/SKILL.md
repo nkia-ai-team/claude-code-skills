@@ -112,7 +112,13 @@ ls "$RUNNER_ROOT/scenarios/services/"
 
 #### 합성 결과 검증 (사용자 confirm 필수)
 
-LLM 이 합성한 시나리오 변수 (LOCK_TABLE / LOAD_ENDPOINT / EXTERNAL_CONTAINER 등) + 사용한 source (init.sql / Controller.java / k8s manifest) 를 사용자에게 명시:
+LLM 이 합성한 결과 **3 영역** 모두 사용자에게 명시 + confirm 받기:
+
+1. **변수 매핑** (LOCK_TABLE / LOAD_ENDPOINT / EXTERNAL_CONTAINER 등) + source (init.sql / Controller.java / k8s manifest)
+2. **도메인 비즈니스 narrative** (description / root_cause / propagation / business_trigger) — pattern-to-script.md § 4-f 강제 룰
+3. **기존 testbed 와의 uniqueness check** — 같은 패턴의 다른 testbed 시나리오 description 과 textually 다른지
+
+표시 예시:
 
 ```
 === food-delivery 도메인 합성 결과 ===
@@ -120,16 +126,28 @@ LLM 이 합성한 시나리오 변수 (LOCK_TABLE / LOAD_ENDPOINT / EXTERNAL_CON
 소스:
   - controllers: order-service/OrderController.java (POST /api/orders, /api/orders/cancel)
   - tables:      orders, order_items, restaurants, deliveries (init.sql)
-  - k8s:         NodePort 30090 (food-delivery-nginx), mock 컨테이너: pg-mock-fd
+  - k8s:         NodePort 30090 (food-delivery-nginx), mock 컨테이너: testbed-external-pg-mock
 
 scenario-01 (db-lock-contention):
-  LOCK_TABLE=orders  ← 트랜잭션 핫 테이블 (orders.id PK)
-  LOAD_ENDPOINT=POST /api/orders  ← 주문 생성 — order row 갱신
-  LOAD_PAYLOAD={...}  ← OrderRequest schema 기반
-  ...
+  변수 매핑:
+    LOCK_TABLE=orders            ← 트랜잭션 핫 테이블 (orders.id PK)
+    LOAD_ENDPOINT=POST /api/orders ← 주문 생성 — order row 갱신
+    LOAD_PAYLOAD={...}           ← OrderRequest schema 기반
+
+  도메인 narrative:
+    business_trigger: 저녁 식사 시간대 (18~21시) 동시 주문 폭주 (1000 TPS × 60sec)
+    description:     "food-delivery 의 핵심 비즈니스 시점에 orders 핫 row lock 경합"
+    root_cause:      "인기 음식점의 메뉴 row 동시 UPDATE 큐잉 → 트랜잭션 시간 폭증"
+    propagation:     "1) order checkout p99>5s → 2) payment timeout → 3) dispatch 할당 X → 4) 사용자 이탈"
+
+  Uniqueness check vs 기존 testbed:
+    plopvape-shop db-lock 시나리오 (e-commerce / inventory.id 핫 row): textually 구분됨 ✅
+    social-feed db-lock 시나리오 (post.id 핫 row): textually 구분됨 ✅
 ```
 
 사용자 confirm 후만 Step 4 (스크립트 + yaml entry 작성) 진입.
+
+⚠️ **narrative 누락 (변수 매핑만 있고 description / root_cause / propagation / business_trigger 빈값) 시 Step 4 진입 금지** — 도메인 시나리오 다양성 강제 룰 위반.
 
 **자세한 변환 룰**: [pattern-to-script.md](references/pattern-to-script.md)
 **스크립트 골격 변환 가이드**: [script-template.md](references/script-template.md)
