@@ -46,6 +46,8 @@
       # 직접 편집 시 다음 ansible 실행 시 덮어쓰기 됨.
       PORT={{ scenario_runner_port | default(8091) }}
       SCRIPTS_HOST_PATH=./scenarios/services/{{ app_subdir }}/scripts
+      # docker-compose 가 scenarios/services/${TESTBED_NAME}/ 만 mount → multi-testbed ID 충돌 회피.
+      TESTBED_NAME={{ app_subdir }}
       LOGS_HOST_PATH=./logs
       # testbed 별 별 kubeconfig 사용 (cluster_kind=k3d 의 testbed-별 cluster).
       # rca-scenario-runner 의 docker-compose 가 KUBECONFIG_HOST_PATH 디렉토리를 mount.
