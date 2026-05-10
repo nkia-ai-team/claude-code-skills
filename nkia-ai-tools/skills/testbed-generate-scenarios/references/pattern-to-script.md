@@ -125,6 +125,73 @@ testbed-services 레포 자체에 testbed 디렉토리 없거나 controller / in
 - 사용자에게 명시: "코드 분석 불가능. testbed-services 의 <testbed_name>/src/main/java + db/init.sql 가 필요. PR 머지 후 재호출하거나 사용자가 시나리오 직접 작성."
 - 시나리오 생성 자체 abort
 
+### 4-f. 도메인 비즈니스 시나리오 narrative 강제 (강제 룰)
+
+⚠️ **변수 치환 (LOCK_TABLE / LOAD_ENDPOINT 등) 만으론 부족.** service-spec.yaml 의 시나리오 메타 (`description` / `root_cause` / `propagation`) 와 bash 스크립트의 부하 트리거 logic 이 **도메인의 실제 비즈니스 사건** 을 반영해야 함. 그렇지 않으면 4 패턴 catalog 가 모든 testbed 에 동일한 추상적 시나리오로 인스턴스화 → testbed 간 시나리오 구분 불가.
+
+#### 강제 절차
+
+각 시나리오 생성 시 다음 3 단계 narrative 합성 후 service-spec.yaml entry 에 박기:
+
+1. **business trigger** — 도메인의 실제 사용자 행동 또는 외부 사건 (시간대 / 트랜잭션 종류 / 이벤트). 추상적 "동시 부하" X.
+   - food-delivery + db-lock: "저녁 식사 시간대 (18~21시) 동시 주문 폭주 → orders 테이블 핫 row lock"
+   - banking + db-lock: "월급일 직후 동시 이체 → accounts 테이블 잔액 row lock"
+   - e-commerce + db-lock: "프로모션 시작 직후 인기 상품 동시 결제 → inventory 핫 row lock"
+
+2. **affected business flow** — 어느 사용자 흐름이 망가지는지. 단순히 "endpoint 응답 지연" X.
+   - food-delivery: "주문 확정 실패 → 사용자 이탈 → 음식점 매출 손실"
+   - banking: "이체 timeout → 사용자 재시도 → 중복 이체 위험"
+   - e-commerce: "장바구니 결제 실패 → 카트 abandonment 증가"
+
+3. **uniqueness check vs 기존 testbed** — 같은 패턴의 기존 testbed 시나리오 description 과 textually 다른지 검증.
+   ```bash
+   # 기존 testbed scenario 의 description 읽어 비교
+   for tb in $(ls "$RUNNER_ROOT/scenarios/services/" | grep -v "^${TESTBED_NAME}$"); do
+     yq ".scenarios[] | select(.pattern == \"$PATTERN\") | .description" \
+       "$RUNNER_ROOT/scenarios/services/$tb/service-spec.yaml" 2>/dev/null
+   done
+   ```
+   합성한 description 이 위 중 하나와 keyword 다수 (≥3) 겹치면 → **도메인 특색 약함**. business trigger 재합성 또는 사용자 인터뷰.
+
+#### service-spec.yaml 시나리오 entry 필드 표준
+
+```yaml
+- id: scenario-01-orders-evening-lock
+  file: scenario-01-orders-evening-lock.sh
+  title: "저녁 식사 시간대 주문 폭주 → orders row lock"
+  pattern: db-lock-contention
+  description: |
+    food-delivery 의 핵심 비즈니스 시점 (18~21시 저녁 식사 시간대) 에 동시 주문
+    폭주가 발생하면 orders 테이블의 PK row 에 lock 경합 발생. checkout API 의
+    응답 지연 + payment-service 의 timeout 전파.
+  root_cause: |
+    동일 주문 row (가장 인기있는 음식점의 특정 메뉴) 에 동시 UPDATE 가
+    경합. PostgreSQL row-level lock 이 큐잉되어 트랜잭션 시간 폭증.
+  propagation: |
+    1. order-service: checkout 응답시간 p99 > 5s (정상 < 500ms)
+    2. payment-service: order-service 호출 timeout → cascading fail
+    3. dispatch-service: 주문 확정 안 되니 배달 할당 못함
+    4. 사용자: 결제 실패 경험 → 이탈 → 음식점 매출 손실
+  business_trigger: "저녁 식사 시간대 동시 주문 폭주 (시뮬레이션: 1000 TPS × 60sec)"
+  estimated_duration_sec: 120
+  expected_alarms:
+    - "DPM Lock Wait Time 초과 — testbed-postgres-0"
+    - "APM 평균응답시간 초과 — order-service"
+    - "APM 평균응답시간 초과 — payment-service"
+```
+
+`description` / `root_cause` / `propagation` / `business_trigger` 4 필드는 도메인 narrative 필수. 4 패턴 모두 동일 적용.
+
+#### 검증 게이트
+
+orchestrator (또는 사용자) 가 합성 결과 검토 후 다음 확인:
+- [ ] description 에 도메인 비즈니스 키워드 ≥3 (예: food-delivery 면 "주문 / 음식점 / 배달 / 결제" 중 3+)
+- [ ] root_cause 가 단순히 "lock 경합" 이 아닌 "어떤 row / 어떤 시점 / 어떤 트랜잭션" 까지 명시
+- [ ] propagation 이 사용자 영향까지 추적 (4 단계 이상)
+- [ ] 기존 testbed 의 같은 패턴 description 과 textually 구분됨
+
+위 4 항목 중 하나라도 미흡 → 재합성 또는 사용자 인터뷰.
+
 ### 5. 추론 충돌 시
 
 자동 추론이 가능해 보여도 confidence 낮으면 사용자 인터뷰. 룰:
