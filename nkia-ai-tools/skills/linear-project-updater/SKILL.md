@@ -8,7 +8,7 @@ description: Generate weekly project status updates by collecting issue-level ac
 ## CRITICAL: First Step — Read the References
 
 **BEFORE generating any update, you MUST read:**
-- [guideline-ref.md](../_shared/guideline-ref.md) — 5.3 주간 Project Update 템플릿, 7. Health 판단 기준
+- [guideline-ref.md](../_shared/guideline-ref.md) — §5.3 주간 Project Update 템플릿, §5.6 Cycle 종료 공유 템플릿, §8 Health 판단 기준, §9.4 Cycle 완료 판정 4종
 - [data_collection.md](references/data_collection.md) — 이슈 데이터 수집 로직
 - [update_rendering.md](references/update_rendering.md) — 업데이트 본문 렌더링 및 저장
 
@@ -24,12 +24,21 @@ description: Generate weekly project status updates by collecting issue-level ac
 - 이번 주 이슈 활동 자동 수집 (신규 생성, AC/증빙 업데이트, Done 전환, In Progress 전환, 블로커)
 - 이전 업데이트의 "다음 주 계획" 참조하여 달성 여부 비교
 - Health 자동 제안 (On Track / At Risk / Off Track)
-- guideline-ref.md 5.3 템플릿으로 렌더링
+- guideline-ref.md §5.3 템플릿으로 렌더링
 - Linear Project Status Update로 저장
 
 **하지 않는 일:**
 - 사이클 기반 추적 (사이클과 무관하게 이번 주 활동만 수집)
 - 이니셔티브 수준 집계 (→ linear-initiative-updater 사용)
+
+### v1.3 Cycle 종료 시 별도 운영
+
+스프린트 마스터가 Cycle 종료 시 작성하는 **Cycle 완료 리뷰 결과 공유** 는 별도 양식입니다 (guideline-ref.md §5.6, §9.4):
+
+- Feature 별 판정 4종 (**Done / 보완 필요 / 이월 / Blocked**) 사용
+- 공유 채널: 관련 조직 메일/공지 (Linear Status Update 가 아님)
+- 이 스킬의 주간 업데이트와는 별개로, Cycle 종료 시점에 1회 추가 작성
+- `--cycle-end` 옵션이 제공되면 본 스킬도 §5.6 양식으로 렌더링 (현재 옵션 미구현 — 추후 확장)
 
 ---
 

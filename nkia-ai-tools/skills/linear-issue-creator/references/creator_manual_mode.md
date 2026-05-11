@@ -11,7 +11,15 @@
 ```
 Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 
-1. 작업 템플릿:
+1. Issue Layer (v1.3):
+   1) Feature  — 사용자가 체감하는 기능 (Linear Issue, body = §5.1.a)
+   2) Task     — Feature 하위 세부 작업 (Linear Sub-issue, body = §5.1.b, parent 필수)
+   3) Standalone — 위계에 안 들어가는 단발성 이슈 (body = §5.1 공통 6섹션)
+
+   (작업 템플릿이 "새로운 기능 개발/기능 개선/리팩토링" 이면 Feature 기본,
+    parent Feature 지정 시 Task 로 전환됩니다.)
+
+2. 작업 템플릿:
    1) 빌드/배포
    2) 데이터 작업
    3) 평가
@@ -22,13 +30,20 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
    8) 버그 수정
    9) 문서 작업
 
-2. 팀 이름: (사용 가능한 팀: [팀 목록])
-3. 프로젝트 이름: (선택사항, 없으면 엔터)
-4. 이슈 제목:
-5. 우선순위: (Urgent/High/Normal/Low, 선택사항)
-6. 담당자: (이름/이메일/'me', 선택사항)
-7. 마감일: (YYYY-MM-DD, 선택사항)
+3. 팀 이름: (사용 가능한 팀: [팀 목록])
+4. 프로젝트 이름: (선택사항, 없으면 엔터)
+5. 이슈 제목:
+6. 우선순위: (Urgent/High/Normal/Low, 선택사항)
+7. 담당자: (이름/이메일/'me', 선택사항)
+8. 마감일: (YYYY-MM-DD, 선택사항)
+9. Parent Feature 이슈 (Layer=Task 일 때 필수): NKIAAI-### 또는 이슈 URL
 ```
+
+### Step 1.5: Validate Layer & Parent
+
+- **Layer=Task** 인데 parent 미입력 → 사용자에게 parent Feature 를 묻거나, 적합한 Feature 가 없으면 Layer 를 Feature/Standalone 으로 재선택 안내.
+- **Layer=Feature** 인데 parent 가 지정됨 → parent 가 Project (not Issue) 인지 확인. Issue 가 parent 라면 Task 로 재분류 제안.
+- **Layer=Standalone** 에 parent 입력됨 → parent 무시하고 진행 (안내 메시지).
 
 ## Step 2: Suggest Improved Title
 
@@ -44,6 +59,16 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 ## Step 3: Collect Template-Specific Details with DoD/AC
 
 선택된 작업 템플릿에 맞는 상세 정보와 DoD/AC를 수집합니다.
+
+**본문 구조는 Step 1 의 Layer 에 따라 분기합니다:**
+
+| Layer | 수집 항목 |
+|-------|---------|
+| Feature | 목적, 주요 내용, 범위(포함/제외), **상세 완료 조건** (AC 3~5개), 하위 Task 목록(선택) |
+| Task | 작업 내용, **간단 완료 조건** (한 줄씩, 보통 1~3개) |
+| Standalone | 6섹션 (배경, 목표, AC, 범위, 검증, 참고) — 작업 템플릿별 가이드 적용 |
+
+> Task 본문에는 Feature 의 상세 완료 조건 전체를 복사하지 않습니다. 해당 작업 자체의 완료 여부만 간단히 체크하세요 (guideline-ref.md §5.1.b).
 
 **See `references/issue_templates.md` for template-specific markdown templates and collection fields.**
 
@@ -96,6 +121,8 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 ```
 === 생성될 이슈 미리보기 ===
 
+Layer: [Feature / Task / Standalone]
+Parent: [Feature 이슈 ID + 제목] (Layer=Task 일 때만)
 제목: [개선된 제목]
 타입: [자동 매핑된 이슈 타입]
 팀: [팀]
@@ -107,7 +134,7 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 라벨: [자동 선택된 라벨들]
 
 --- 설명 ---
-[마크다운 내용]
+[Layer 에 맞는 본문 마크다운]
 --------------
 
 미리보기 확인 없이 바로 생성합니다. 수정이 필요하면 Linear에서 직접 수정합니다.
@@ -119,5 +146,6 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 - Auto-assigned project ID
 - Auto-assigned cycle ID
 - Template-based labels
+- **Layer=Task 인 경우 `parentId` 필드에 Step 1 의 parent Feature 이슈 ID 지정 → Linear Sub-issue 로 생성됨**
 
-결과 URL 표시.
+결과 URL 표시. Layer=Feature 생성 후 하위 Task 목록이 본문에 있으면, 사용자에게 "하위 Task 들도 같은 흐름으로 이어서 생성할까요?" 안내.

@@ -24,11 +24,16 @@
 자연어를 분석하여 구조화된 JSON을 추출합니다.
 
 **추출 항목:**
-1. `template_type` — 작업 유형 자동 결정
-2. `title` — 영문 제목 (English Title Patterns 참고)
-3. `team`, `project`, `assignee`, `priority`, `due_date` — 메타데이터
-4. `labels` — 템플릿 타입 기반 work type 라벨 자동 선택 + 내용 분석으로 domain 라벨 추가
-5. `dod_items`, `ac_items` — 구체적이고 측정 가능한 항목 생성
+1. `issue_layer` — **Feature / Task / Standalone** (v1.3, SKILL.md 의 "Issue Layer 자동 추론 규칙" 적용)
+2. `parent_issue` — Layer=Task 일 때 parent Feature 이슈 ID/URL (텍스트에서 NKIAAI-### 형태 또는 명시적 언급 추출, 없으면 null)
+3. `template_type` — 작업 유형 자동 결정
+4. `title` — 한글 제목 (예시 표 참고)
+5. `team`, `project`, `assignee`, `priority`, `due_date` — 메타데이터
+6. `labels` — 템플릿 타입 기반 work type 라벨 자동 선택 + 내용 분석으로 domain 라벨 추가
+7. `dod_items`, `ac_items` — 구체적이고 측정 가능한 항목 생성
+   - **Layer=Feature** → `ac_items` 가 상세 완료 조건 (3~5개)
+   - **Layer=Task** → `ac_items` 는 1~3개 간단 완료 조건, `dod_items` 비움 또는 1개
+   - **Layer=Standalone** → 기존 6섹션 채움
 
 **Title:** 무엇을 왜 하는지 한 줄로 파악 가능하게 작성. 작업 유형(fix, feat 등)은 Linear의 이슈 타입 + 라벨로 이미 표현되므로 제목에 넣지 않습니다.
 
@@ -52,6 +57,8 @@
 ```json
 {
   "metadata": {
+    "issue_layer": "Standalone",
+    "parent_issue": null,
     "template_type": "데이터 작업",
     "title": "WSS 데이터셋 수집 및 전처리",
     "team": "Nkia-AI",
@@ -84,6 +91,8 @@
 === 자동 추출된 정보 ===
 
 **메타데이터:**
+- Layer: Standalone (또는 Feature / Task)
+- Parent: NKIAAI-123 (Layer=Task 일 때만, 추출 실패 시 (미지정 — 추가 입력 필요))
 - 템플릿 타입: 데이터 작업
 - 제목: WSS 데이터셋 수집 및 전처리
 - 팀: Nkia-AI
@@ -93,10 +102,12 @@
 - 라벨: task
 
 **작업 상세:**
-[배경, 작업 설명, DoD, AC, 참고사항 표시]
+[Layer 에 맞는 섹션 표시 — Feature: 목적/주요 내용/범위/상세 완료 조건/하위 Task | Task: 작업 내용/완료 조건 | Standalone: 6섹션]
 
 ========================
 ```
+
+> Layer=Task 인데 parent_issue 추출 실패 시: 사용자에게 parent Feature 이슈를 물어보거나, Layer 를 Feature/Standalone 으로 재선택 안내.
 
 추출된 정보를 물어보지 않고 그대로 사용합니다. 최종 미리보기(Step 6)에서 확인 가능합니다.
 
@@ -134,6 +145,8 @@
 ```
 === 생성될 이슈 미리보기 ===
 
+Layer: [Feature / Task / Standalone]
+Parent: [Feature 이슈 ID + 제목] (Layer=Task 일 때만)
 제목: [제목]
 타입: [이슈 타입]
 팀: [팀]
@@ -145,7 +158,7 @@
 라벨: [라벨들]
 
 --- 설명 ---
-[생성될 마크다운 내용]
+[Layer 에 맞는 본문 마크다운 — guideline-ref.md §5.1 / §5.1.a / §5.1.b]
 --------------
 
 `AskUserQuestion`으로 확인:
@@ -158,6 +171,10 @@
 
 `mcp__linear__create_issue`로 이슈 생성 후 결과 URL 표시.
 
+**Layer=Task** 인 경우 `parentId` 필드에 `parent_issue` 의 Linear 이슈 ID 를 지정하여 Sub-issue 로 생성. parent_issue 가 ID 가 아니라 키(`NKIAAI-###`) 또는 URL 인 경우 먼저 `mcp__linear__get_issue` 로 ID 를 해석합니다.
+
+**Layer=Feature** 본문에 "하위 Task" 목록이 있으면, 사용자에게 "하위 Task 들도 같은 흐름으로 이어서 생성할까요?" 안내 (자동 일괄 생성하지 않음).
+
 ---
 
 ## Pydantic Schema Reference
@@ -166,7 +183,9 @@ Auto Mode에서 LLM이 추출할 구조화 데이터는 `scripts/parse_natural_l
 
 **Key models:**
 - `ParsedIssue` — 최상위 컨테이너 (metadata + template_data)
-- `IssueMetadata` — template_type, title, team, project, assignee, priority, due_date, labels
+- `IssueMetadata` — **issue_layer** (Feature/Task/Standalone), **parent_issue** (Optional[str]), template_type, title, team, project, assignee, priority, due_date, labels
 - Template-specific models: `BuildDeployTemplate`, `DataWorkTemplate`, `EvaluationTemplate`, `FeatureNewTemplate`, `FeatureImproveTemplate`, `RefactoringTemplate`, `ResearchTemplate`, `BugTemplate`, `DocumentationTemplate`
 
 All templates include `dod_items: List[str]` and `ac_items: List[str]`.
+
+> v1.3 추가: `issue_layer` 와 `parent_issue` 가 `IssueMetadata` 에 포함되어야 합니다. 기존 스키마에 두 필드를 추가 (parent_issue 는 nullable).
