@@ -277,7 +277,7 @@ AskUserQuestion(questions=[
     "multiSelect": False,
     "options": [
       {"label": "수동 머지 (Recommended)", "description": "안전한 default — services-author 가 PR 만 만든 뒤, 사용자가 직접 코드 review + merge 버튼 클릭. testbed-build 는 PR 머지 상태를 60초 주기로 폴링하다가 머지 감지되면 자동으로 다음 phase 진행."},
-      {"label": "자동 머지", "description": "gh CLI 의 repo write 권한 가정 (`gh auth refresh -h github.com -s repo` 사전 실행 필요). PR 만든 직후 즉시 squash merge → 사용자 review 게이트 X. CI/dogfooding 빠른 환경에 적합."}
+      {"label": "자동 머지", "description": "gh CLI 의 repo write 권한 가정 (`gh auth refresh -h github.com -s repo` 사전 실행 필요). PR 만든 직후 즉시 squash merge → 사용자 review 게이트 X. CI 빠른 환경에 적합."}
     ]
   }
   # 외부 레포 clone 은 자동 발견 후 분기 (아래 별 섹션 참조)

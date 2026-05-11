@@ -100,7 +100,7 @@ spec:
               value: "10000"
 ```
 
-핵심 포인트 (round-7 사용자 진단으로 확정):
+핵심 포인트:
 
 - **`OTEL_EXPORTER_OTLP_ENDPOINT` port 6565** — Polestar10 의 OTLP gRPC receiver. 표준 4317/4318 사용 X (refused).
 - **`OTEL_RESOURCE_ATTRIBUTES.lucida.organizationId`** — bootstrap.yaml 의 24-hex `organization_id`. 누락 시 polestar10 가 어느 조직 데이터인지 판단 불가.
@@ -129,9 +129,8 @@ services-author 가 신규 testbed 의 `<testbed>/k8s/build-and-deploy.sh` 를 �
 
 ```bash
 # ⚠️ KUBECONFIG 명시 — k3d cluster 가 default kubeconfig 일 거란 가정 X.
-# 109 처럼 default kubeconfig 가 다른 cluster (또는 native K3s) 를 가리키면 cluster
-# 이름 자동 감지가 "default" 로 떨어져 native K3s 분기 (sudo k3s ctr) 로 빠짐 → sudo 비밀번호 prompt → 실패.
-# round-12 dogfooding 진단 — 매뉴얼 fallback `KUBECONFIG=/home/$USER/.kube/<testbed>.yaml bash build-and-deploy.sh` 가 표준 패턴이 되도록 합성:
+# default kubeconfig 가 다른 cluster (또는 native K3s) 를 가리키면 cluster 이름 자동
+# 감지가 "default" 로 떨어져 native K3s 분기 (sudo k3s ctr) 로 빠짐 → sudo 비밀번호 prompt → 실패.
 TESTBED_KUBECONFIG="${KUBECONFIG:-/home/${USER}/.kube/__TESTBED_NAME__.yaml}"
 [[ -f "$TESTBED_KUBECONFIG" ]] || {
   echo "[FATAL] kubeconfig 없음: $TESTBED_KUBECONFIG" >&2
@@ -296,7 +295,7 @@ testbed-engineer 가 반환한 JSON:
 
 | mode | 언제 |
 |---|---|
-| `pr` (default) | 안전. 사람이 review 후 머지. 첫 dogfooding 권장. |
+| `pr` (default) | 안전. 사람이 review 후 머지. 신규 도메인 첫 합성 시 권장. |
 | `direct-push` | 신뢰 환경. CI 없는 경우. main 으로 직접 머지. |
 | `local-only` | 로컬 검증만. 사용자가 수동 push 시점 결정. |
 

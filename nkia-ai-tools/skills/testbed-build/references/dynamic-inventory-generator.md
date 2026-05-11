@@ -161,7 +161,7 @@ all:
 
 ## ⚠️ POLESTAR10_COLLECTOR_HOST resolution + RFC1918 검사 (강제)
 
-`polestar10_collector_host` 는 모든 WPM/APM/SMS/KCM 패킷 흐름의 destination. 사내 NAT 환경에서 public IP 박히면 outbound 차단으로 silently fail (라운드 10 macOS 케이스). inventory 생성 시 다음 logic 강제:
+`polestar10_collector_host` 는 모든 WPM/APM/SMS/KCM 패킷 흐름의 destination. 사내 NAT 환경에서 public IP 박히면 outbound 차단으로 silently fail. inventory 생성 시 다음 logic 강제:
 
 ```bash
 # 1. bootstrap.polestar10.collector_host 우선
@@ -220,7 +220,7 @@ fi
 POLESTAR10_COLLECTOR_HOST="$COLL"
 ```
 
-이 검사가 라운드 10 macOS 케이스 (57: public 221.141.145.157) 같은 silent fail 차단. 라운드 11 의 109→104 케이스는 104 가 RFC1918 (192.168.230.104) 이라 검사 통과 — 진짜 원인은 polling 부족 (PR #73).
+이 검사가 public IP 박힌 collector 의 silent fail 차단. 사내 RFC1918 IP 면 검사 통과.
 
 ## 환경 변수 export (ansible-playbook 호출 직전)
 

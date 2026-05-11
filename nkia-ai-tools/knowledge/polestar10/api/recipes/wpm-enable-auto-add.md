@@ -4,9 +4,6 @@ WPM 서비스 등록 직후 호출하는 **강제 단계**. 본 toggle 이 OFF �
 WPM agent 가 standby 에서 MANAGED 로 자동 승격되지 않아 TCP 31005 풀이
 비활성으로 남고, collector 가 정상 처리 요청을 못 받아 `served=0` 으로 표시됨.
 
-(round-12 dogfooding 진단 — `food-delivery-order` / `food-delivery-payment` 의
-WPM 데이터 누락 원인 확정. HAR `agent-auto-plus.har` 으로 endpoint 확정.)
-
 ## Endpoint
 
 ```

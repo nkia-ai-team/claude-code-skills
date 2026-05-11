@@ -259,9 +259,9 @@
           (groupId=1 = Default 시스템 그룹. 다른 그룹 사용 시 사용자 인터뷰)
 
      w-g. ⚠️ **(강제)** 각 서비스별 `enabledAutoAddAgent=true` 토글 활성 — POST /api/wpm/v1/setting/{serviceName}/update
-          (round-12 dogfooding 진단 결과 — 본 toggle 이 OFF 면 신규 Pod 의 WPM agent 가 standby
-           → MANAGED 승격 안 되고 TCP 31005 풀이 비활성 상태로 남음. WPM-SCOUTER worker thread
-           수가 부족해져 collector 가 정상 처리 요청을 못 받아 `served=0` 으로 표시됨.)
+          (본 toggle 이 OFF 면 신규 Pod 의 WPM agent 가 standby → MANAGED 승격 안 되고
+           TCP 31005 풀이 비활성 상태로 남음. WPM-SCOUTER worker thread 수가 부족해져
+           collector 가 정상 처리 요청을 못 받아 `served=0` 으로 표시됨.)
 
           ```bash
           for SVC in $(jq -r '.[].serviceName' <<< "$REG_PAYLOAD" | sort -u); do

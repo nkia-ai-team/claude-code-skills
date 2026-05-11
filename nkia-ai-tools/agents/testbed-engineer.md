@@ -146,7 +146,7 @@ plopvape-shop 의 shop-common 그대로 mimic하되 `groupId` 만 새 도메인.
 - `src/main/java/com/nkia/.../<Entity>Repository.java` — `JpaRepository<Entity, IdType>`
 - 의존 서비스 (`depends_on`) 가 있으면 그 서비스의 client (RestTemplate or WebClient) 작성
 
-#### ⚠️ Capacity-gated 도메인 — lifecycle terminal 전이 **강제 합성** (round-12 진단)
+#### ⚠️ Capacity-gated 도메인 — lifecycle terminal 전이 **강제 합성**
 
 `failure_surfaces` 또는 도메인 의미상 **유한 capacity 카운터** 가 존재하는 엔티티 (배달 dispatches / 좌석 reservations / 재고 stocks / 동시 접속 sessions / 트랜잭션 holds 등) 는 **자연스러운 lifecycle terminal 전이를 같이 합성**한다. 누락 시 ASSIGNED/HELD 상태가 영구히 누적 → 신규 트래픽이 capacity=0 으로 403/503 fast-fail → 시나리오 실행 후 다음 시나리오의 starting state 가 변형됨.
 
