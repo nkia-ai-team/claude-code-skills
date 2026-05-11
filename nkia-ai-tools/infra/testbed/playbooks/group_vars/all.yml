@@ -112,7 +112,8 @@ kcm_image_name: "polestar10-kcm"
 
 # KCM 배포는 lucida-kcmagent 의 자체 helm chart (deploy/kcm-agent) 사용.
 # Chart 가 master Deployment + Service (NATS server) + node DaemonSet + RBAC + ConfigMap + Secret 모두 generate.
-kcm_namespace: "kcm-monitoring"
+# kcm_namespace 의 default 는 agent-kcm/tasks/main.yml 에서 `kcm-{{ app_namespace }}` 으로 자동 산출 (multi-tenant 분리).
+# 명시적 override 가 필요한 경우만 inventory host_vars 또는 -e 로 지정.
 
 # KCM helm chart 의 kcm.token / kcm.insecure 매핑.
 # RCA 테스트베드 (internal network) 는 token 빈값 + insecure: true 로 충분.
