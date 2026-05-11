@@ -8,7 +8,7 @@ description: Create comprehensive Linear projects with detailed documentation in
 ## CRITICAL: First Step — Read the Guideline Reference
 
 **BEFORE creating any project, you MUST read:**
-- [guideline-ref.md](../_shared/guideline-ref.md) — 프로젝트 템플릿, 이슈 상태, Estimate 등 가이드라인 규칙
+- [guideline-ref.md](../_shared/guideline-ref.md) — **§0 운영 구조 (Project = 분기/일정 단위 실행 묶음, Feature > Task 를 담는 컨테이너)**, §5.2 프로젝트 템플릿, §9 Cycle 운영, 이슈 상태, Estimate
 
 **프로젝트 생성 시 반드시 가이드라인의 규칙을 따라야 합니다.**
 
@@ -16,11 +16,13 @@ description: Create comprehensive Linear projects with detailed documentation in
 
 ## Overview
 
-가이드라인의 프로젝트 템플릿에 맞춰 Linear 프로젝트를 생성합니다:
+가이드라인 v1.3 의 운영 구조에서 **Project 는 분기 또는 일정 단위의 실행 묶음**이며, Feature(=Linear Issue) 와 Task(=Sub-issue) 를 담는 최상위 컨테이너입니다. 이 스킬은 §5.2 프로젝트 템플릿에 맞춰 Linear Project 를 생성합니다:
 - 목표 (Goal)
 - 성공 기준 (Success Metrics)
 - 주요 마일스톤 (Milestones)
 - 리스크 및 대응 (Risks)
+
+> 프로젝트 실행은 2주 단위 **Cycle** (§9) 로 운영됩니다. Cycle Planning 시 이 프로젝트의 Feature 중 일부가 해당 Cycle 대상으로 선택됩니다. 프로젝트 생성 단계에서는 Cycle 을 지정하지 않습니다 (Cycle 은 별도 운영).
 
 ## Workflow
 
@@ -81,7 +83,11 @@ description: Create comprehensive Linear projects with detailed documentation in
 
 ### Step 6: Show Results and Suggest Next Steps
 
-프로젝트 URL 표시 후 관련 이슈 생성 여부를 확인합니다.
+프로젝트 URL 표시 후 후속 작업 안내:
+
+1. **Feature 등록** — `/linear-issue-creator` 로 Layer=Feature 이슈를 이 프로젝트에 등록 (마일스톤 단위로 Feature 백로그 구성)
+2. **구글시트 백로그** — 각 Feature 의 간단 PRD 를 구글시트에 등록 (가이드라인 §0 작성 분리 원칙)
+3. **Cycle Planning** — 등록된 Feature 중 첫 Cycle 대상을 스프린트 마스터가 선정 (§9.1)
 
 ---
 

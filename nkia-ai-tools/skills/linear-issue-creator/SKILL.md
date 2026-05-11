@@ -8,7 +8,7 @@ description: Create well-structured Linear issues with work-specific templates (
 ## CRITICAL: First Step — Read the Guideline Reference
 
 **BEFORE creating any issue, you MUST read:**
-- [guideline-ref.md](../_shared/guideline-ref.md) — 이슈 상태, Estimate, 이슈 작성법, AC 검토 컨벤션, 이슈 템플릿, AI-Verification Loop
+- [guideline-ref.md](../_shared/guideline-ref.md) — **§0 운영 구조 (Project > Feature > Task)**, 이슈 상태, Estimate, 이슈 작성법, AC 검토 컨벤션, 이슈 템플릿, **§5.1 / §5.1.a / §5.1.b 본문 템플릿 3종**, AI-Verification Loop
 
 **이슈 생성 시 반드시 가이드라인의 규칙을 따라야 합니다.**
 
@@ -16,7 +16,7 @@ description: Create well-structured Linear issues with work-specific templates (
 
 ## Overview
 
-Create well-structured Linear issues following the guideline's 6-section template, with improved titles, automatic label application, Estimate-based AC review workflow, and **concrete, measurable AC**.
+Create well-structured Linear issues following the **v1.3 Project > Feature > Task hierarchy**, with improved titles, automatic label application, Estimate-based AC review workflow, and **concrete, measurable AC**.
 
 **Two creation modes:**
 1. **Manual Mode** — Step-by-step template-based input
@@ -24,9 +24,48 @@ Create well-structured Linear issues following the guideline's 6-section templat
 
 ---
 
+## Issue Layer (v1.3)
+
+이슈는 **위계 (Layer)** 에 따라 본문 템플릿과 부모 관계가 달라집니다. 생성 시 반드시 결정해야 합니다.
+
+| Layer | 의미 | 본문 템플릿 | Linear 매핑 |
+|-------|------|-----------|-----------|
+| **Feature** | 사용자가 체감하는 기능 단위 | §5.1.a Feature 본문 | Issue (parent = Project) |
+| **Task** | Feature를 만들기 위한 세부 작업 | §5.1.b Task 본문 | Sub-issue (**parent = Feature 이슈 필수**) |
+| **Standalone** | 위계에 안 들어가는 단발성 이슈 (빌드/핫픽스/공통 작업) | §5.1 공통 6섹션 | Issue (parent 없음) |
+
+### Layer 자동 추론 규칙
+
+생성 의도에서 다음 신호로 추론합니다.
+
+| Layer 신호 | 키워드/특징 |
+|-----------|----------|
+| Feature | "사용자에게 ~ 기능", "~ 화면 추가", 새로운 기능 개발 / 기능 개선 / 리팩토링 템플릿 |
+| Task | "API 확인", "프롬프트 작성", "테스트 케이스 추가" 등 좁은 작업 + 명시적 parent feature 언급 |
+| Standalone | 빌드/배포, 데이터 작업 단발, 단순 버그 핫픽스, 환경 설정 변경 등 Feature 묶음 외 작업 |
+
+추론 불확실 시 사용자에게 `AskUserQuestion` 으로 확인합니다.
+
+### Work Template ↔ Layer 매핑 (기본값)
+
+| Work Template | 기본 Layer |
+|--------------|----------|
+| 새로운 기능 개발 / 기능 개선 / 리팩토링 | Feature |
+| 빌드/배포 / 데이터 작업 / 평가 / 리서치 / 버그 수정 / 문서 작업 | Standalone (Feature 하위로 등록될 경우 Task) |
+
+→ 작업 템플릿이 Standalone 기본이어도, 사용자가 parent Feature 를 지정하면 Task 로 자동 전환됩니다.
+
+---
+
 ## Issue Body Template
 
-모든 이슈는 가이드라인의 6섹션 번호 구조를 따릅니다. 상세 템플릿은 [guideline-ref.md "이슈 템플릿"](../_shared/guideline-ref.md) 참조.
+위계에 따라 본문 구조가 다릅니다.
+
+| Layer | 본문 구조 | 출처 |
+|-------|---------|------|
+| Feature | 목적 / 주요 내용 / 범위(포함·제외) / 상세 완료 조건 / 하위 Task | [guideline-ref.md §5.1.a](../_shared/guideline-ref.md) |
+| Task | 작업 내용 / 완료 조건 | [guideline-ref.md §5.1.b](../_shared/guideline-ref.md) |
+| Standalone | 6섹션 (문제·배경 / 목표·기대 / AC / 범위 / 검증 / 참고) | [guideline-ref.md §5.1](../_shared/guideline-ref.md) |
 
 작업 유형별 섹션 내용 가이드와 AC 생성 패턴은 [issue_templates.md](references/issue_templates.md) 참조.
 

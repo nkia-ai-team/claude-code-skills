@@ -1,7 +1,19 @@
 # Linear 작업 템플릿별 상세 가이드
 
-모든 이슈는 가이드라인의 6섹션 번호 구조를 공통으로 사용합니다.
-공통 템플릿 구조는 [guideline-ref.md "이슈 템플릿"](../../_shared/guideline-ref.md) 참조.
+이슈는 **Issue Layer** (Feature / Task / Standalone) 에 따라 본문 구조가 다릅니다. 본문 구조 원본은 다음 참조:
+
+| Layer | 본문 구조 | 출처 |
+|-------|---------|------|
+| **Feature** (Linear Issue) | 목적 / 주요 내용 / 범위(포함·제외) / 상세 완료 조건 / 하위 Task | [guideline-ref.md §5.1.a](../../_shared/guideline-ref.md) |
+| **Task** (Linear Sub-issue) | 작업 내용 / 완료 조건 | [guideline-ref.md §5.1.b](../../_shared/guideline-ref.md) |
+| **Standalone** (위계에 안 들어가는 단발성 이슈) | 6섹션 (배경 / 목표 / AC / 범위 / 검증 / 참고) | [guideline-ref.md §5.1](../../_shared/guideline-ref.md) |
+
+아래 "작업 유형별 섹션 내용 가이드" 는 **Standalone 6섹션** 기준의 작성 가이드입니다. Feature / Task 본문은 §5.1.a / §5.1.b 의 단순한 구조를 따르되, 해당 작업 유형의 성격(빌드/배포, 데이터, …)이 본문 텍스트에 반영되어야 합니다.
+
+| Work Template | 기본 Layer | 비고 |
+|--------------|----------|-----|
+| 새로운 기능 개발 / 기능 개선 / 리팩토링 | Feature | parent = Project |
+| 빌드/배포 / 데이터 작업 / 평가 / 리서치 / 버그 수정 / 문서 작업 | Standalone (기본) / Task (parent Feature 지정 시) | - |
 
 작업 유형별로 각 섹션에 어떤 내용을 채워야 하는지 아래에서 안내합니다.
 

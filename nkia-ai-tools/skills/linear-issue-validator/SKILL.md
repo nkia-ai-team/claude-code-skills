@@ -8,7 +8,7 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 ## CRITICAL: First Step — Read the References
 
 **BEFORE generating any validation report, you MUST read:**
-- [guideline-ref.md](../_shared/guideline-ref.md) — 이슈 상태 규칙, AI-Verification Loop, Estimate 규칙
+- [guideline-ref.md](../_shared/guideline-ref.md) — 이슈 상태 규칙, §0 운영 구조 (Feature vs Task 본문 차이), §7 AI-Verification Loop, §10 **완료 인정 기준 — 산출물 표** (기능 유형별 보여줘야 할 결과물), §2 Estimate
 - [validation_templates.md](references/validation_templates.md) — 검증 결과 코멘트 템플릿, 실패 유형별 메시지, Evidence Type 분류 규칙
 
 **All validation comments MUST follow the exact templates from the references file.**
@@ -20,6 +20,30 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 완료된 Linear 이슈의 AC 항목을 검증하고 평가하는 스킬입니다. 작업자가 첨부한 결과물(링크, 이미지, 텍스트 등)을 실제로 확인하여 검증합니다.
 
 이 스킬은 AI-Verification Loop의 **Step 3 (AC 검증)**에 해당합니다.
+
+### v1.3 Layer 별 AC 위치 차이
+
+| Layer | AC 섹션 | 검증 방식 |
+|-------|--------|---------|
+| **Feature** (Linear Issue) | `## 상세 완료 조건` (§5.1.a) — AC + DoD 통합 체크리스트 | 모든 체크박스 항목 검증 |
+| **Task** (Linear Sub-issue) | `## 완료 조건` (§5.1.b) — 간단 체크 1~3개 | 모든 체크박스 항목 검증, parent Feature 의 상세 완료 조건은 검증 대상 아님 |
+| **Standalone** | `## 3. 완료 조건 (Acceptance Criteria)` (§5.1) | 기존 6섹션 검증 방식 그대로 |
+
+### v1.3 §10 완료 인정 기준 적용
+
+증빙 유형 검증 시 **§10 산출물 표** 를 우선 참조합니다. AC 가 요구하는 기능 유형에 맞는 산출물이 첨부되었는지 확인:
+
+| 기능 유형 | 보여줘야 할 산출물 |
+|----------|-----------------|
+| 화면 기능 | 실제 화면 또는 캡처 |
+| API 기능 | API 호출 결과, 응답 예시 |
+| AI 분석 기능 | 입력 예시, AI 출력 결과, 화면 반영 결과 |
+| 데이터 조회 기능 | 조회 조건, 조회 결과, 샘플 데이터 |
+| 보고서 기능 | 생성된 보고서 화면 또는 파일 |
+| 설정 기능 | 설정 전/후 화면, 저장 결과 |
+| 문서/기획 기능 | 작성된 문서, 확정된 항목, 리뷰 결과 |
+
+기존 Step 7.5 (Evidence Adequacy Check) 의 판단 규칙은 이 표와 일관됩니다.
 
 **주요 기능:**
 1. AC 항목별 결과물 파싱 및 검증
@@ -93,12 +117,24 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 
 ### Step 3: Parse AC Items
 
-이슈 description에서 AC 항목을 파싱합니다.
+이슈 description에서 AC 항목을 파싱합니다. **Layer 자동 감지** 후 적합한 섹션 이름을 찾습니다.
 
-**현행 형식 (우선):**
-- AC 섹션 찾기 (`## 3. 완료 조건 (Acceptance Criteria)`, `## 3. 완료 조건`)
+**Layer 감지 (description 의 첫 번째 매칭 섹션 기준):**
+
+| 감지 신호 | Layer |
+|---------|------|
+| `## 상세 완료 조건` 섹션 존재 | Feature (v1.3 §5.1.a) |
+| `## 완료 조건` 섹션 존재 + `## 작업 내용` 섹션 존재 | Task (v1.3 §5.1.b) |
+| `## 3. 완료 조건 (Acceptance Criteria)` 또는 `## 3. 완료 조건` | Standalone (§5.1) |
+| 어느 것도 없음 | 레거시 fallback (`## Definition of Done`, `## AC` 등) |
+
+**AC 항목 파싱 (Layer 무관 공통):**
 - 각 체크박스 항목 파싱 (`- [ ]` 또는 `- [x]`)
 - 결과물 추출 (`→ 결과물:` 이후 내용)
+
+**Task Layer 주의:**
+- parent Feature 의 "상세 완료 조건" 은 본 이슈의 검증 대상이 **아님**. Task 자체의 "완료 조건" 만 검증.
+- Task 검증 통과해도 parent Feature 가 자동으로 In Review 가 되지는 않음 (Feature 의 모든 하위 Task 가 끝났는지는 별도 판단).
 
 **레거시 형식 (호환):**
 - DoD 섹션 찾기 (`## Definition of Done`, `## DoD` 등)
