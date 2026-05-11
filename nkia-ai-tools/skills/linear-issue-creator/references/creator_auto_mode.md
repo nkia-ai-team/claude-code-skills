@@ -29,7 +29,7 @@
 3. `template_type` — 작업 유형 자동 결정
 4. `title` — 한글 제목 (예시 표 참고)
 5. `team`, `project`, `assignee`, `priority`, `due_date` — 메타데이터
-6. `labels` — 템플릿 타입 기반 work type 라벨 자동 선택 + 내용 분석으로 domain 라벨 추가
+6. `labels` — 템플릿 타입 기반 work type 라벨 자동 선택 + 내용 분석으로 domain 라벨 추가 (**Capitalize 정확히 일치 — Linear 라벨은 case-sensitive**. 생성 직전 `mcp__linear__list_issue_labels` 로 존재 여부 검증 후 폴백 적용)
 7. `dod_items`, `ac_items` — 구체적이고 측정 가능한 항목 생성
    - **Layer=Feature** → `ac_items` 가 상세 완료 조건 (3~5개)
    - **Layer=Task** → `ac_items` 는 1~3개 간단 완료 조건, `dod_items` 비움 또는 1개
@@ -66,7 +66,7 @@
     "assignee": "이성원",
     "priority": "Normal",
     "due_date": "2025-11-25",
-    "labels": ["data"]
+    "labels": ["Data"]
   },
   "template_data": {
     "background": "WSS 모델 학습을 위한 고품질 데이터셋 구축 필요",
@@ -99,7 +99,7 @@
 - 담당자: 이성원
 - 우선순위: Normal
 - 마감일: 2025-11-25
-- 라벨: task
+- 라벨: Data (또는 워크스페이스에 따라 Task)
 
 **작업 상세:**
 [Layer 에 맞는 섹션 표시 — Feature: 목적/주요 내용/범위/상세 완료 조건/하위 Task | Task: 작업 내용/완료 조건 | Standalone: 6섹션]
