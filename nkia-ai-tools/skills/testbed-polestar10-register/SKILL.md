@@ -13,7 +13,7 @@ recipe 가 아니라 **dispatcher** — 직접 API 를 호출하지 않고, `Rea
 
 **의존 recipe** (전부 [knowledge/polestar10/api/recipes/](../../knowledge/polestar10/api/recipes/)):
 - `login.md` · `list-targets.md` · `list-groups.md` · `service-group-tag.md`
-- `add-target.md` · `delete-target.md`
+- `add-target.md` · `delete-target.md` · `wpm-enable-auto-add.md`
 - `add-alert-policy.md` · `anomaly-policy.md` · `slo.md`
 
 핸드오프 설계 가이드라인은 [knowledge/polestar10/api/README.md "오케스트레이터 빌더용 핸드오프 노트"](../../knowledge/polestar10/api/README.md) 참조.

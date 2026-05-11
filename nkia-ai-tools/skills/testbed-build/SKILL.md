@@ -85,7 +85,7 @@ AskUserQuestion: 진행 / 수정 / 취소.
 ### `ansible_deploy` — Ansible 배포 + 진단
 testbed-deployer agent dispatch (run + 캡처 + 진단 단일 호출 통합). 상세: [ansible-failure-diagnosis.md](references/ansible-failure-diagnosis.md). raw 로그 (수만 줄) 는 agent fork context 에 격리, parent 에는 PLAY RECAP 카운트 + errors 만.
 
-verdict=ok 면 8-c sanity check ([phase-8-sanity-check.md](references/phase-8-sanity-check.md)) → APM standby heartbeat 검증 (round-7 silent failure 차단). 실패 시 manifest OTLP env / collector_host 점검 안내.
+verdict=ok 면 8-c sanity check ([phase-8-sanity-check.md](references/phase-8-sanity-check.md)) → APM standby heartbeat 검증. 실패 시 manifest OTLP env / collector_host 점검 안내.
 
 ### `polestar10_register` — Polestar10 관리대상 등록
 [polestar10-register-flow.md](references/polestar10-register-flow.md). agent install 후 60초 grace → testbed-polestar10-register 시나리오 1 dispatch (KCM/APM/WPM/SMS/DPM/NMS 6종 자동 분기). PARTIAL 처리 사용자 prompt.

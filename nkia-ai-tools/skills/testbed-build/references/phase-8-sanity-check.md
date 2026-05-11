@@ -2,7 +2,7 @@
 
 ansible exit 0 라도 deployment manifest 의 OTLP env 누락 / OTel javaagent attach 실패 / collector NodePort 미도달 등으로 standby 미감지 가능. **`polestar10_register` 진입 전 필수 검증**.
 
-이 체크가 round-7 의 'manifest OTLP env 누락 → fire 0건' silent failure 패턴 차단.
+이 체크가 'manifest OTLP env 누락 → fire 0건' silent failure 패턴 차단.
 
 ## 절차
 

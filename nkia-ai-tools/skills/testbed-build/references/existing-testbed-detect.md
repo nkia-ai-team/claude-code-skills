@@ -48,10 +48,42 @@ AskUserQuestion(questions=[
 
 - (1) → `lock_acquired` / `services_author` / `inventory_generated` / `ansible_deploy` / `sanity_check` / `polestar10_register` skip, `generate_scenarios` 로 점프
 - (2) → Phase 1 으로 복귀
-- (3) → k3d: `sshpass -e ssh ${TARGET_USER}@${TARGET_HOST} "k3d cluster delete ${CLUSTER_NAME}"` 후 Phase 5 / k3s: `kubectl delete ns ${APP_NAMESPACE} --wait=true`
-- (4) → 그대로 Phase 5 진행 (helm upgrade --install 이 idempotent)
+- (3) → **(강제) KCM P10 unregister 먼저** → k3d: `k3d cluster delete ${CLUSTER_NAME}` (또는 k3s: `kubectl delete ns ${APP_NAMESPACE} --wait=true`) → Phase 5
+- (4) → **(강제) KCM P10 unregister 먼저** → 그대로 Phase 5 진행 (helm upgrade --install 이 idempotent)
 
 `CLUSTER_EXISTS=0` (깨끗) 이면 카드 자체 skip → Phase 5 직행.
+
+### Step 3-a: KCM P10 unregister (선택 3·4 강제 룰)
+
+KCM helm chart 가 deploy 마다 cluster UUID 재생성 → 기존 등록된 clusterId 가 P10 에 남아있으면 신규 등록 시 `errorCode=POLESTAR_xxxxx ("clusterId already in use")` 로 실패. cluster 삭제 또는 재배포 진입 전에 P10 에서 매칭되는 cluster 를 사전 unregister.
+
+```bash
+# P10 cookie jar 있어야 함 (bootstrap 시점에 확보)
+KCM_LIST=$(curl -fsS -b "$P10_COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -X POST "$POLESTAR10_BASE_URL/api/kcm/standby-clusters-filter-step1" \
+  -d '{"pageNumber":1,"pagePerSize":200,"sortFieldSets":[],"gridFilters":[],"arguments":{}}')
+
+# cluster_name 매칭 (clusterName, hostName, alias 등 어디든 매칭)
+CLUSTER_IDS=$(echo "$KCM_LIST" | jq -r --arg n "$CLUSTER_NAME" '
+  [ .data.content[]
+    | select((.clusterName // "" | contains($n))
+          or (.hostName // "" | contains($n))
+          or (.alias // "" | contains($n))
+        )
+    | .clusterId ] | .[]')
+
+for CID in $CLUSTER_IDS; do
+  echo "[existing-detect] KCM unregister: $CID (testbed=$CLUSTER_NAME)"
+  curl -fsS -b "$P10_COOKIE_JAR" -H 'Content-Type: application/json' \
+    -X POST "$POLESTAR10_BASE_URL/api/kcm/standby-clusters/unregister" \
+    -d "{\"clusterId\":\"$CID\"}" | jq '.errorCode // "ok"'
+done
+```
+
+멱등: 매칭되는 cluster 가 없으면 0 iteration (무해). list endpoint / unregister endpoint 는 `scenario_4_resource_cleanup.md` 와 동일.
+
+KCM 외 다른 자원 (APM/WPM/SMS/DPM) 은 본 phase 에서 손대지 X — helm/Pod 재배포만으로 기존 자원과 매칭 회복 (resourceId 가 안정). KCM 만 UUID 재생성이라 예외.
 
 ## Step 4: port 충돌 사전 점검 (다중 testbed 동시 운영 시)
 

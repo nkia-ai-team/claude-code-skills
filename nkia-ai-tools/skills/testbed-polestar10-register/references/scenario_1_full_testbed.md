@@ -258,6 +258,27 @@
           정상 응답: {"success":true,"data":{"failedList":[]},"errorCode":null}
           (groupId=1 = Default 시스템 그룹. 다른 그룹 사용 시 사용자 인터뷰)
 
+     w-g. ⚠️ **(강제)** 각 서비스별 `enabledAutoAddAgent=true` 토글 활성 — POST /api/wpm/v1/setting/{serviceName}/update
+          (본 toggle 이 OFF 면 신규 Pod 의 WPM agent 가 standby → MANAGED 승격 안 되고
+           TCP 31005 풀이 비활성 상태로 남음. WPM-SCOUTER worker thread 수가 부족해져
+           collector 가 정상 처리 요청을 못 받아 `served=0` 으로 표시됨.)
+
+          ```bash
+          for SVC in $(jq -r '.[].serviceName' <<< "$REG_PAYLOAD" | sort -u); do
+            curl -fsS -X POST -H "Content-Type: application/json" -H "Cookie: accessToken=$P10_TOKEN" \
+              -d "{\"serviceName\":\"$SVC\",\"enabledAutoAddAgent\":true}" \
+              "$BASE/api/wpm/v1/setting/$SVC/update" | jq '{success,data,errorCode}'
+            # 응답: {"success":true,"data":{"serviceName":"<...>","enabledAutoAddAgent":true},"errorCode":null}
+          done
+          ```
+
+          멱등: 이미 true 면 무해 (서버가 동일 응답).
+          실패 fallback: P10 UI > 전체구성 > WPM > 서비스 클릭 > 우측 드로어
+                       > "에이전트 자동 추가" 토글 ON.
+
+          본 toggle 없이 w-e 의 `managementStatus: "MANAGED"` payload 만으로는 신규 Pod 가 자동
+          승격되지 않음 (재시작/스케일링 시점에 standby 머무름). w-f + w-g 두 단계가 모두 필요.
+
    ━━ OTel APM path ━━
      o-a. data 흐름 검증: testbed-services 의 OTel exporter 가 polestar10
           OTLP endpoint (group_vars/all.yml: polestar10_apm_collector_otlp_endpoint

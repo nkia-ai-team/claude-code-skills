@@ -209,4 +209,4 @@ fi
 
 본 표준은 [Anthropic Agent Skills Best Practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) + [Equipping agents for the real world](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) 의 orchestrator-worker 패턴 적용. 무거운 raw 데이터를 sub-agent fork context 에 격리하고 parent 는 verdict JSON 만 받아 next phase 결정.
 
-라운드 9 dogfooding 누적 학습 (NKIAAI-583): "context 한도 가득 차서 finalize escape" 패턴이 monolithic 디자인의 자연 결과였음. sub-agent 격리로 각 phase 의 verdict 가 ~1KB 수준으로 일정 → orchestrator context 가 `verify` 까지 가도 여유.
+sub-agent 격리로 각 phase 의 verdict 가 ~1KB 수준으로 일정 → orchestrator context 가 `verify` 까지 가도 여유.
