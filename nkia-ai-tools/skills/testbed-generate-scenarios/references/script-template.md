@@ -24,6 +24,19 @@ SERVICE_API="${SERVICE_API:-<from service-spec.yaml>}"
 
 cleanup() {
   echo "[INFO] cleanup: <원상복구 절차 한 줄>"
+
+  # 1) 시나리오가 직접 만든 seed/mock state 정리 (기존 패턴)
+  # psql_exec -c "DELETE FROM <table> WHERE <seed-id-filter>;"
+
+  # 2) ⚠️ (CAPACITY-GATED 도메인 전용) lifecycle terminal 일괄 전이.
+  #    scenario_hints 의 capacity_table / lifecycle_active_state / lifecycle_terminal_state 가
+  #    채워진 testbed 만 합성. 시나리오 도중 들어온 real traffic 이 만든 row 도 회수.
+  #    capacity-gated 가 아닌 도메인 (단순 이벤트 적재) 은 본 라인 제외.
+  # psql_exec -c "UPDATE <capacity_table> SET status='<lifecycle_terminal_state>' WHERE status='<lifecycle_active_state>';"
+
+  # 3) 임시 파일 정리
+  # rm -f /tmp/<scenario>-*.log
+
   # 멱등하게: 이미 정리된 상태에서도 에러 없이 종료
   echo "[OK] cleanup complete"
 }

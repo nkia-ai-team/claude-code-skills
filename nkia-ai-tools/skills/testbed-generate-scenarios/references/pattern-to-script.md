@@ -64,9 +64,21 @@ scenario_hints:
   primary_load_endpoint: "/api/transfer"  # traffic-flood 진입점
   db_deployment: "postgres"
   db_container: "postgres"
+  # capacity-gated 도메인만 (배달/좌석/재고/세션). 아니면 null/생략.
+  capacity_table: "dispatches"
+  lifecycle_active_state: "ASSIGNED"      # 비최종 상태 (회수 대상)
+  lifecycle_terminal_state: "DELIVERED"   # 자동 전이 후 상태
 ```
 
 **우선순위**: scenario_hints 가 있으면 룩업 표 + 사용자 인터뷰 모두 우회. testbed-engineer 가 생성한 코드의 실제 schema 기반이라 정확.
+
+**cleanup() 합성 — capacity-gated 룰 (강제)**: scenario_hints 의 `capacity_table` 가 채워져 있으면 모든 시나리오 스크립트의 `cleanup()` 함수에 다음 1줄 추가. 시나리오 도중 들어온 real traffic 도 회수해 다음 시나리오의 starting state 보존.
+
+```bash
+psql_exec -c "UPDATE {{capacity_table}} SET status='{{lifecycle_terminal_state}}' WHERE status='{{lifecycle_active_state}}';"
+```
+
+(`script-template.md` 의 cleanup 블록 §2 참조.) capacity-gated 가 아닌 도메인 (`capacity_table` 미설정) 은 본 줄 제외 — 무관한 테이블 UPDATE 시도하면 SQL 에러.
 
 ### 4-c. 룩업 결정 알고리즘 — fallback 명확화 (강제 룰)
 

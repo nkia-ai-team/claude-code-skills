@@ -128,6 +128,18 @@ testbed-engineer agent 가 새 Deployment manifest 생성 시 위 5 env + volume
 services-author 가 신규 testbed 의 `<testbed>/k8s/build-and-deploy.sh` 를 만들 때 마지막 phase (kubectl apply 영역) 가 다음 형식이어야 함:
 
 ```bash
+# ⚠️ KUBECONFIG 명시 — k3d cluster 가 default kubeconfig 일 거란 가정 X.
+# 109 처럼 default kubeconfig 가 다른 cluster (또는 native K3s) 를 가리키면 cluster
+# 이름 자동 감지가 "default" 로 떨어져 native K3s 분기 (sudo k3s ctr) 로 빠짐 → sudo 비밀번호 prompt → 실패.
+# round-12 dogfooding 진단 — 매뉴얼 fallback `KUBECONFIG=/home/$USER/.kube/<testbed>.yaml bash build-and-deploy.sh` 가 표준 패턴이 되도록 합성:
+TESTBED_KUBECONFIG="${KUBECONFIG:-/home/${USER}/.kube/__TESTBED_NAME__.yaml}"
+[[ -f "$TESTBED_KUBECONFIG" ]] || {
+  echo "[FATAL] kubeconfig 없음: $TESTBED_KUBECONFIG" >&2
+  echo "        k3d cluster 생성 시점에 ~/.kube/__TESTBED_NAME__.yaml 가 export 되도록 ansible cluster-manager role 확인" >&2
+  exit 1
+}
+export KUBECONFIG="$TESTBED_KUBECONFIG"
+
 # ${OTLP_ENDPOINT} 미설정이면 즉시 실패 — collector 주소 누락된 채 Pod 가 broken endpoint 로 뜨는 사고 차단
 : "${OTLP_ENDPOINT:?OTLP_ENDPOINT 미설정 — ansible 또는 수동 export 필요 (예: http://<collector>:6565)}"
 
@@ -136,6 +148,10 @@ for f in "${PROJECT_ROOT}/k8s/"*.yaml; do
   envsubst '${OTLP_ENDPOINT}' < "$f" | kubectl apply -f -
 done
 ```
+
+`__TESTBED_NAME__` 는 services-author 가 generation-time 에 literal substitution (OTEL_RESOURCE_ATTRIBUTES 와 동일 패턴).
+
+ansible service-k8s role 도 ssh 실행 시 `KUBECONFIG="$TESTBED_KUBECONFIG"` env 를 명시 export (B 패턴) — fail-safe.
 
 ansible service-k8s role 이 build-and-deploy.sh 호출 시 `OTLP_ENDPOINT="http://{{ polestar10_collector_host }}:6565"` env 주입. 사용자가 수동 실행 시엔 직접 export 필요.
 
@@ -232,7 +248,10 @@ testbed-engineer 가 반환한 JSON:
     "lock_endpoint": "/api/accounts/{id}",
     "external_endpoint": "/api/transfer",
     "external_container": "external-pg-mock",
-    "primary_load_endpoint": "/api/transfer"
+    "primary_load_endpoint": "/api/transfer",
+    "capacity_table": "dispatches",                   // capacity-gated 도메인만. 아니면 null/생략.
+    "lifecycle_active_state": "ASSIGNED",             // 비최종 상태 (회수 대상)
+    "lifecycle_terminal_state": "DELIVERED"           // 자동 전이 후 상태
   }
 }
 ```

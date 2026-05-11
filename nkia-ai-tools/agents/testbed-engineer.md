@@ -146,6 +146,41 @@ plopvape-shop 의 shop-common 그대로 mimic하되 `groupId` 만 새 도메인.
 - `src/main/java/com/nkia/.../<Entity>Repository.java` — `JpaRepository<Entity, IdType>`
 - 의존 서비스 (`depends_on`) 가 있으면 그 서비스의 client (RestTemplate or WebClient) 작성
 
+#### ⚠️ Capacity-gated 도메인 — lifecycle terminal 전이 **강제 합성** (round-12 진단)
+
+`failure_surfaces` 또는 도메인 의미상 **유한 capacity 카운터** 가 존재하는 엔티티 (배달 dispatches / 좌석 reservations / 재고 stocks / 동시 접속 sessions / 트랜잭션 holds 등) 는 **자연스러운 lifecycle terminal 전이를 같이 합성**한다. 누락 시 ASSIGNED/HELD 상태가 영구히 누적 → 신규 트래픽이 capacity=0 으로 403/503 fast-fail → 시나리오 실행 후 다음 시나리오의 starting state 가 변형됨.
+
+**판별 룰** — 다음 중 하나라도 해당하면 capacity-gated:
+- service 코드가 `getCapacity()` / `availableSlots()` 류 메서드로 row count 를 한계와 비교
+- entity 의 `status` 컬럼이 ACTIVE/HOLD/ASSIGNED 등 비최종 상태 + DELIVERED/CANCELLED/RELEASED 등 최종 상태로 구성
+- 인터뷰의 `db.schemas[]` 에 `eta_*`, `expires_at`, `assigned_at + duration` 류 시간 컬럼 존재
+
+**합성 항목** — 4개 모두 필요:
+
+1. `<Svc>Application.java` 에 `@EnableScheduling` 추가
+2. `<Svc>Service.java` 에 `@Scheduled(fixedDelay=30000)` 메서드 (30초 주기 권장 — 시나리오 hint 의 `eta=*` 보다 작아야 시나리오 의미 보존, 단 너무 짧으면 트래픽 시뮬레이션이 자연스럽지 않음)
+3. Repository 에 native query 또는 JPQL 일괄 전이:
+   ```java
+   @Modifying
+   @Query(value = "UPDATE dispatches SET status='DELIVERED' WHERE status='ASSIGNED' AND assigned_at + (eta_minutes || ' minutes')::interval < now()", nativeQuery = true)
+   int markExpiredAsDelivered();
+   ```
+4. `log.info("Delivered N expired ...", count)` — 시연 시 가시성 (P10 WPM 로그 화면에 노출)
+
+**scenario_hints 반영** — testbed-engineer 의 출력 `scenario_hints` 에 다음 3 필드 채워서 cleanup() 합성 시 사용:
+
+```json
+{
+  "scenario_hints": {
+    "capacity_table": "dispatches",
+    "lifecycle_active_state": "ASSIGNED",
+    "lifecycle_terminal_state": "DELIVERED"
+  }
+}
+```
+
+capacity-gated 가 **아닌** 도메인 (단순 로그/이벤트 적재만) 이면 위 4 항목 skip + scenario_hints 의 3 필드도 null/생략.
+
 #### `db/init.sql`
 - architecture.db.schemas[] 그대로 CREATE TABLE
 - seed=true 면 INSERT 더미 (각 테이블 10~20 row)

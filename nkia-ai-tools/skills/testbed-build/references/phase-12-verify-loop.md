@@ -63,6 +63,42 @@ done
 | `FAIL` | `dispatch_tune_and_retry` 또는 `user-decision` | recoverable 면 자동 retry, blocking 이면 사용자 prompt |
 | `ERROR` (시나리오 자체 실패) | `user-decision` | rca-scenario-runner 도달성 점검 안내 |
 
+## WPM `served=0` 진단 가이드 (FAIL 시 1순위)
+
+verify 가 PARTIAL/FAIL 이고 WPM 메트릭이 0 (혹은 `served=0`) 인 서비스가 있으면 **다음 순서를 strict 하게 따른다**. round-12 dogfooding 에서 1·2·3 단계 우회한 채 4 부터 의심하여 시간 허비한 사례 발생.
+
+1. **application HTTP status code 분포** (1순위 — 가장 흔한 원인)
+   - 의심 서비스의 pod 에서 직접 prob:
+     ```bash
+     kubectl exec -n <ns> <pod> -- curl -s -o /dev/null -w '%{http_code}\n' \
+       http://localhost:<port>/<endpoint> -X POST -d '<sample-body>' -H 'Content-Type: application/json'
+     ```
+   - `kubectl logs -n <ns> <pod> --tail=200 | grep -E ' 5[0-9]{2} | 4[0-9]{2} '`
+   - 5xx (특히 503) 다수 → **application 도메인 정정이 먼저**. WPM 은 정상 처리된 요청을 봐야 카운트.
+     (round-12 의 food-delivery-dispatch 케이스: capacity gating 으로 503 fast-fail → §2 lifecycle terminal 합성 누락이 root cause)
+
+2. **WPM agent boot/계측 정상 여부** (1 통과 시):
+   - pod 의 stdout 에 `WPM Agent started` 류 boot 메시지
+   - `kubectl logs <pod> | grep -i 'objType\|wpm\|scouter'` 로 Spring URL 감지 확인
+   - WPM-SCOUTER thread 수 (`jstack` 또는 thread dump) — 정상은 SCOUTER1/2/3 + SCOUTER-TCP 의 4개
+
+3. **P10 collector 측 로그** (2 통과 시 — 104 controller 서버에서):
+   ```bash
+   docker logs polestar-app-wpm-1 --since 10m | grep <serviceName>
+   ```
+   - `tcpConnected=false` / `lastTcpConnect=null` → TCP 31005 풀 비활성 (4 진입)
+   - `udpActive=true` 인데 tcp 만 false → §1 `enabledAutoAddAgent` toggle 미적용 의심
+
+4. **`enabledAutoAddAgent` 토글 확인** (3 까지 통과 시):
+   - P10 UI > 전체구성 > WPM > 서비스 클릭 > 우측 드로어 > "에이전트 자동 추가" 토글
+   - 또는 `recipes/wpm-enable-auto-add.md` 실행
+
+**금지 패턴**: 1·2·3 단계 우회하고 "RestClient 미지원" / "@XxxMapping value 누락" / "WPM TCP collector 차단" 가설로 직진 — round-12 에서 시간 허비 패턴.
+
+reference: `knowledge/polestar10/agents/wpm/install-guide.md` (가설 자체는 정정됨).
+
+---
+
 ## 재시도 한계 도달 후
 
 3 attempts 가 모두 PASS 미달 → 사용자 결정 후 `finalize` 단계로 진입 가능.
