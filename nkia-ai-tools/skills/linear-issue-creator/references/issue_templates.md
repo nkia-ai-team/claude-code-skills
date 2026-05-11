@@ -23,7 +23,7 @@
 
 ### 1. 빌드/배포 (Task 타입)
 
-**자동 라벨:** "build"
+**자동 라벨:** `Build`
 
 | 섹션 | 작성 가이드 |
 |------|-----------|
@@ -44,7 +44,7 @@
 
 ### 2. 데이터 작업 (Task 타입)
 
-**자동 라벨:** "data"
+**자동 라벨:** `Data` (워크스페이스에 없으면 `Task` 폴백)
 
 | 섹션 | 작성 가이드 |
 |------|-----------|
@@ -65,7 +65,7 @@
 
 ### 3. 평가 (Task 타입)
 
-**자동 라벨:** "research"
+**자동 라벨:** `Research`
 
 | 섹션 | 작성 가이드 |
 |------|-----------|
@@ -86,7 +86,7 @@
 
 ### 4. 새로운 기능 개발 (Feature 타입)
 
-**자동 라벨:** "feature"
+**자동 라벨:** `Feature`
 
 | 섹션 | 작성 가이드 |
 |------|-----------|
@@ -108,7 +108,7 @@
 
 ### 5. 기능 개선 (Feature 타입)
 
-**자동 라벨:** "improve"
+**자동 라벨:** `Improvement`
 
 | 섹션 | 작성 가이드 |
 |------|-----------|
@@ -130,7 +130,7 @@
 
 ### 6. 리팩토링 (Feature 타입)
 
-**자동 라벨:** "refactor"
+**자동 라벨:** `Refactor` (워크스페이스에 없으면 `Improvement` 폴백)
 
 | 섹션 | 작성 가이드 |
 |------|-----------|
@@ -152,7 +152,7 @@
 
 ### 7. 리서치 (Research 타입)
 
-**자동 라벨:** "research"
+**자동 라벨:** `Research`
 
 | 섹션 | 작성 가이드 |
 |------|-----------|
@@ -174,7 +174,7 @@
 
 ### 8. 버그 수정 (Bug 타입)
 
-**자동 라벨:** "bug"
+**자동 라벨:** `Bug`
 
 | 섹션 | 작성 가이드 |
 |------|-----------|
@@ -198,7 +198,7 @@
 
 ### 9. 문서 작업 (Task 타입)
 
-**자동 라벨:** "document"
+**자동 라벨:** `Document` (워크스페이스에 없으면 `Task` 폴백)
 
 | 섹션 | 작성 가이드 |
 |------|-----------|
@@ -354,35 +354,48 @@ AC 결과물은 **"코드를 변경했다"가 아니라 "변경한 코드가 의
 
 ## 작업 템플릿 → 이슈 타입/라벨 자동 매핑
 
-| 작업 템플릿 | Linear 이슈 타입 | 자동 라벨 (Work type) |
-|------------|----------------|---------------------|
-| 빌드/배포 | Task | "build" |
-| 데이터 작업 | Task | "data" |
-| 평가 | Task | "research" |
-| 새로운 기능 개발 | Feature | "feature" |
-| 기능 개선 | Feature | "improve" |
-| 리팩토링 | Feature | "refactor" |
-| 리서치 | Research | "research" |
-| 버그 수정 | Bug | "bug" |
-| 문서 작업 | Task | "document" |
+| 작업 템플릿 | Linear 이슈 타입 | 자동 라벨 (Work type) | Workspace 존재? |
+|------------|----------------|---------------------|---------------|
+| 빌드/배포 | Task | `Build` | ✅ |
+| 데이터 작업 | Task | `Data` (or fallback `Task`) | ⚠️ |
+| 평가 | Task | `Research` | ✅ |
+| 새로운 기능 개발 | Feature | `Feature` | ✅ |
+| 기능 개선 | Feature | `Improvement` | ✅ |
+| 리팩토링 | Feature | `Refactor` (or fallback `Improvement`) | ⚠️ |
+| 리서치 | Research | `Research` | ✅ |
+| 버그 수정 | Bug | `Bug` | ✅ |
+| 문서 작업 | Task | `Document` (or fallback `Task`) | ⚠️ |
 
 ### 라벨 체계
 
-라벨은 **작업 성격(Work type)** 과 **도메인(Domain)** 으로 나뉘며, 복수 라벨 조합이 가능합니다.
+라벨은 **작업 성격(Work type)** 과 **도메인(Domain)** 으로 나뉘며, 복수 라벨 조합이 가능합니다. **라벨 이름은 case-sensitive 이므로 워크스페이스에 정의된 그대로 (Capitalize) 사용해야 합니다.**
 
 | Category | Labels | 설명 |
 |----------|--------|------|
-| Work type | bug, feature, improve, refactor, research, document, task | 작업의 성격 (what) — 템플릿 선택 시 자동 부여 |
-| Domain | build, infra, data | 작업의 대상/영역 (where) — 내용 분석을 통해 추가 부여 |
+| Work type | `Bug`, `Feature`, `Improvement`, `Research`, `Task` (+ optional `Refactor`, `Document`) | 작업의 성격 (what) — 템플릿 선택 시 자동 부여 |
+| Domain | `Build` (+ optional `Infra`, `Data`) | 작업의 대상/영역 (where) — 내용 분석을 통해 추가 부여 |
+
+### 생성 직전 라벨 검증 (필수)
+
+`mcp__linear__create_issue` 호출 전 반드시:
+
+1. `mcp__linear__list_issue_labels(team: <팀>)` 로 워크스페이스에 실제 존재하는 라벨 조회
+2. 자동 매핑된 라벨이 목록에 있는지 확인 (대소문자 정확히 일치)
+3. 없는 라벨은 폴백 적용:
+   - `Refactor` → `Improvement`
+   - `Document` → `Task`
+   - `Data` → `Task`
+   - `Infra` → (스킵)
+4. 폴백도 없으면 라벨 없이 생성 + 사용자에게 안내
 
 ### 내용 기반 도메인 라벨 추가:
 이슈 제목/설명을 분석하여 해당하는 도메인 라벨을 추가 부여합니다:
-- "build" — CI/CD, 빌드 파이프라인, 배포 관련
-- "infra" — 서버 설정, 환경변수, compose/env 관리, 인프라 아키텍처 관련
-- "data" — 데이터 수집/가공/마이그레이션 관련
+- `Build` — CI/CD, 빌드 파이프라인, 배포 관련
+- `Infra` — 서버 설정, 환경변수, compose/env 관리, 인프라 아키텍처 관련 (워크스페이스에 없으면 스킵)
+- `Data` — 데이터 수집/가공/마이그레이션 관련 (워크스페이스에 없으면 `Task` 폴백)
 
 **복수 라벨 조합 예시:**
-- 데이터 파이프라인 리팩토링 → "refactor" + "data"
-- 배포 문서 작성 → "document" + "build"
-- 온보딩 매뉴얼 리뉴얼 → "document" + "improve"
-- Redis config 환경변수화 → "improve" + "infra"
+- 데이터 파이프라인 리팩토링 → `Refactor` + `Data` (둘 다 없으면 `Improvement` + `Task`)
+- 배포 문서 작성 → `Document` + `Build` (`Document` 없으면 `Task` + `Build`)
+- 온보딩 매뉴얼 리뉴얼 → `Document` + `Improvement` (`Document` 없으면 `Task` + `Improvement`)
+- Redis config 환경변수화 → `Improvement` + `Infra` (`Infra` 없으면 `Improvement` 단독)

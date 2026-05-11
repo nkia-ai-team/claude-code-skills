@@ -85,30 +85,32 @@ Estimate 규칙과 AC 검토 컨벤션은 [guideline-ref.md "Estimate", "AC 검�
 ## Work Templates and Issue Type Mapping
 
 9 work templates are available, each automatically mapped to a Linear issue type and labels.
-Labels are divided into **work type** (what) and **domain** (where), and multiple labels can be applied per issue.
 
-| Work Template | Issue Type | Auto Labels |
-|--------------|-----------|-------------|
-| 1. 빌드/배포 | Task | "build" |
-| 2. 데이터 작업 | Task | "data" |
-| 3. 평가 | Task | "research" |
-| 4. 새로운 기능 개발 | Feature | "feature" |
-| 5. 기능 개선 | Feature | "improve" |
-| 6. 리팩토링 | Feature | "refactor" |
-| 7. 리서치 | Research | "research" |
-| 8. 버그 수정 | Bug | "bug" |
-| 9. 문서 작업 | Task | "document" |
+**⚠️ 라벨 이름은 워크스페이스에서 실제로 존재해야 적용됩니다.** 매핑 라벨이 워크스페이스에 없으면 Linear 가 조용히 무시합니다 (이슈는 생성되지만 라벨 미부착). **생성 직전에 반드시 `mcp__linear__list_issue_labels` 로 워크스페이스 라벨을 조회해 매칭되는 이름만 전달하세요.**
 
-**Available Linear labels:**
+| Work Template | Issue Type | Auto Label | Workspace 존재? |
+|--------------|-----------|------------|---------------|
+| 1. 빌드/배포 | Task | `Build` | ✅ |
+| 2. 데이터 작업 | Task | `Data` | ⚠️ (없으면 미부착) |
+| 3. 평가 | Task | `Research` | ✅ |
+| 4. 새로운 기능 개발 | Feature | `Feature` | ✅ |
+| 5. 기능 개선 | Feature | `Improvement` | ✅ |
+| 6. 리팩토링 | Feature | `Refactor` | ⚠️ (없으면 미부착) |
+| 7. 리서치 | Research | `Research` | ✅ |
+| 8. 버그 수정 | Bug | `Bug` | ✅ |
+| 9. 문서 작업 | Task | `Document` | ⚠️ (없으면 미부착) |
+
+**Standard workspace labels (NKIA-AI 기준, 2026-05 확인):**
 
 | Category | Labels |
 |----------|--------|
-| Work type | bug, feature, improve, refactor, research, document, task |
-| Domain | build, infra, data |
+| Work type | `Bug`, `Feature`, `Improvement`, `Research`, `Task` |
+| Domain    | `Build` |
 
 - **Work type**: 작업의 성격 (what) — 템플릿 선택 시 자동 부여
 - **Domain**: 작업의 대상/영역 (where) — 내용 분석을 통해 추가 부여
-- 복수 라벨 조합 가능 (예: "refactor" + "data", "document" + "build")
+- 복수 라벨 조합 가능 (예: `Improvement` + `Build`)
+- **누락 라벨 (`Data`, `Refactor`, `Document`, `Infra`)** 는 워크스페이스 관리자에게 생성을 요청하거나, 인접 라벨 (`Task`/`Improvement`) 로 폴백하여 적용
 
 템플릿별 섹션 내용 가이드, AC 생성 패턴, 제목 개선 가이드라인은 [issue_templates.md](references/issue_templates.md) 참조
 

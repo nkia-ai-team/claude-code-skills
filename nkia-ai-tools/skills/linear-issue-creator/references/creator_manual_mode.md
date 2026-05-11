@@ -99,10 +99,12 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 
 템플릿 기반 자동 매핑:
 1. Linear 이슈 타입 결정 (Task/Feature/Research/Bug)
-2. 템플릿별 라벨 적용
-3. 내용 기반 추가 라벨
+2. 템플릿별 라벨 적용 (Capitalize 정확히 일치 — Linear 라벨은 case-sensitive)
+3. 내용 기반 추가 도메인 라벨
 
-**See `references/issue_templates.md` Section "작업 템플릿 → 이슈 타입 자동 매핑" and "라벨 자동 적용 규칙".**
+**⚠️ 라벨 검증 (필수):** `mcp__linear__list_issue_labels(team)` 로 워크스페이스 라벨을 먼저 조회하고, 매핑된 라벨이 실제로 존재하는지 확인. 없으면 폴백 적용 (`Refactor` → `Improvement`, `Document` → `Task`, `Data` → `Task`, `Infra` → 스킵). 모든 폴백도 부재 시 라벨 없이 생성 + 사용자 안내.
+
+**See `references/issue_templates.md` Section "작업 템플릿 → 이슈 타입 자동 매핑", "라벨 체계", and "생성 직전 라벨 검증".**
 
 ## Step 4.5: Auto-assign Project Based on Content
 
