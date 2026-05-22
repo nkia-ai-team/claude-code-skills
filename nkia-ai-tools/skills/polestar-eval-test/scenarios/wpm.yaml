@@ -1,0 +1,49 @@
+category: wpm
+title: WPM — Web Performance Management
+scope: |
+  웹 성능 (URL, 페이지 로드, 사용자 트랜잭션) 도메인. 현재 dev 환경에서 데이터 부재
+  케이스 많을 수 있음 — graceful handling 확인 자체가 평가 가치.
+expected_tools:
+  - query_wpm_services
+  - query_wpm_urls
+  - query_wpm_user_transactions
+
+seed:
+  - id: wpm-01
+    query: WPM 등록된 웹 서비스 목록
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_wpm_services (mode=list)"
+
+  - id: wpm-02
+    query: 페이지 로드 시간이 가장 긴 URL 5개
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_wpm_urls (mode=top, metric=load_time)"
+
+  - id: wpm-03
+    query: 사용자 트랜잭션 평균 응답시간이 3초 넘는 것
+    difficulty: medium
+    expected:
+      form: table
+      tool_pattern: "query_wpm_user_transactions (threshold=3s)"
+
+  - id: wpm-04
+    query: 최근 1시간 페이지 뷰 통계
+    difficulty: medium
+    expected:
+      form: chart
+      tool_pattern: "query_metric_timeseries (domain=wpm, metric=pageviews, window=1h)"
+
+  - id: wpm-05
+    query: 에러 페이지가 가장 많이 발생한 URL
+    difficulty: medium
+    expected:
+      form: table
+      tool_pattern: "query_wpm_urls (mode=top, metric=error_count)"
+
+expand_hints: |
+  - WPM data 가 dev 환경에 없을 가능성 높음. Verifier 는 "데이터 없음" 응답이
+    정상 graceful 인지 판정 (chat-ai 가 "404/연결 오류" 같은 에러 응답 X)

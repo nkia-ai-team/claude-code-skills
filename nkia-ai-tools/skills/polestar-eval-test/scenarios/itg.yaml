@@ -1,0 +1,55 @@
+category: itg
+title: ITG — IT Governance / 변경요청 / 서비스 요청
+scope: |
+  ITSM 도메인 — 변경요청 생성, 서비스 요청 조회, 폼 분류.
+expected_tools:
+  - search_service_catalog
+  - get_user_forms
+  - itg plugin
+
+seed:
+  - id: itg-01
+    query: 운영 서버 3대 보안 패치 변경요청 만들어줘. 표준 변경, 등급 2등급, ITO 작업, 다음주 금요일까지
+    difficulty: medium
+    expected:
+      form: itsm_form_card
+      tool_pattern: "itg plugin (form=변경요청, category=server, type=standard)"
+
+  - id: itg-02
+    query: 긴급 네트워크 변경요청 등록. 신규 연계 시스템 오픈, 1등급, 2일 이내
+    difficulty: medium
+    expected:
+      form: itsm_form_card
+      tool_pattern: "itg plugin (form=변경요청, urgency=high, type=urgent)"
+
+  - id: itg-03
+    query: 내가 보낸 서비스 요청 목록 최근 요청일 기준으로
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "get_user_forms (status=all, sort=created_desc)"
+
+  - id: itg-04
+    query: 진행 중인 변경요청 list
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "get_user_forms (status=in_progress)"
+
+  - id: itg-05
+    query: 사용 가능한 변경요청 폼 종류 알려줘
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "search_service_catalog"
+
+  - id: itg-06
+    query: DB 마이그레이션 변경요청 만들어줘. 다음주 토요일 새벽 작업, 영향도 분석 첨부
+    difficulty: hard
+    expected:
+      form: itsm_form_card
+      tool_pattern: "itg plugin (form=변경요청, category=db, attachments=[영향도])"
+
+expand_hints: |
+  - 등급 (1~5), 작업 부서 (ITO / 운영팀 / 보안팀), 요청 구분 (표준/긴급/일반) 같은
+    metadata 필드 다양하게 발화
