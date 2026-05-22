@@ -17,7 +17,7 @@ Runner 가 UI 실행 + 데이터 수집 → Verifier 가 평가 → Report 산�
 | 인자 | 값 | 기본 |
 |---|---|---|
 | `target` | `104` (개발) / `57` (운영) | 사용자에게 묻기 |
-| `scenario` | `all` / `all-no-itg` (ITG 변경요청 부작용 회피) / 단일 카테고리 명 — 도메인 8개 (`sms` / `dpm` / `apm` / `wpm` / `kcm` / `nms` / `alarm` / `itg`) + 시스템 3개 (`cross-domain` / `memory-application` / `conversation-flow`). 총 11 카테고리. | 사용자에게 묻기 |
+| `scenario` | `all` / `all-no-itg` (ITG 변경요청 부작용 회피) / `all-no-side-effect` (ITG + memory-crud 제외 — 완전 read-only) / 단일 카테고리 명 — 도메인 8개 (`sms` / `dpm` / `apm` / `wpm` / `kcm` / `nms` / `alarm` / `itg`) + 시스템 4개 (`cross-domain` / `memory-application` / `memory-crud` / `conversation-flow`). 총 12 카테고리. | 사용자에게 묻기 |
 | `--user=ID` | 로그인 ID | 사용자에게 묻기 |
 | **`--per-category=N`** | 카테고리 당 query N 개 (Challenger 가 seed 에서 N 개로 expand) | 사용자에게 묻기. 추천: easy=3, medium=5, full=10 |
 | **`--count=N`** | 전체 총 query 수 (all 시나리오일 때 카테고리 별 균등 분배) | per-category 와 mutually exclusive |
@@ -70,13 +70,23 @@ seed 를 기반으로 N 개 expand. 상세: `reference/scenarios.md`.
 7. **alarm** — 활성/이력/통계 + 이벤트
 8. **itg** — 변경요청 / 서비스 요청 (ITSM)
 
-### 시스템 카테고리 (3)
+### 시스템 카테고리 (4)
 
 9. **cross-domain** — Tier 0 → Tier 1 다단계 (Phase B/C/L3 검증 핵심)
-10. **memory-application** — 사용자 메모리 hint 적용 (호칭/추가 컬럼/alias)
-11. **conversation-flow** — 멀티턴 (이전 답변 참조)
+10. **memory-application** — 사용자 메모리 hint 가 응답에 reflected 되는가 (downstream effect)
+11. **memory-crud** — 메모리 자체 lifecycle (Create/Read/Update/Delete + auto-extract + toggle + conflict + quota). ★ side effect 있음 — Runner 가 baseline-aware auto cleanup
+12. **conversation-flow** — 멀티턴 (이전 답변 참조)
 
 RCA 는 카테고리 아님 — chat-ai 의 RCA workflow 는 평가 권한 밖.
+
+### memory-application vs memory-crud 의 분리
+
+| 측정 차원 | memory-application | memory-crud |
+|---|---|---|
+| 메모리 read/write | 사전 박힘 (snapshot 만 사용) | 평가 도중 write/delete trigger |
+| 검증 대상 | LLM 응답에 hint reflected 되나 | API 가 item 정확히 추가/수정/삭제 하나 + MemoryExtract 자동 trigger 정확성 |
+| 부작용 | 없음 (read only) | ★ 있음 (write/delete) — auto cleanup 필요 |
+| 핵심 메트릭 | alias resolution / metric_keys propagation / UI 컬럼 render | list 의 items diff / source 정확성 / quota / conflict resolution |
 9. **memory-application** — 사용자 메모리 hint 적용 (호칭, 조회 선호)
 10. **conversation-flow** — 멀티턴 (이전 답변 참조)
 
@@ -229,6 +239,71 @@ chat-ai 의 `MemoryExtract` 노드가 매 turn 끝에 자동 메모리 추출 �
 
 이론적으로 query 마다 dump 가 가장 정확하지만 overhead 큼 (API 1 회 / query).
 조회형 query 가 대부분이라 자동 추출 빈도 낮음 (`[MemoryExtract] skip` 빈번) → 시작/끝 2회로 충분.
+
+### 1.6 memory-crud 카테고리 전용 — API endpoints + auto cleanup
+
+memory-crud 카테고리는 **메모리에 write/delete 부작용 발생**. 평가 후 baseline 외 item 모두 자동 cleanup 필수.
+
+#### 1.6.1 chat-ap memory API endpoints (검증된 6개)
+
+| Endpoint | Body | 설명 |
+|---|---|---|
+| `POST /api/chat-ap/memories/list` | `{page, size}` | items list 조회 |
+| `POST /api/chat-ap/memories/setting/get` | `{}` | `memoryEnabled: bool` 조회 |
+| `POST /api/chat-ap/memories/create` | `{content}` | item 추가 (source=manual). 자연어 발화의 자동 추출은 `source=auto` 로 별도 |
+| `POST /api/chat-ap/memories/update` | `{id, content}` | content 수정 |
+| `POST /api/chat-ap/memories/delete` | `{id}` | item 삭제 |
+| `POST /api/chat-ap/memories/setting/update` | `{memoryEnabled: bool}` | toggle |
+
+#### 1.6.2 Runner 의 baseline-aware cleanup 룰
+
+memory-crud 시작 시:
+```javascript
+// chrome MCP evaluate_script 내부
+const baseline = (await fetch("/api/chat-ap/memories/list",...)).data.items;
+const baseline_ids = new Set(baseline.map(it => it.id));
+const baseline_enabled = (await fetch("/api/chat-ap/memories/setting/get",...)).data.memoryEnabled;
+// runs/<run-id>/memory-snapshot-before.json 에 저장
+```
+
+memory-crud 끝나면 (★ Runner 책임, 사용자 약속 X):
+```javascript
+const final = (await fetch("/api/chat-ap/memories/list",...)).data.items;
+const final_ids = new Set(final.map(it => it.id));
+const to_delete = [...final_ids].filter(id => !baseline_ids.has(id));
+for (const id of to_delete) {
+  await fetch("/api/chat-ap/memories/delete", {body: JSON.stringify({id}), ...});
+}
+if (current_enabled !== baseline_enabled) {
+  await fetch("/api/chat-ap/memories/setting/update", {body: JSON.stringify({memoryEnabled: baseline_enabled}), ...});
+}
+```
+
+helper: `python3 scripts/memory_cleanup.py <run-id>` — before/after diff 계산 + cleanup JS plan 생성. Claude 가 chrome MCP 로 실행.
+
+cleanup log: `runs/<run-id>/memory-crud-cleanup.json` (deleted_ids, restored_settings).
+
+#### 1.6.3 CRUD 발화 패턴 (Challenger 가 expand 시 참고)
+
+| CRUD | 자연어 발화 (Runner 가 보냄) | 검증 |
+|---|---|---|
+| **C** | "X 라고 기억해줘" | list 에 새 item, source=auto, content 매칭 |
+| **R** | "내 메모리 다 보여줘" / "호칭 뭐라 박았더라?" | agent narrative 의 count 가 list.total 매칭 |
+| **U** | "Y 말고 Z 로 바꿔" | 기존 item update OR 새 item + deprecate |
+| **D** | "기억 지워줘" | item soft/hard delete 검증 |
+| **auto-extract** | "X 가 Y 야" 사실 진술 | MemoryExtract 자동 trigger, source=auto |
+| **toggle** | `[API setup] memoryEnabled=false` 후 hint 의존 발화 | inject 미발동 검증 |
+| **conflict** | "X=A" + "X=B" 박은 뒤 "X 상태?" | 우선순위 / disambiguation |
+| **quota** | `[API setup] 50+ item create` | pagination 정상, truncation/limit |
+
+자세한 시드는 `scenarios/memory-crud.yaml` 참조.
+
+#### 1.6.4 안전 가드 (Runner 반드시 준수)
+
+1. **시작 전 baseline snapshot 필수** — 없으면 cleanup 불가능
+2. **각 create/update/delete 호출 즉시 file 에 trace 저장** — `memory-crud-trace.json` (어떤 query 가 어떤 item id 를 생성했는지 추적)
+3. **cleanup 실패 시 사용자 즉시 알림** — silent failure 금지. `memoryEnabled=false` 복원 실패는 다음 사용 시 hint 누락 → 큰 영향
+4. **multi-run interleave 금지** — 같은 사용자 ID 로 memory-crud 동시 실행 X (baseline 충돌)
 
 ### 2. Challenger 서브에이전트 (쿼리 생성)
 

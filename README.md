@@ -427,7 +427,8 @@ gws auth login
 Polestar AI (lucida-chat-ai) ai-portal 을 chrome-devtools 로 자동 검증하는 E2E 평가 도구. **Agentic Self-Instruct** 패턴으로 Challenger 가 시나리오 별 쿼리 생성 → Runner 가 chrome 으로 send + screenshot + 백엔드 log 수집 → Verifier 가 7축 채점 → strict template 으로 report 자동 생성.
 
 **주요 기능:**
-- **시나리오 카테고리 10종** — inventory / live-state / threshold-breach / trend / alarm-management / rca / change-mgmt / cross-domain / memory-application / conversation-flow
+- **시나리오 카테고리 12종** — 도메인 8개 (`sms` / `dpm` / `apm` / `wpm` / `kcm` / `nms` / `alarm` / `itg`) + 시스템 4개 (`cross-domain` / `memory-application` / **`memory-crud`** / `conversation-flow`)
+- **`memory-crud`** (신규) — 메모리 자체 lifecycle 검증 (Create/Read/Update/Delete + auto-extract + toggle + conflict + quota). chat-ap memory API 6 endpoint 직접 호출. **side effect 있어 baseline-aware auto cleanup** (`scripts/memory_cleanup.py` 가 before/after diff → 추가된 item 만 삭제, baseline item 은 보존)
 - **메모리 hint 적용 검증** — 사용자 메모리 (호칭/조회 선호/alias) 가 응답에 reflected 됐는지 검증
 - **Phase B/C/Layer 3 회귀 추적** — prior_context 주입, wrap_tools_with_prior, wide table merge, union override 등 chat-ai 내부 흐름 검증
 - **chrome-devtools fetch + SSE reader 패턴** — React onClick / Broken pipe 우회 (100% send 도달)
@@ -447,10 +448,11 @@ Polestar AI (lucida-chat-ai) ai-portal 을 chrome-devtools 로 자동 검증하�
 
 **사용 예시:**
 ```bash
-/polestar-eval-test 104 cross-domain --per-category=5      # cross-domain 5 query (Phase B/C 회귀, ~10분)
-/polestar-eval-test 104 all --count=30                     # 10 카테고리에 30개 분배
-/polestar-eval-test 57 memory-application --per-category=8 # 메모리 hint hard 8개
-/polestar-eval-test 104 all --per-category=10              # 전체 100 query (full, 1~2시간)
+/polestar-eval-test 104 cross-domain --per-category=5            # cross-domain 5 query (Phase B/C 회귀, ~10분)
+/polestar-eval-test 104 all-no-side-effect --count=30            # ITG + memory-crud 제외 (read-only, 30 query)
+/polestar-eval-test 57 memory-application --per-category=8       # 메모리 hint reflected 검증
+/polestar-eval-test 104 memory-crud --per-category=8             # 메모리 CRUD lifecycle 검증 (auto cleanup)
+/polestar-eval-test 104 all --per-category=10                    # 전체 120 query (full, 1~2시간)
 ```
 
 **출력:** `runs/<run-id>/`
