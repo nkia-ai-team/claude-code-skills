@@ -1,0 +1,173 @@
+category: memory-crud
+description: |
+  메모리 자체 lifecycle 검증 — memory-application 이 'hint 가 응답에 reflected 되는가'
+  를 본다면, memory-crud 는 'CRUD/auto-extract/toggle/conflict/quota 가 정상 작동하는가'
+  를 본다. 자연어 발화로 추출 trigger + API 직접 호출 mix.
+
+  ★ side effect 있음 — 평가 도중 실 사용자 메모리에 write/delete 발생.
+  Runner 가 시작 전 baseline_item_ids snapshot, 끝나면 추가된 item 모두 삭제 (auto cleanup).
+  baseline item 은 건드리지 않음.
+
+domain: [chat-ai, chat-ap]
+verification_mode: api_assertion
+  # Verifier 가 응답 텍스트만 보지 않고 API 직접 호출로 before/after item list 비교
+  # 핵심 검증 = list API 의 items 가 발화 후 정확히 변했는가
+
+seed_queries:
+  # ─── C: Create ───
+  - id: crud-c01
+    query: "내 호칭은 '캡틴' 이라고 기억해줘"
+    difficulty: easy
+    crud: create
+    expected:
+      api_assertion: "list 의 items 에 새 item 추가됨, content 에 '캡틴' 포함, source=auto"
+      response_form: narrative
+      in_response_text: ["기억", "캡틴", "저장"]
+    notes: |
+      MemoryExtract 노드가 자동 trigger. extractor 의 evaluator 가 "재사용 가능한
+      개인적 사실" 로 판정해야 함.
+
+  - id: crud-c02
+    query: "promaxgb10-560c 가 110번 서버라고 기억해줘"
+    difficulty: easy
+    crud: create
+    expected:
+      api_assertion: "alias mapping item 추가, content 에 'promaxgb10-560c' + '110' 포함"
+      response_form: narrative
+
+  - id: crud-c03
+    query: "나는 새벽 시간대에 알람 빨리 받기 원해. 기억해줘."
+    difficulty: medium
+    crud: create
+    expected:
+      api_assertion: "선호도 item 추가, content 에 '새벽' 또는 '알람' 포함"
+
+  # ─── R: Read ───
+  - id: crud-r01
+    query: "내가 박은 메모리 다 보여줘"
+    difficulty: easy
+    crud: read
+    expected:
+      response_form: narrative_or_table
+      in_response_text: ["메모리", "기억"]
+    notes: |
+      agent 가 list API 호출하고 결과를 narrative 로 요약하거나 table 반환.
+      verifier 가 list API 의 total 과 응답의 count 일치 확인.
+
+  - id: crud-r02
+    query: "내가 호칭에 대해 뭐라고 박았더라?"
+    difficulty: medium
+    crud: read
+    expected:
+      api_assertion: "agent 가 list 에서 호칭 관련 item filter 해서 보여줌"
+      in_response_text: ["호칭"]
+
+  # ─── U: Update ───
+  - id: crud-u01
+    query: "아 캡틴 말고 '대장' 으로 바꿔줘"
+    difficulty: medium
+    crud: update
+    depends_on: crud-c01
+    expected:
+      api_assertion: "기존 호칭 item 의 content 가 '대장' 으로 update OR 새 item 추가 + 기존 deprecate"
+      response_form: narrative
+
+  - id: crud-u02
+    query: "promaxgb10-560c 가 110번이 아니라 211번이야 정정해줘"
+    difficulty: medium
+    crud: update
+    depends_on: crud-c02
+    expected:
+      api_assertion: "alias item 의 110 → 211 로 update"
+
+  # ─── D: Delete ───
+  - id: crud-d01
+    query: "내 호칭 기억은 삭제해줘"
+    difficulty: easy
+    crud: delete
+    depends_on: crud-c01
+    expected:
+      api_assertion: "호칭 item soft-delete 또는 hard-delete. list 에서 사라짐"
+      response_form: narrative
+      in_response_text: ["삭제", "지웠", "잊"]
+
+  - id: crud-d02
+    query: "promaxgb10-560c 관련 기억 다 지워줘"
+    difficulty: medium
+    crud: delete
+    depends_on: crud-c02
+    expected:
+      api_assertion: "alias item 삭제됨"
+
+  # ─── 자동 추출 (auto-extract) ───
+  - id: crud-auto01
+    query: "참고로 ubuntu2204-230-104 가 104번 서버임"
+    difficulty: medium
+    crud: auto_extract
+    expected:
+      api_assertion: "MemoryExtract 가 '재사용 가능한 사실' 로 판정 → 새 item 추가 (source=auto)"
+      notes: "조회 의도 없는 사실 진술. 다음 turn 에서 '104번 서버 상태' 발화 시 alias 발동되어야"
+
+  - id: crud-auto02
+    query: "지금 부하 어떻게 돼?"
+    difficulty: easy
+    crud: auto_extract
+    expected:
+      api_assertion: "MemoryExtract skip — 조회형 query. 새 item 추가 X"
+      notes: "negative case — 조회만 하는 발화는 메모리 추가 안 됨을 검증"
+
+  # ─── Toggle ───
+  - id: crud-toggle01
+    query: "[API] memoryEnabled=false 후 '내 호칭 뭐로 부르랬지?' 발화"
+    difficulty: hard
+    crud: toggle
+    setup: "API call: POST /api/chat-ap/memories/setting/update {memoryEnabled: false}"
+    expected:
+      api_assertion: "응답에 호칭 hint 미적용 — agent 가 메모리 inject 못 받음. 자기 호칭 모름"
+      cleanup: "API call: memoryEnabled=true 복원"
+
+  # ─── Conflict ───
+  - id: crud-conflict01
+    query: "[전체] '109번=A서버' 박은 뒤 '109번=B서버' 박고 '109번 상태' 발화"
+    difficulty: hard
+    crud: conflict
+    setup: "2 conflicting item 모두 create"
+    expected:
+      api_assertion: "agent 가 최근 추가된 alias 우선 사용 OR 두 후보 모두 narrative 에 노출 OR 명시적 disambiguation"
+      cleanup: "두 conflicting item 모두 삭제"
+
+  # ─── Quota ───
+  - id: crud-quota01
+    query: "[API] 메모리 50+ 추가 후 list 반환 schema 확인"
+    difficulty: hard
+    crud: quota
+    setup: "API call 50 회 반복 — 'eval-quota-test-NN' 형식 content 로 생성"
+    expected:
+      api_assertion: "list 의 page/size pagination 정상 작동. total 정확. truncation 또는 limit error 확인"
+      cleanup: "추가된 50 item 모두 삭제"
+
+expand_hints: |
+  - Challenger 가 8 단계 (C/R/U/D + auto + toggle + conflict + quota) 중 사용자 N 에 맞게 선별
+  - depends_on 명시된 query 는 순서대로 진행 — Runner 가 sequential 보장
+  - setup/cleanup 명시된 query 는 Runner 가 API 직접 호출 (자연어 발화 X)
+  - C/R/U/D 는 자연어 발화 → MemoryExtract 또는 명시적 도구 trigger 시도
+  - 발화 후 list API 폴링 (max 5s) — 새 item 감지 시 PASS
+
+verifier_extra_checks:
+  - baseline_diff: 시작 전 item ids 와 끝 item ids 비교. 추가된 N / 삭제된 M / 변경된 K 산출
+  - api_assertion: query 마다 expected.api_assertion 와 실제 list 상태 매칭
+  - cleanup_compliance: 모든 query 끝나면 baseline 외 item 0개여야 함 (Runner 가 cleanup 책임)
+  - extractor_judgment: auto_extract query 의 trigger 정확성 (사실 진술 vs 조회 발화 분류 정확도)
+
+runner_cleanup_rule: |
+  Runner 가 카테고리 시작 시:
+    baseline_item_ids = set(item.id for item in list_api())
+  카테고리 종료 시:
+    final_item_ids = set(item.id for item in list_api())
+    added_ids = final_item_ids - baseline_item_ids
+    for id in added_ids:
+      POST /api/chat-ap/memories/delete {id}
+    memoryEnabled 복원 (toggle 케이스 시)
+    log: runs/<run-id>/memory-crud-cleanup.json (deleted_ids, restored_settings)
+
+  ★ 절대 baseline item (사용자 박힌 기존 메모리) 은 건드리지 않음.
