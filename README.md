@@ -1,8 +1,8 @@
 # NKIA-AI Claude Code Skills
 
-NKIA-AI 팀의 Claude Code 플러그인 마켓플레이스입니다. 개발 워크플로우(kickoff → commit → submit → wrap-up), Linear 이슈/프로젝트/이니셔티브 관리, Confluence·Figma·주간보고 자동화를 하나의 플러그인에 모았습니다.
+NKIA-AI 팀의 Claude Code 플러그인 마켓플레이스입니다. 개발 워크플로우(kickoff → commit → submit → wrap-up), Linear 이슈/프로젝트/이니셔티브 관리, Confluence·Figma·주간보고 자동화, Polestar 운영/검증 도구를 하나의 플러그인에 모았습니다.
 
-현재 버전: **v1.5.0**
+현재 버전: **v1.10.0**
 
 ## 설치 방법
 
@@ -40,6 +40,13 @@ NKIA-AI 팀의 Claude Code 플러그인 마켓플레이스입니다. 개발 워�
 | **문서 & 자동화** | [confluence-manager](#confluence-manager) | Confluence 문서 검색·조회·생성·수정 |
 | | [figma-to-react](#figma-to-react) | Figma → React + Storybook + Playwright 파이프라인 |
 | | [weekly-report](#weekly-report) | 팀 주간업무보고 자동 수집 및 시트 기록 |
+| | [openapi-llm-spec](#openapi-llm-spec) | Lucida Spring Boot 도메인 → LLM tool OpenAPI 3.1 spec 자동 추출 |
+| **Polestar 운영** | [ask-polestar10](#ask-polestar10) | polestar10 웹/에이전트(KCM/APM/WPM/SMS) 사용법·설치 Q&A |
+| | [testbed-build](#testbed-build) | RCA 테스트베드 인터뷰→코드→배포→등록→시나리오→알람→closed-loop verify |
+| | [testbed-polestar10-register](#testbed-polestar10-register) | testbed 자원을 Polestar10 에 자동 등록 |
+| | [testbed-tune-alarms](#testbed-tune-alarms) | testbed 알람 임계치 자동 튜닝 (시계열 분포 기반) |
+| | [testbed-generate-scenarios](#testbed-generate-scenarios) | RCA 시나리오 자동 생성 |
+| **Polestar 검증** | [polestar-eval-test](#polestar-eval-test) | Polestar AI E2E 자동 평가 (Challenger/Runner/Verifier + chrome-devtools + 7축 채점 + screenshot evidence) |
 
 ---
 
@@ -410,6 +417,48 @@ gws auth login
 /weekly-report --next                # 다음 사이클 계획 포함
 /weekly-report --reconfigure         # 설정 재입력
 ```
+
+---
+
+## Polestar 검증 스킬
+
+### polestar-eval-test
+
+Polestar AI (lucida-chat-ai) ai-portal 을 chrome-devtools 로 자동 검증하는 E2E 평가 도구. **Agentic Self-Instruct** 패턴으로 Challenger 가 시나리오 별 쿼리 생성 → Runner 가 chrome 으로 send + screenshot + 백엔드 log 수집 → Verifier 가 7축 채점 → strict template 으로 report 자동 생성.
+
+**주요 기능:**
+- **시나리오 카테고리 10종** — inventory / live-state / threshold-breach / trend / alarm-management / rca / change-mgmt / cross-domain / memory-application / conversation-flow
+- **메모리 hint 적용 검증** — 사용자 메모리 (호칭/조회 선호/alias) 가 응답에 reflected 됐는지 검증
+- **Phase B/C/Layer 3 회귀 추적** — prior_context 주입, wrap_tools_with_prior, wide table merge, union override 등 chat-ai 내부 흐름 검증
+- **chrome-devtools fetch + SSE reader 패턴** — React onClick / Broken pipe 우회 (100% send 도달)
+- **결과 checkpoint** — query 별 즉시 file 저장. `--resume` 으로 중단 복구
+- **자동 report generator** — `scripts/gen_report.py` 가 screenshot/answer/axes/verdict 5요소 strict embed (LLM 누락 방지)
+
+**평가 7축**:
+| 축 | 가중치 | 기준 |
+|---|---|---|
+| 정확성 | 25 | expected columns/fields/threshold 매칭 |
+| 완성도 | 15 | min_rows / 필수 fields |
+| 형식 | 10 | table/chart/narrative 매칭 |
+| 백엔드 | 15 | 11 step (routing/memory inject/agent tool/tool args/...) |
+| 화면 (vision) | 10 | Claude vision 으로 PNG 직접 분석 |
+| 메모리 적용 | 15 | memory-snapshot.items × 응답 매칭 |
+| 응답시간 | 10 | <30s=full / 30~60=partial / >60=reduced |
+
+**사용 예시:**
+```bash
+/polestar-eval-test 104 cross-domain --per-category=5      # cross-domain 5 query (Phase B/C 회귀, ~10분)
+/polestar-eval-test 104 all --count=30                     # 10 카테고리에 30개 분배
+/polestar-eval-test 57 memory-application --per-category=8 # 메모리 hint hard 8개
+/polestar-eval-test 104 all --per-category=10              # 전체 100 query (full, 1~2시간)
+```
+
+**출력:** `runs/<run-id>/`
+- `memory-snapshot.json` — 평가 시점 메모리 ground truth
+- `queries-<category>.json` — Challenger 산출
+- `<NNN>-<cat>-<qid>.png/.json` — query 별 screenshot + checkpoint
+- `verifier-<category>.json` — 7축 채점 결과
+- `report.md` — strict template (모든 query screenshot embed + answer + axes table + verdict)
 
 ---
 

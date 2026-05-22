@@ -1,0 +1,88 @@
+category: apm
+title: APM — Application Performance Management
+scope: |
+  앱/서비스 도메인 query. 응답시간 / throughput / error rate / trace / JVM / DB call.
+  발화 유형 mix — inventory (서비스 list), live-state (top-N), threshold (slow),
+  trend (응답시간 변화), trace 분석.
+expected_tools:
+  - query_apm_services
+  - query_apm_errors
+  - query_apm_jvm
+  - query_apm_db_calls
+  - query_apm_traces
+  - query_apm_trace_analysis
+
+seed:
+  - id: apm-01
+    query: APM 등록된 서비스 목록 보여줘
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_apm_services (mode=list)"
+
+  - id: apm-02
+    query: 응답시간 가장 느린 서비스 3개
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_apm_services (mode=top, metric=response_time)"
+
+  - id: apm-03
+    query: 평균 응답시간 1초 넘는 서비스
+    difficulty: medium
+    expected:
+      form: table
+      tool_pattern: "query_apm_services (threshold=1s)"
+
+  - id: apm-04
+    query: 에러율이 가장 높은 서비스
+    difficulty: medium
+    expected:
+      form: table
+      tool_pattern: "query_apm_errors (mode=top, metric=error_rate)"
+
+  - id: apm-05
+    query: 가장 느린 트랜잭션 top 10
+    difficulty: medium
+    expected:
+      form: table
+      tool_pattern: "query_apm_traces (sort=elapsed, top_n=10)"
+
+  - id: apm-06
+    query: 최근 6시간 APM 응답시간 추이
+    difficulty: medium
+    expected:
+      form: chart
+      tool_pattern: "query_metric_timeseries (domain=apm, window=6h)"
+
+  - id: apm-07
+    query: JVM 메모리 사용률 높은 서비스
+    difficulty: medium
+    expected:
+      form: table
+      tool_pattern: "query_apm_jvm (mode=top, metric=heap)"
+
+  - id: apm-08
+    query: 어떤 서비스가 DB call 가장 많이 하는지
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_apm_db_calls (mode=top)"
+
+  - id: apm-09
+    query: 응답시간이 지난 6시간 동안 평소 대비 2배 늘어난 서비스
+    difficulty: hard
+    expected:
+      form: table
+      tool_pattern: "query_apm_services + trend 비교"
+
+  - id: apm-10
+    query: 특정 trace ID 의 hop 별 elapsed 분석
+    difficulty: hard
+    expected:
+      form: table
+      tool_pattern: "query_apm_trace_analysis (trace_id=...)"
+
+expand_hints: |
+  - 서비스 이름은 chat-ai 가 alias resolve. "주문 서비스", "결제 API" 같은 자연 발화 OK
+  - APM data 가 dev 환경에 없을 수도 있음 — Verifier 가 "데이터 부재" graceful 처리

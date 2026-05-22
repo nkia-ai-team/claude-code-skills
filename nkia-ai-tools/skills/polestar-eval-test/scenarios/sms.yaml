@@ -1,0 +1,95 @@
+category: sms
+title: SMS — Server Management System
+scope: |
+  서버 (cpu / memory / disk / network / process / filesystem) 도메인 query.
+  발화 유형 mix — inventory (서버 list), live-state (top-N 부하), threshold-breach
+  (X% 이상), trend (시계열 추세), gauge (특정 서버 상태).
+expected_tools:
+  - query_sms_servers          # mode=list|top
+  - query_sms_top_resources
+  - query_sms_processes
+  - query_sms_filesystems
+  - query_sms_tabular
+  - query_metric_timeseries
+
+seed:
+  - id: sms-01
+    query: 관리 중인 서버 목록 보여줘
+    difficulty: easy
+    expected:
+      form: table
+      min_rows: 1
+      columns: [서버명, IP, OS, 호스트상태]
+      tool_pattern: "query_sms_servers (mode=list)"
+
+  - id: sms-02
+    query: 현재 시스템 부하가 가장 높은 서버 5대의 상태를 보여줘
+    difficulty: easy
+    expected:
+      form: wide_table
+      min_rows: 1
+      columns: [서버명, CPU(%), 메모리(%)]
+      tool_pattern: "query_sms_servers (mode=top, metric=cpu, top_n=5)"
+
+  - id: sms-03
+    query: CPU 사용률 80% 넘은 서버 있어? 있으면 서버명, 최고 사용률, 발생 시간 같이 보여줘
+    difficulty: medium
+    expected:
+      form: table
+      tool_pattern: "query_sms_servers (mode=top, threshold=80)"
+      threshold_check: cpu >= 80
+
+  - id: sms-04
+    query: 메모리 사용률 상위 5대 서버 알려줘
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_sms_servers (mode=top, metric=memory)"
+
+  - id: sms-05
+    query: promaxgb10-554c 서버의 최근 1시간 CPU 사용률 추이
+    difficulty: medium
+    expected:
+      form: chart
+      tool_pattern: "query_metric_timeseries (resource_name=promaxgb10-554c, metric=cpu, window=1h)"
+
+  - id: sms-06
+    query: 디스크 사용률 90% 넘은 서버. 서버명, 파일시스템, 용량, 사용률 같이
+    difficulty: medium
+    expected:
+      form: table
+      tool_pattern: "query_sms_filesystems (threshold=90)"
+
+  - id: sms-07
+    query: ubuntu2204-230-104 서버에서 java 프로세스를 찾아줘
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_sms_processes (hostname_filter=ubuntu2204-230-104, name_contains=java)"
+
+  - id: sms-08
+    query: 디스크 I/O 가장 많이 발생한 서버 3대
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_sms_servers (mode=top, metric=disk_io, top_n=3)"
+
+  - id: sms-09
+    query: 다운된 서버 (가용성 DOWN) 있나
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_sms_servers (availability_filter=DOWN)"
+
+  - id: sms-10
+    query: 어제 24시간 동안 promaxgb10-554c 의 메모리 사용량 변화 그래프
+    difficulty: hard
+    expected:
+      form: chart
+      tool_pattern: "query_metric_timeseries (metric=memory, window=24h, time=어제)"
+
+expand_hints: |
+  - Challenger 가 N 개로 expand 시 위 발화 유형 골고루 (inventory 1~2 / live 2~3 /
+    threshold 1~2 / trend 1~2 / gauge 1~2) 분포 유지
+  - difficulty: easy=top-N/list/specific hostname, medium=threshold/시계열, hard=시간범위 복잡 + 다중 조건
+  - hostname 예시: promaxgb10-554c, ubuntu2204-230-104 (dev 환경)

@@ -1,0 +1,46 @@
+category: memory-application
+description: 사용자 메모리 hint 가 응답에 적용되는지 검증
+domain: [Memory, chat-ai]
+seed_queries:
+  - id: mem-01
+    query: 안녕
+    setup_memory: 사용자는 대화 시 호칭을 "사장님" 으로 통일하기를 원한다
+    expected_in_response: 사장님
+    difficulty: easy
+    notes: 호칭 메모리 적용 — 간단 검증
+
+  - id: mem-02
+    query: 서버 list 보여줘
+    setup_memory: 사용자는 서버 조회 시 항상 CPU 와 Memory 사용률 컬럼을 함께 보여주기를 원한다
+    expected_table_columns: [서버명, CPU, 메모리]
+    difficulty: medium
+    notes: 컬럼 추가 hint 적용 검증
+
+  - id: mem-03
+    query: 알람 분석해줘
+    setup_memory: 사용자는 알람이나 장애 조회 시 답변에 가능한 root cause 후보 최소 3개 나열해달라고 요청함
+    expected_min_root_cause_candidates: 3
+    difficulty: medium
+
+  - id: mem-04
+    query: 변경요청 만들어줘 (DB 마이그레이션)
+    setup_memory: 사용자는 변경요청 영향도 분석 시 DB·캐시·큐 3개 항목 무조건 체크
+    expected_fields_in_response: [DB 영향, 캐시 영향, 큐 영향]
+    difficulty: medium
+
+  - id: mem-05
+    query: 답변 끝에 짧은 문구 붙여줘
+    setup_memory: (multi-turn) — 새 메모리 저장 검증
+    expected_action: 메모리 저장 + 다음 답변에 적용
+    difficulty: hard
+
+expand_hints: |
+  - 호칭 / 형식 / 추가 컬럼 / 응답 양식 / multi-turn 저장
+  - 메모리 활성 vs 비활성 모드 모두 검증 (UI 토글 on/off)
+  - 메모리 dedup (같은 의미 다른 표현 두 번 저장)
+  - 메모리 충돌 (서로 모순되는 두 hint) — Polestar 메모리 시스템의 mem0-style 처리
+
+verifier_extra_checks:
+  - 사용자 메모리 list 에 setup_memory 가 실제로 들어가있나 (UI 의 설정 > 대화 메모리)
+  - 응답 에 expected_in_response / expected_table_columns 적용 여부
+  - 답변 끝에 추가 문구 (호칭 적용 등)

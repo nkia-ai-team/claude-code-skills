@@ -1,0 +1,50 @@
+category: kcm
+title: KCM — Kubernetes Configuration Management
+scope: |
+  K8s 워크로드 (pod / deployment / namespace) 도메인. cluster 등록되어 있는지에
+  따라 데이터 부재 가능.
+expected_tools:
+  - query_kcm_workloads
+  - query_kcm_pods
+  - query_kcm_namespaces
+
+seed:
+  - id: kcm-01
+    query: 등록된 K8s 워크로드 목록
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_kcm_workloads (mode=list)"
+
+  - id: kcm-02
+    query: pod restart 가 가장 많이 발생한 워크로드 5개
+    difficulty: medium
+    expected:
+      form: table
+      tool_pattern: "query_kcm_pods (mode=top, metric=restart_count)"
+
+  - id: kcm-03
+    query: namespace 별 pod 수 통계
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_kcm_namespaces (aggregation=pod_count)"
+
+  - id: kcm-04
+    query: CrashLoopBackOff 상태의 pod 가 있나
+    difficulty: medium
+    expected:
+      form: table
+      tool_pattern: "query_kcm_pods (status_filter=CrashLoopBackOff)"
+
+  - id: kcm-05
+    query: 리소스 limit 가까이 쓰는 pod
+    difficulty: hard
+    expected:
+      form: table
+      tool_pattern: "query_kcm_pods (threshold=resource_usage)"
+
+expand_hints: |
+  - dev 환경에 K8s cluster 등록 안 되어있을 수 있음 — "등록된 cluster 없음" 응답이
+    정상 graceful
+  - polestar agent (KCM agent) 설치 여부에 따라 응답 다름

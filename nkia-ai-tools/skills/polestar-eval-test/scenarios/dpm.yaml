@@ -1,0 +1,87 @@
+category: dpm
+title: DPM — Database Performance Management
+scope: |
+  DB 도메인 query. 세션 사용률 / Lock / Active SQL / 쿼리 / 응답시간 등.
+  발화 유형 mix — inventory (DB list), live-state (활성/부하), threshold-breach,
+  trend (응답시간 추세), gauge (특정 DB 상태).
+expected_tools:
+  - query_dpm_*                # DB 관련 tool (정확한 이름은 chat-ai 의 plugin 등록 참조)
+  - query_dpm_sql_top          # SQL TOP 조회
+
+seed:
+  - id: dpm-01
+    query: 등록된 DB 목록 다 보여줘
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_dpm_databases (mode=list)"
+
+  - id: dpm-02
+    query: 세션 사용률이 높은 DB 를 보여줘
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_dpm_* (mode=top, metric=session_usage)"
+
+  - id: dpm-03
+    query: Lock 이 발생한 DB 를 보여줘
+    difficulty: medium
+    expected:
+      form: table
+      tool_pattern: "query_dpm_locks"
+
+  - id: dpm-04
+    query: 현재 Active 세션에서 실행 중인 SQL 을 보여줘
+    difficulty: medium
+    expected:
+      form: table
+      tool_pattern: "query_dpm_active_sessions / sql_top"
+
+  - id: dpm-05
+    query: 평균 응답시간이 1초 넘는 DB
+    difficulty: medium
+    expected:
+      form: table
+      tool_pattern: "query_dpm_* (threshold=1s)"
+      threshold_check: avg_response_time >= 1000ms
+
+  - id: dpm-06
+    query: 최근 1시간 DB 부하 추세
+    difficulty: medium
+    expected:
+      form: chart
+      tool_pattern: "query_metric_timeseries (domain=dpm, window=1h)"
+
+  - id: dpm-07
+    query: 가장 비싼 SQL TOP 10
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_dpm_sql_top (sort=cost, top_n=10)"
+
+  - id: dpm-08
+    query: 어제 가장 오래 걸린 SQL
+    difficulty: hard
+    expected:
+      form: table
+      tool_pattern: "query_dpm_sql_top (sort=elapsed, time=어제)"
+
+  - id: dpm-09
+    query: DB 별 연결 수 통계
+    difficulty: easy
+    expected:
+      form: table
+      tool_pattern: "query_dpm_* (aggregation=connection_count)"
+
+  - id: dpm-10
+    query: 109번 DB 의 최근 5분 응답시간
+    difficulty: medium
+    expected:
+      form: chart
+      tool_pattern: "query_metric_timeseries (resource=109, metric=response_time, window=5m)"
+
+expand_hints: |
+  - DB instance 이름 / IP 는 chat-ai 가 alias resolve 하므로 자유 발화 ("109번 DB",
+    "운영 DB" 등) 시드 포함
+  - dev mongo 의 DPM data 가 적을 수 있음 — 일부 query 가 "데이터 없음" 응답 받을 수도.
+    Verifier 가 "데이터 부재" 케이스 인식 (Polestar mongo dev 의 자연스러운 한계)

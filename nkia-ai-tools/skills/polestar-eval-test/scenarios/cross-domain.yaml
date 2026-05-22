@@ -1,0 +1,48 @@
+category: cross-domain
+description: Phase B (cross-tier dataflow) + Phase C (wide table merge) + Layer 3 검증 핵심
+domain: [SMS, Memory, multi-tier]
+seed_queries:
+  - id: cd-01
+    query: 관리 중인 리눅스 서버 부하 순으로 5대 보여줘
+    expected_form: wide_table
+    expected_columns_if_memory_on: [서버명, CPU(%), 메모리(%), 가용성]
+    expected_min_rows: 1
+    difficulty: hard
+    notes: |
+      메모리에 "cpu/memory 사용률 컬럼 포함" 박혀있어야 cross-tier 분해.
+      Layer 3 가 prior auto-fill. wide table merge 결과 검증.
+
+  - id: cd-02
+    query: 전체 서버 목록좀
+    expected_form: wide_table
+    expected_columns_if_memory_on: [서버명, CPU(%), 메모리(%), 가용성, IP]
+    difficulty: hard
+
+  - id: cd-03
+    query: CPU 80% 넘는 서버 찾고, 그 서버들의 메모리·트래픽 확인
+    expected_form: multi-step (Tier 0 filter + Tier 1 metric)
+    expected_columns: [서버명, CPU(%), 메모리(%), 트래픽]
+    difficulty: hard
+    notes: depends_on 명시. routing decomposition
+
+  - id: cd-04
+    query: 알람 발생한 서버의 CPU 와 프로세스 보여줘
+    expected_form: multi-step (alarm → server → cpu + process)
+    difficulty: hard
+
+  - id: cd-05
+    query: 부하 상위 3대의 디스크 사용량
+    expected_form: multi-step
+    difficulty: hard
+
+expand_hints: |
+  - Phase B 핵심: Tier 0 result → Tier 1 prior 전달
+  - Layer 3 핵심: multi-server prior (2+ 건) 일 때 agent 가 subset 만 명시해도 union override
+  - Phase C 핵심: 같은 entity 의 다른 metric tables 가 wide table 로 column-merge
+
+verifier_extra_checks:
+  - 백엔드 log 의 "prior context 주입" 흔적
+  - 백엔드 log 의 "wrap_tools_with_prior" 흔적
+  - 백엔드 log 의 "union override" 또는 "auto-fill" 흔적
+  - UI table 의 column 수 (≥ 4 if cpu+memory+가용성)
+  - row 수 (Tier 0 결과의 모든 entity)

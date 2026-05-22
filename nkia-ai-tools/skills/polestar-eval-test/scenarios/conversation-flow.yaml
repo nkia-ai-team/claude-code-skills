@@ -1,0 +1,49 @@
+category: conversation-flow
+description: 멀티턴 / 이전 답변 참조 / context 보존
+domain: [chat-ai]
+seed_queries:
+  - id: conv-01
+    sequence:
+      - 관리 중인 서버 목록 보여줘
+      - 그 중에 첫 번째 서버의 CPU 사용률 알려줘
+    expected: 두 번째 turn 이 첫 turn 의 "첫 번째 서버" 인식
+    difficulty: medium
+
+  - id: conv-02
+    sequence:
+      - promaxgb10-554c 서버 상태
+      - 메모리 사용률 만 따로
+      - 디스크 도
+    expected: 같은 서버 (promaxgb10-554c) context 유지
+    difficulty: medium
+
+  - id: conv-03
+    sequence:
+      - CPU 80% 넘는 서버 찾아줘
+      - 그 서버들 변경요청 만들어줘 (보안 패치)
+    expected: 첫 turn 의 서버 list 가 두 번째 turn 의 변경요청 대상에 자동 반영
+    difficulty: hard
+
+  - id: conv-04
+    sequence:
+      - 이번달 알람 통계
+      - 그래프로 보여줘
+    expected: 같은 데이터 다른 view (table → chart)
+    difficulty: medium
+
+  - id: conv-05
+    sequence:
+      - 부하 상위 3대 알려줘
+      - 그 중 가장 위험한 서버는?
+      - 원인 분석 해줘
+    expected: 3-turn chain. context 누적 → RCA
+    difficulty: hard
+
+expand_hints: |
+  - 2-turn / 3-turn / 4-turn 사슬
+  - 명시적 reference ("위에서 본 서버", "첫 번째") 와 implicit ("그 서버")
+  - cross-domain turn 전환 (알람 → 변경요청)
+
+verifier_extra_checks:
+  - 두 번째 이후 turn 의 응답이 이전 turn 의 context 반영
+  - 만약 명확화 요청 ("어떤 서버?") 이면 context 보존 fail
