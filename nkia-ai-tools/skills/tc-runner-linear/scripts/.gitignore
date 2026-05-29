@@ -1,0 +1,4 @@
+runs/
+work/
+generated/*.spec.mjs
+!generated/_example.spec.mjs
