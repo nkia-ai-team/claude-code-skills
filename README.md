@@ -2,7 +2,7 @@
 
 NKIA-AI 팀의 Claude Code 플러그인 마켓플레이스입니다. 개발 워크플로우(kickoff → commit → submit → wrap-up), Linear 이슈/프로젝트/이니셔티브 관리, Confluence·Figma·주간보고 자동화, Polestar 운영/검증 도구를 하나의 플러그인에 모았습니다.
 
-현재 버전: **v1.10.0**
+현재 버전: **v1.12.0**
 
 ## 설치 방법
 
@@ -37,7 +37,8 @@ NKIA-AI 팀의 Claude Code 플러그인 마켓플레이스입니다. 개발 워�
 | **Linear 리포팅** | [linear-project-creator](#linear-project-creator) | 프로젝트 생성 및 문서화 |
 | | [linear-project-updater](#linear-project-updater) | 프로젝트 주간 상태 업데이트 자동 생성 |
 | | [linear-initiative-updater](#linear-initiative-updater) | 소속 프로젝트 Health 집계 → 이니셔티브 업데이트 |
-| **문서 & 자동화** | [confluence-manager](#confluence-manager) | Confluence 문서 검색·조회·생성·수정 |
+| **문서 & 자동화** | [team-technical-writing](#team-technical-writing) | 가독성 중심 기술문서 작성·검토, 제목·위치 기준과 유형별 템플릿 적용 |
+| | [confluence-manager](#confluence-manager) | Confluence 문서 검색·조회·생성·수정 |
 | | [figma-to-react](#figma-to-react) | Figma → React + Storybook + Playwright 파이프라인 |
 | | [weekly-report](#weekly-report) | 팀 주간업무보고 자동 수집 및 시트 기록 |
 | | [openapi-llm-spec](#openapi-llm-spec) | Lucida Spring Boot 도메인 → LLM tool OpenAPI 3.1 spec 자동 추출 |
@@ -334,6 +335,22 @@ Linear 프로젝트를 체계적인 문서와 함께 생성합니다.
 ---
 
 ## 문서 & 자동화 스킬
+
+### team-technical-writing
+
+사람이 쉽게 읽고 정확하게 이해하며 공유할 수 있도록 기술문서를 작성·수정·검토합니다.
+
+- 핵심 먼저, 불릿 중심으로 정리하되 필요한 이유·조건·근거를 보존합니다.
+- 제목·문서 위치·갱신 기준과 설계, 사용·운영, 실험·평가, 장애·변경 템플릿을 제공합니다.
+- 짧은 수정에는 전체 템플릿을 강제하지 않으며, 원문의 수치·정책·예외를 임의로 바꾸지 않습니다.
+- Confluence 게시에는 별도로 연결된 도구가 필요합니다. 로컬 문서 작성에는 연결이 필요하지 않습니다.
+
+```text
+/team-technical-writing 이 설계 문서를 팀원이 읽기 쉽게 다듬어줘
+/team-technical-writing 이 문서의 Before/After와 변경 이유를 보여줘
+```
+
+---
 
 ### confluence-manager
 
