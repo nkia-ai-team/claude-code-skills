@@ -2,7 +2,7 @@
 
 NKIA-AI 팀의 Claude Code 플러그인 마켓플레이스입니다. 개발 워크플로우(kickoff → commit → submit → wrap-up), Linear 이슈/프로젝트/이니셔티브 관리, Confluence·Figma·주간보고 자동화, Polestar 운영/검증 도구를 하나의 플러그인에 모았습니다.
 
-현재 버전: **v1.12.2**
+현재 버전: **v1.12.3**
 
 ## 설치 방법
 
