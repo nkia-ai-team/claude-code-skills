@@ -1,153 +1,53 @@
-# Submit Workflow — PR 생성 및 리뷰 루프 상세
+# PR/MR 메타데이터와 플랫폼 절차
 
-## 1. PR/MR 제목 규칙
+[submit](../SKILL.md)의 Evidence·Validation Gate 통과 후 사용한다. 본문과 댓글은 [출력 템플릿](templates.md)을 따른다.
 
-### 일반 레포
+## 1. 제목과 담당자
 
-    {linear-issue} {이슈 제목}
+- 저장소의 최신 PR/MR 규칙·필수 템플릿과 사용자 지정 값을 우선한다.
+- 일반 NKIA 저장소는 `{Linear 이슈 ID} {제품·화면·서비스와 변경 결과}` 형식을 기본으로 한다. 이슈는 입력·브랜치·커밋에서 식별하고 브랜치에 ID가 없다는 이유로 새 이슈를 만들지 않는다.
+- `lucida-ui`는 저장소 규칙에 따라 `#{PIMS} {Type} : {설명} {Linear ID}`를 사용한다. `/commit --format ui`에서 확인한 번호를 재사용한다.
+- `lucida-next`의 제목·커밋 규칙은 `docs/05-개발가이드/거버넌스/README.md`가 연결하는 정본에서 확인한다. 한글·영문 prefix를 고정 가정하지 않는다.
+- assignee는 CLI 인증 계정 본인으로 지정하며 사용자 지정 값이 있으면 따른다.
 
-예: `nkiaai-305 Chat AI: streaming 구조 리팩토링 (WriterEmitterAdapter 전환)`
+## 2. 통합 대상 브랜치
 
-Linear 이슈 번호는 브랜치명에서 추출합니다.
+1. 사용자의 명시 대상과 저장소 정본을 대조한다.
+2. 기존 PR/MR이 있으면 실제 base/target을 확인한다. kickoff에서 사용한 base 기록과 현재 원격 브랜치도 확인한다.
+3. 버전별 develop을 쓰는 저장소는 kickoff의 실제 base를 사용한다. 사이클 변경 후 최신 버전이라는 이유로 기존 작업의 대상을 바꾸지 않는다.
+4. main 중심 저장소는 실제 main/default branch를 확인한다. 모든 저장소에 `develop` 또는 `develop-sandbox`를 기본 적용하지 않는다.
+5. 불명확하거나 기록이 충돌하면 필요한 대상만 확인하고 생성·push를 보류한다.
 
-### UI 레포 (lucida-ui)
+## 3. 인증·기존 PR/MR 조회
 
-    #{PIMS} {Type} : {설명} {linear-issue}
+[code-review 플랫폼 절차](../../code-review/references/platform_operations.md)의 URL 파싱·인증·페이지네이션을 따른다. 저장된 CLI 인증을 사용하고 토큰 원문을 출력하지 않는다.
 
-예: `#117864 Feat : reasoning/answer 스트리밍 구현 nkiaai-306`
+```bash
+gh pr list --head "{branch}" --state open --json url,number,isDraft,baseRefName,headRefOid
+# GitLab: URL에서 검증한 hostname과 실제 project ID로 조회
+GITLAB_HOST={hostname} glab api "/projects/{id}/merge_requests?source_branch={branch}&state=opened&per_page=100"
+```
 
-PIMS 번호와 Linear 이슈 번호는 Phase 1 Step 2에서 `/commit --format ui` 워크플로우가 사용자에게 확인합니다.
-커밋 메시지와 MR 제목에 동일한 값을 사용하므로 한 번만 물어봅니다.
+현재 저장소·source·target에 대응하는 열린 PR/MR을 재사용한다. 닫힌 PR/MR이나 다른 작업의 PR/MR을 임의 재개하지 않는다. 생성 응답이 불확실하면 조회로 성공 여부를 확인하고 중복 생성하지 않는다.
 
----
+## 4. Draft 생성·Ready 전환
 
-## 2. 타겟 브랜치 판별
+본문은 템플릿에 따라 임시 UTF-8 파일에 작성한다. 제목·브랜치·경로는 shell 인자로 안전하게 인용하며 본문을 명령 문자열로 실행하지 않는다.
 
-### 우선순위
+```bash
+gh pr create --draft --title "{title}" --body-file "{body_path}" \
+  --base "{target}" --head "{branch}" --assignee @me
+```
 
-1. `/submit` 뒤에 브랜치명이 지정되면 → 해당 브랜치
-2. 미지정 시 레포 이름으로 판별:
+GitLab은 현재 CLI/API의 Draft 기능을 사용한다. 제목 접두사가 Draft 표시에 쓰이면 `Draft: {title}`로 생성하고 상태를 재조회한다. `glab api`의 description은 본문을 읽은 구조화 JSON 입력으로 전달하며 안전하게 직렬화한다. project ID·source·target·title·description·assignee ID를 저장한다.
 
-| 레포 | 기본 타겟 |
-|------|----------|
-| lucida-ui | `develop-ui-chat` |
-| lucida-chat-ap | `develop` |
-| lucida-chat-ai | `develop-sandbox` |
-| 기타 | `develop` |
+생성·재사용 후 Linear에 실제 URL을 직접 연결하고 attachments에서 재조회한다. 기존 같은 URL은 중복 등록하지 않는다.
 
-### 레포 이름 확인
+Ready 전환은 현재 SHA의 AC PASS·리뷰 PASS·Critical 0·Warning 0·충돌 없음·필수 CI 통과를 확인한 뒤에만 수행한다. GitHub는 `gh pr ready`, GitLab은 실제 제공하는 Ready 기능을 사용한다. 해제 후 Draft·SHA·병합 조건을 다시 조회한다. 자동 approve·merge는 수행하지 않는다.
 
-    # git remote에서 레포 이름 추출
-    git remote get-url origin
-    # → https://github.com/org/lucida-chat-ai.git → lucida-chat-ai
-    # → https://cims2.nkia.net:8443/gitlab/lucida-ui.git → lucida-ui
+## 5. 본문 판정과 재시도
 
----
-
-## 3. 플랫폼 감지
-
-remote URL에서 플랫폼을 감지합니다.
-
-| 패턴 | 플랫폼 |
-|------|--------|
-| `github.com` 포함 | GitHub |
-| `gitlab` 포함 또는 self-hosted | GitLab |
-
----
-
-## 4. PR/MR 생성 명령어
-
-### GitHub
-
-    gh pr create \
-      --title "{pr-title}" \
-      --body "$(cat <<'EOF'
-    ## Summary
-    - 변경 사항 요약
-
-    ## Changes
-    - 변경 단위별 불릿
-    EOF
-    )" \
-      --base {target-branch} \
-      --head {current-branch} \
-      --assignee @me
-
-### GitLab (self-hosted)
-
-    # project ID 조회
-    GITLAB_HOST={hostname} glab api "/projects/{group}%2F{project}"
-    # → project_id 추출
-
-    # 현재 사용자 ID 조회 (assignee용)
-    GITLAB_HOST={hostname} glab api "/user"
-    # → user_id 추출 (id 필드)
-
-    # MR 생성 (assignee를 본인으로 설정)
-    GITLAB_HOST={hostname} glab api --method POST \
-      "/projects/{project_id}/merge_requests" \
-      -f "source_branch={current-branch}" \
-      -f "target_branch={target-branch}" \
-      -f "title={mr-title}" \
-      -f "description={mr-body}" \
-      -f "assignee_id={user_id}"
-
-GitLab self-hosted 인증은 [platform_operations.md Section 6](../../code-review/references/platform_operations.md) 참조
-
----
-
-## 5. PR Body 생성 규칙
-
-Summary와 Changes 섹션만 작성합니다. Test plan 섹션은 불필요.
-
-### Summary
-
-이슈 제목과 AC를 기반으로 1~3줄 요약:
-
-    ## Summary
-    - StreamEventEmitter를 WriterEmitterAdapter로 전환하여 스트리밍 구조 단순화
-
-### Changes
-
-`git log {target}..HEAD --oneline`과 `git diff {target}..HEAD --stat`을 기반으로 작성:
-
-    ## Changes
-    - StreamEventEmitter(Thread-safe Queue + 50ms 폴링) 완전 제거
-    - WriterEmitterAdapter(get_stream_writer()) 신규 — emitter 인터페이스 래핑
-    - 단위 테스트 5건 추가
-
----
-
-## 6. 리뷰 루프 상세
-
-### 리뷰 결과 파싱
-
-code-review 스킬이 PR/MR에 게시한 코멘트에서 판정을 파싱합니다:
-
-| 코멘트 내용 | 판정 |
-|------------|------|
-| `전체 판정: 승인` | 승인 |
-| `전체 판정: 수정 후 승인 권장` | 수정 필요 |
-| `전체 판정: 수정 필요` | 수정 필요 |
-
-### 자동 수정 프로세스
-
-1. 리뷰 코멘트에서 지적사항 목록 추출
-2. 각 지적사항의 파일, 라인, 내용 파싱
-3. 수정 가능 여부 판단 (SKILL.md의 자동 수정 범위 참조)
-4. 수정 가능한 항목 자동 수정
-5. 수정 불가 항목은 사용자에게 보고
-
-### 자동 수정 불가 시 출력
-
-    === 자동 수정 불가 항목 ===
-
-    다음 항목은 직접 수정이 필요합니다:
-
-    1. [Critical] src/api/auth.ts:42
-       SQL injection 가능성 — 쿼리 파라미터 직접 삽입
-       → 아키텍처 수준 변경 필요
-
-    수정 후 /submit을 다시 실행하면 됩니다.
-
-    ===========================
+- `# MR 코드 리뷰 결과`로 시작하는 댓글 하나에서 현재 head SHA·본문 전체 판정·상세 지적·차단 사유를 함께 확인한다. 제목의 아이콘 또는 옛 `승인` 문자열만으로 통과시키지 않는다.
+- 현재 SHA 판정이 없거나 본문이 상충하거나 읽지 못한 diff·충돌·필수 검사 차단이 있으면 통과시키지 않는다. 별도 기계용 판정 블록은 생성하지 않는다.
+- 자동 수정은 `autofix-safe`만 수행한다. `manual-required`·`owner-decision`은 원인과 필요한 판단을 보고한다. 수정·재검증은 최대 3회다.
+- push 실패는 원인을 확인한다. 원격 새 커밋이 있으면 내용을 읽고 작업 범위와 충돌을 확인한 뒤 안전한 rebase를 수행하며 force push로 우회하지 않는다.

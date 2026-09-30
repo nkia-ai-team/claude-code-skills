@@ -5,10 +5,16 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 
 # Linear Issue Validator
 
+## 공통 계약과 실행 경계
+
+먼저 [이슈·증빙 계약](../_shared/issue-contract.md)을 읽는다. 신규 AC ID·하위 증빙·Linear document를 읽고 기존 6절·Feature/Task 본문·inline 증빙도 계속 지원한다. 아래 단독 실행의 PR/MR 선행 Gate는 유지한다. `/submit`의 PR 생성 전 검증은 이 스킬을 호출하지 않고 push된 SHA 기준으로 직접 수행한다.
+
+제출 절차 AC는 원문·체크 상태를 보존하고 기능 판정·분모에서 제외한다. 배포·문서 게시가 요구 결과이면 제외하지 않는다. 기능 AC가 0개이거나 미검증·접근 불가·증빙 부족이 있으면 전체 PASS하지 않는다. 포인트나 별도 AC 승인을 검증 조건으로 요구하지 않는다.
+
 ## CRITICAL: First Step — Read the References
 
 **BEFORE generating any validation report, you MUST read:**
-- [guideline-ref.md](../_shared/guideline-ref.md) — 이슈 상태 규칙, §0 운영 구조 (Feature vs Task 본문 차이), §7 AI-Verification Loop, §10 **완료 인정 기준 — 산출물 표** (기능 유형별 보여줘야 할 결과물), §2 Estimate
+- [guideline-ref.md](../_shared/guideline-ref.md) — 이슈 상태 규칙, §0 운영 구조와 부모·하위 관계, §7 AI-Verification Loop, §10 **완료 인정 기준 — 산출물 표** (기능 유형별 보여줘야 할 결과물), §2 포인트 미사용
 - [validation_templates.md](references/validation_templates.md) — 검증 결과 코멘트 템플릿, 실패 유형별 메시지, Evidence Type 분류 규칙
 
 **All validation comments MUST follow the exact templates from the references file.**
@@ -21,12 +27,12 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 
 이 스킬은 AI-Verification Loop의 **Step 3 (AC 검증)**에 해당합니다.
 
-### v1.3 Layer 별 AC 위치 차이
+### 기존 Layer 별 AC 위치 읽기 호환
 
 | Layer | AC 섹션 | 검증 방식 |
 |-------|--------|---------|
-| **Feature** (Linear Issue) | `## 상세 완료 조건` (§5.1.a) — AC + DoD 통합 체크리스트 | 모든 체크박스 항목 검증 |
-| **Task** (Linear Sub-issue) | `## 완료 조건` (§5.1.b) — 간단 체크 1~3개 | 모든 체크박스 항목 검증, parent Feature 의 상세 완료 조건은 검증 대상 아님 |
+| **Feature** (Linear Issue) | `## 상세 완료 조건` (기존 v1.3 양식) — AC + DoD 통합 체크리스트 | 모든 체크박스 항목 검증 |
+| **Task** (Linear Sub-issue) | `## 완료 조건` (기존 v1.3 양식) — 간단 체크 1~3개 | 모든 체크박스 항목 검증, parent Feature 의 상세 완료 조건은 검증 대상 아님 |
 | **Standalone** | `## 3. 완료 조건 (Acceptance Criteria)` (§5.1) | 기존 6섹션 검증 방식 그대로 |
 
 ### v1.3 §10 완료 인정 기준 적용
@@ -117,20 +123,22 @@ description: Validate and verify completed Linear issues by checking DoD (Defini
 
 ### Step 3: Parse AC Items
 
-이슈 description에서 AC 항목을 파싱합니다. **Layer 자동 감지** 후 적합한 섹션 이름을 찾습니다.
+이슈 description에서 AC 항목을 파싱합니다. 신규 4절 본문에서는 `## 3. 완료 조건`을 읽고 기존 형식에서는 **Layer 자동 감지** 후 적합한 섹션 이름을 찾습니다.
 
-**Layer 감지 (description 의 첫 번째 매칭 섹션 기준):**
+**기존 Layer 감지 (description 의 첫 번째 매칭 섹션 기준):**
 
 | 감지 신호 | Layer |
 |---------|------|
-| `## 상세 완료 조건` 섹션 존재 | Feature (v1.3 §5.1.a) |
-| `## 완료 조건` 섹션 존재 + `## 작업 내용` 섹션 존재 | Task (v1.3 §5.1.b) |
+| `## 상세 완료 조건` 섹션 존재 | Feature (기존 v1.3 양식) |
+| `## 완료 조건` 섹션 존재 + `## 작업 내용` 섹션 존재 | Task (기존 v1.3 양식) |
 | `## 3. 완료 조건 (Acceptance Criteria)` 또는 `## 3. 완료 조건` | Standalone (§5.1) |
 | 어느 것도 없음 | 레거시 fallback (`## Definition of Done`, `## AC` 등) |
 
 **AC 항목 파싱 (Layer 무관 공통):**
 - 각 체크박스 항목 파싱 (`- [ ]` 또는 `- [x]`)
-- 결과물 추출 (`→ 결과물:` 이후 내용)
+- AC ID·결과 문구·체크 상태와 다음 AC 전까지의 하위 `증빙:` 링크·코드 블록·이미지를 묶어 읽는다. 들여쓴 불릿이나 코드 블록의 체크박스 모양 문자열을 별도 AC로 세지 않는다.
+- `증빙 예정:`은 계획이다. 필수 예정 자료가 남거나 실제 자료가 확인 내용을 충족하지 않으면 FAIL이다.
+- 장문은 `get_document`로 본문·소속·URL을 확인한다. 짧은 실제 출력은 링크가 없어도 검증한다. 기존 `→ 결과물:`은 읽기 호환으로 지원한다.
 
 **Task Layer 주의:**
 - parent Feature 의 "상세 완료 조건" 은 본 이슈의 검증 대상이 **아님**. Task 자체의 "완료 조건" 만 검증.
@@ -241,7 +249,7 @@ AC가 "동작 확인", "정상 동작", "테스트 통과" 등 **실행 결과�
     - AC 5 (ci_cd_log): gh run view ...
     → 5개 도구 호출을 한 번에 병렬 실행
 
-**⚠️ CRITICAL: 인증 실패 시 바로 "수동 확인 필요"로 넘어가지 말 것!** 공개 접근 → CLI 인증 확인 → 사용자 인증 요청 → 최후 수단 순서로 시도합니다.
+인증 실패 시 기존 CLI·MCP 인증 상태를 확인한다. 토큰 원문을 출력하지 않으며 인증 복구 또는 안전한 대체 증빙이 필요하면 안내한다. 접근 불가를 PASS로 처리하지 않는다.
 
 유형별 검증 방법과 인증 처리는 [evidence_validation_methods.md](references/evidence_validation_methods.md) 참조 — PR/MR, CI/CD, URL, 문서, API, 모니터링, 이미지/동영상, 텍스트, 데이터 경로
 
@@ -264,20 +272,16 @@ AC가 "동작 확인", "정상 동작", "테스트 통과" 등 **실행 결과�
 - 검증 상세 메시지: Section 3
 - 검증 히스토리: Section 4 — 검증 결과 코멘트 하단에 포함
 
-### Step 11+12: Update Checkboxes + Post Comment (Parallel)
+### Step 11+12: Preserve History, Update Checkboxes, Post Comment
 
-**⚡ 병렬 실행:** 체크박스 업데이트(description)와 코멘트 작성/수정은 서로 다른 리소스에 쓰므로 **동시에 실행**합니다.
-
-    병렬 실행 구조:
-    ┌─ (A) 체크박스 업데이트 → save_issue (description)
-    └─ (B) 코멘트 작성/수정 → create_comment 또는 GraphQL update
+이전 증빙·실패·해소 이력을 먼저 보존한다. 보존 실패 시 본문의 최신 증빙 요약을 덮어쓰지 않는다. 기존 검증 댓글 후보를 모두 조회하고 기존 제목과 `# 검증 결과`를 함께 인식한다. 후보가 여러 개이거나 이력을 해석할 수 없으면 새 댓글을 만들지 않고 필요한 확인을 보고한다.
 
 **(A) 체크박스 업데이트:**
 
 **IMPORTANT: 검증 통과한 항목은 반드시 체크박스를 업데이트해야 합니다!**
 
 1. `mcp__linear__get_issue`로 현재 description 가져오기
-2. 통과한 항목: `- [ ]` → `- [x]` / 실패한 항목: `- [x]` → `- [ ]`
+2. 검증한 기능 AC만 통과 시 체크하고 실패·미검증·접근 불가 시 해제한다. 제출 절차 AC·다른 AC·사용자 편집·기존 자료는 보존한다.
 3. `mcp__linear__save_issue`로 description 업데이트
 
 **(B) 코멘트 작성/수정:**
@@ -286,11 +290,11 @@ AC가 "동작 확인", "정상 동작", "테스트 통과" 등 **실행 결과�
 
 검증 결과와 히스토리를 하나의 코멘트로 관리합니다.
 
-1. `mcp__linear__list_comments`로 기존 검증 코멘트 검색 (패턴: `# ✅ 검증 완료`, `# ⚠️ 검증 실패`, `# ❌ 검증 실패`)
+1. `mcp__linear__list_comments`로 기존 검증 코멘트 검색 (패턴: `# 검증 결과`, `# ✅ 검증 완료`, `# ⚠️ 검증 실패`, `# ❌ 검증 실패`)
 2. **기존 코멘트 있음:**
-   - 기존 코멘트의 히스토리 섹션을 파싱하여 시도 횟수 확인
+   - 기존 코멘트의 히스토리 섹션을 파싱하여 시도 횟수 확인. 모든 유효한 행·과거 증빙·실패 원인·해소 이력을 보존
    - 최신 검증 결과로 전체 교체 + 히스토리에 새 행 추가
-   - GraphQL API로 업데이트:
+   - 실제 제공되는 댓글 갱신 MCP를 우선 사용한다. 없으면 인증된 GraphQL API로 업데이트:
 ```bash
 curl -s -X POST https://api.linear.app/graphql \
   -H "Content-Type: application/json" \
@@ -321,7 +325,7 @@ curl -s -X POST https://api.linear.app/graphql \
 
 ## Resources
 
-- [guideline-ref.md](../_shared/guideline-ref.md) — 가이드라인 핵심 규칙 (이슈 상태, Estimate, AI-Verification Loop)
+- [guideline-ref.md](../_shared/guideline-ref.md) — 가이드라인 핵심 규칙 (이슈 상태, 포인트 미사용, AI-Verification Loop)
 - [validation_templates.md](references/validation_templates.md) — 검증 결과 코멘트 템플릿, 실패 유형별 메시지, 검증 상세 메시지, 히스토리 템플릿, Evidence Type 분류 규칙, 에러 메시지
 - [evidence_validation_methods.md](references/evidence_validation_methods.md) — 유형별 상세 검증 방법 (PR/MR, CI/CD, URL, 문서, API, 모니터링, 이미지/동영상, 텍스트, 데이터 경로), 인증 처리, 실패 유형 및 blocked_items 형식
 - [mr_scope_validation.md](references/mr_scope_validation.md) — 스코프 파싱, 시스템-MR 매핑, MR 커버리지 검증, Diff 분석, AC 커버리지 확인

@@ -1,5 +1,7 @@
 # Validation Result Templates
 
+단독 validator의 기존 출력 양식이다. [공통 계약](../../_shared/issue-contract.md)에 따라 기능 AC만 분모·판정·체크 갱신에 포함한다. 부분 통과는 전체 PASS가 아니며 In Review 전환을 허용하지 않는다. `/submit`은 [새 출력 템플릿](../../submit/references/templates.md)을 사용한다. 기존 댓글 갱신 시 ID·이력·과거 증빙을 보존하며 실제 내용 검증 없이 PASS를 작성하지 않는다.
+
 검증 결과 작성에 사용되는 템플릿과 형식을 정의합니다.
 
 ---

@@ -4,13 +4,17 @@
 
 ---
 
+## 0. 새 증빙 읽기
+
+[공통 계약](../../_shared/issue-contract.md)에 따라 AC ID와 하위 증빙을 연결한다. 장문 자료는 실제 `get_document` 도구로 본문·이슈 소속·URL을 확인한다. 짧은 출력은 본문 코드 블록을 읽는다. 링크 존재·체크 상태·요약만으로 통과시키지 않는다. 필수 `증빙 예정:`이 남으면 FAIL이다. 제출 절차 AC는 기능 판정에서 제외하고 기존 문구·체크를 보존한다.
+
 ## 1. 인증 필요 시 처리 원칙
 
 **절대로 첫 번째 접근 실패 후 바로 "수동 확인 필요"로 넘어가지 말 것!**
 
 **인증 실패 시 처리 순서:**
 1. **1차 시도**: 공개 접근 또는 기존 인증 정보로 접근
-2. **2차 시도**: CLI 도구 인증 확보 (gh: `gh auth status` / GitLab self-hosted: config에서 토큰 사전 확보)
+2. **2차 시도**: CLI 도구 인증 확보 (gh: `gh auth status` / GitLab self-hosted: `glab auth status --hostname {hostname}`)
 3. **3차 시도**: 사용자에게 인증 정보 입력 요청
 4. **최후 수단**: 모든 방법 실패 시에만 수동 확인 요청
 
@@ -27,7 +31,7 @@
 
 ### PR/MR 링크 탐색
 
-공통 AC의 "코드 리뷰 완료 → 이슈 리소스에 PR/MR 링크 첨부" 항목 검증 시:
+단독 validator의 PR/MR 스코프 검증 시 (제출 절차 AC 자체는 기능 판정에서 제외):
 1. **이슈 `attachments`에서 PR/MR URL 탐색** (evidence 스킬이 `links`로 첨부)
 2. GitHub URL 패턴: `github.com/*/pull/*`
 3. GitLab URL 패턴: `*/-/merge_requests/*`
@@ -54,17 +58,9 @@ glab mr view {number} --repo {owner/repo}
 
 **GitLab MR/파일 (self-hosted):**
 ```bash
-# 1차: ~/.config/glab-cli/config.yml에서 해당 호스트 토큰 사전 추출
-# ⚠️ URL 파싱 hostname은 포트 포함 (예: cims2.nkia.net:8443)
-#    config 키는 포트 미포함일 수 있음 (예: cims2.nkia.net)
-#    → 정확 매칭 안 되면 포트 제외 호스트명으로 매칭
-# 2차: config에 없으면 환경변수 확인 (GITLAB_TOKEN, GITLAB_PRIVATE_TOKEN)
-# 3차: 모든 방법 실패 → AskUserQuestion으로 확인:
-#    - 질문: "GitLab {hostname} 인증이 필요합니다. 어떻게 하시겠습니까?"
-#    - 선택지: "glab auth login 실행", "Personal Access Token 직접 입력", "스크린샷으로 대체"
-#    - 사용자는 "Other"로 다른 지시사항을 입력할 수 있음
-
-# 토큰 확보 후 API 호출 (GITLAB_TOKEN={token} 전달)
+# 저장된 CLI 인증 상태를 확인한다. 토큰 원문을 읽거나 출력하지 않는다.
+glab auth status --hostname {hostname}
+# 인증이 없으면 glab auth login 또는 안전한 대체 증빙을 안내한다.
 # URL 파싱 예시:
 # https://cims2.nkia.net:8443/gitlab/lucida-ai-develop/-/merge_requests/4
 # → hostname: cims2.nkia.net:8443
@@ -193,8 +189,7 @@ curl -u "{email}:{api_token}" "{confluence_url}/rest/api/content/{page_id}?expan
 
 **Google Docs (공유 설정에 따라):**
 ```
-WebFetch로 접근 시도
-접근 불가 시 → 공유 링크 또는 스크린샷 요청
+회사 Google Workspace 자료는 `gws` CLI로 실제 문서 본문을 읽는다. 개인 자료만 사용자 환경의 연결 도구로 읽는다. 접근 불가 시 대체 자료를 요청하고 미검증으로 남긴다.
 ```
 
 **검증 기준:**

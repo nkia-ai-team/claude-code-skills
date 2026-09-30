@@ -57,7 +57,7 @@
 
 ## 3. Health 자동 판단
 
-[guideline-ref.md "7.2 이니셔티브 Health"](../../_shared/guideline-ref.md) 기준에 따릅니다.
+[guideline-ref.md "8.2 이니셔티브 Health"](../../_shared/guideline-ref.md) 기준에 따릅니다.
 
 ### Worst-case 집계 로직
 

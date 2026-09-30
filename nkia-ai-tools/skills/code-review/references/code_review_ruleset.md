@@ -1,8 +1,8 @@
 # AI 기반 MR 코드 리뷰 룰셋
 
-본 문서는 Claude Code, Cursor 등 AI 도구가 Merge Request 코드 리뷰를 수행할 때 따라야 할 규칙을 정의합니다.
+본 문서는 Claude Code 등 AI 도구가 Pull Request / Merge Request 코드 리뷰를 수행할 때 따라야 할 규칙을 정의합니다.
 
-CodeRabbit 등 상용 도구 수준 이상의 체계적인 코드 리뷰를 목표로 합니다.
+CodeRabbit은 의존성이 아니라 품질 기준점입니다. Claude Code가 GitHub/GitLab CLI/API로 직접 수집한 PR/MR 데이터를 바탕으로, 상용 리뷰 도구 수준의 체계적인 코드 리뷰를 수행하는 것을 목표로 합니다.
 
 ---
 
@@ -25,36 +25,45 @@ AI 코드 리뷰는 다음 순서로 진행합니다:
 
 ### 2.1 검증 규칙
 
-**Linear 자동 생성 브랜치 형식을 사용합니다.**
+Linear 자동 생성 브랜치 형식을 권장하지만, Linear 이슈 없이 진행되는 standalone 작업도 허용합니다.
 
 **정규식 패턴:**
 ```regex
-^(feature|bugfix|hotfix|refactor|docs|test|config)/[a-z]+-[0-9]+-[a-z0-9-]+$
+^(?:(feature|feat|bugfix|fix|hotfix|refactor|docs|test|config|chore|ci|build|perf)/(?:[A-Za-z]+-[0-9]+-)?[a-z0-9]+(?:-[a-z0-9]+)*|develop-[0-9]+(?:\.[0-9]+)*_[0-9]+-chat-[a-z0-9]+(?:-[a-z0-9]+)*)$
 ```
 
 **검증 항목:**
 
 | 항목 | 규칙 | 예시 |
 |------|------|------|
-| Type Prefix | feature, bugfix, hotfix, refactor, docs, test, config 중 하나 | `feature/` |
-| Linear 이슈 번호 | `{팀키}-{이슈번호}` 형식 (소문자) | `nkiaai-129` |
+| Type Prefix | feature, feat, bugfix, fix, hotfix, refactor, docs, test, config, chore, ci, build, perf 중 하나 | `feature/` |
+| Linear 이슈 번호 | 선택 항목. 있으면 `{팀키}-{이슈번호}` 형식 (대소문자 허용) | `nkiaai-129`, `NKIAAI-129` |
 | 설명 | kebab-case, 소문자 | `improve-rca-logging-system` |
+| UI repo standalone | `develop-10.x.y_z-chat-{function}` 형식 허용 | `develop-10.2.1_3-chat-filter` |
 
 **예시:**
 - `feature/nkiaai-129-improve-rca-logging-system-for-operator-readability`
 - `bugfix/nkiaai-130-fix-login-error`
+- `chore/cleanup-local-dev-scripts`
+- `fix/login-error`
+- `develop-10.2.1_3-chat-filter`
 
 ### 2.2 브랜치-작업 타입 일치 검증
 
 | 브랜치 타입 | 허용되는 작업 |
 |-------------|--------------|
-| feature | 새로운 기능 추가 |
+| feature / feat | 새로운 기능 추가 |
 | bugfix | 버그 수정 |
+| fix | 버그 수정 (`bugfix` alias) |
 | hotfix | 긴급 운영 이슈 수정 |
 | refactor | 리팩토링, 성능 개선 |
 | docs | 문서 작업만 |
 | test | 테스트 코드만 |
 | config | 설정 파일만 |
+| chore | 빌드/개발 편의/운영성 보조 작업 |
+| ci | CI/CD 파이프라인 작업 |
+| build | 빌드/패키징 작업 |
+| perf | 성능 개선 |
 
 ### 2.3 리뷰 코멘트 예시
 
@@ -71,22 +80,28 @@ AI 코드 리뷰는 다음 순서로 진행합니다:
 | 타입-작업 일치 | ✅ | 새 기능 추가 작업 |
 ```
 
+Linear 이슈 없이 진행되는 standalone 작업은 Linear 이슈 번호를 `➖ N/A`로 표시하고 경고/실패로 계산하지 않습니다.
+
 ---
 
 ## 3. 커밋 메시지 검증
 
 ### 3.1 검증 규칙
 
+저장소의 최신 브랜치·커밋 규칙 정본을 우선 적용한다. `lucida-next`는 `docs/05-개발가이드/거버넌스/README.md`가 연결하는 현재 규칙을 읽고 검증한다. prefix·scope·Linear ID 위치를 과거 규칙으로 고정하지 않는다. 아래 기본 NKIA 규칙은 정본이 없는 저장소에만 적용한다.
+
+### 3.1.1 기본 NKIA 커밋 메시지 규칙
+
 **정규식 패턴:**
 ```regex
-^[a-z]+-[0-9]+ (Feat|Fix|Refactor|Cleanup|Wip|Revert|Style|Merge|Docs|Config|Dependency|Test) : .+$
+^(?:[A-Za-z]+-[0-9]+ )?(Feat|Fix|Refactor|Cleanup|Chore|Wip|Revert|Style|Merge|Docs|Config|Dependency|Test|Build|Ci|Perf) : .+$
 ```
 
 **검증 항목:**
 
 | 항목 | 규칙 | 예시 |
 |------|------|------|
-| Linear 이슈 번호 | `{팀키}-{이슈번호}` 형식 (소문자) | `nkiaai-129` |
+| Linear 이슈 번호 | 선택 항목. 있으면 `{팀키}-{이슈번호}` 형식 (대소문자 허용) | `nkiaai-129`, `NKIAAI-129` |
 | Type | 허용된 타입 키워드 | `Feat` |
 | 구분자 | ` : ` (공백 포함 콜론) | ` : ` |
 | 내용 | 한글/영문, 명확한 설명 | `API 변경 감지 시스템 구축` |
@@ -99,35 +114,50 @@ AI 코드 리뷰는 다음 순서로 진행합니다:
 | Fix | 오류 수정 | 버그 수정 코드 |
 | Refactor | 리팩토링/성능 개선 | 기존 코드 구조 변경 |
 | Cleanup | 불필요한 코드 정리 | 파일/코드 삭제 |
+| Chore | 개발 편의/운영성 보조 작업 | 로컬 스크립트, 자동 정리, 비기능성 유지보수 |
 | Wip | 진행 중 작업 | 임시 커밋 (MR 시 지양) |
+| Revert | 이전 변경 되돌리기 | revert 커밋 |
 | Style | 코드 스타일 수정 | 포맷팅, 공백 등 |
+| Merge | 병합 커밋 | merge commit |
 | Docs | 문서 변경 | .md 파일 등 |
 | Config | 설정 파일 변경 | 빌드/배포 설정 |
+| Dependency | 의존성 변경 | 라이브러리 추가/업데이트 |
 | Test | 테스트 코드 | *Test.java, *Spec.java |
+| Build | 빌드/패키징 변경 | Gradle/Maven/npm build 설정 |
+| Ci | CI/CD 변경 | pipeline, workflow, runner 설정 |
+| Perf | 성능 개선 | 캐싱, 쿼리 최적화, 병목 개선 |
 
-### 3.3 브랜치-커밋 Linear 이슈 번호 일치 검증
+### 3.3 Linear 이슈 번호 검증
 
 ```
 브랜치: feature/nkiaai-129-api-diff-notification
 커밋: nkiaai-129 Feat : API 변경 감지 시스템 구축
       ^^^^^^^^^^
-      동일한 Linear 이슈 번호 사용 필수
+      브랜치와 커밋 양쪽에 있으면 동일해야 함
 ```
+
+검증 규칙:
+- 브랜치와 커밋 양쪽에 Linear 이슈 번호가 있으면 동일해야 합니다.
+- Linear ID는 선택 항목이다. 한쪽에만 있어도 누락을 경고로 표시하지 않는다. 저장소 정본이 필수로 요구하면 해당 규칙을 우선한다.
+- Git이 생성한 실제 병합 커밋은 부모가 2개 이상인지 확인하며 일반 작업 커밋의 Type 구분자를 강제하지 않는다.
+- 브랜치/제목/커밋 어디에도 Linear 이슈 번호가 없으면 standalone 작업으로 간주하고, Linear 이슈 번호 누락을 경고/실패로 계산하지 않습니다.
+- `lucida-next`는 예외입니다. 브랜치에 Linear 이슈 번호가 있어도 commit subject에 없으면 정상이며, Linear ID가 body/trailer 또는 MR/Linear linking에만 있어도 됩니다.
 
 ### 3.4 리뷰 코멘트 예시
 
 ```markdown
 ## 커밋 메시지 검증
 
-**총 커밋 수:** 3개
+**총 커밋 수:** 4개
 
 | 커밋 | Linear 이슈 | Type | 상태 | 비고 |
 |------|-------------|------|------|------|
 | `nkiaai-129 Feat : API 변경 감지 시스템 구축` | ✅ | ✅ Feat | ✅ | - |
 | `nkiaai-129 Fix : Slack 웹훅 URL 수정` | ✅ | ✅ Fix | ✅ | - |
-| `update readme` | ❌ | ❌ | ❌ | Linear 이슈 번호, Type 누락 |
+| `nkiaai-129 Chore : bootRun 종료 시 포트 자동 정리` | ✅ | ✅ Chore | ✅ | - |
+| `Docs : README 업데이트` | ➖ N/A | ✅ Docs | ✅ | standalone 작업 |
 
-⚠️ **수정 필요:** 3번째 커밋 메시지가 규칙을 준수하지 않습니다.
+⚠️ **수정 필요:** Type/구분자/내용 형식이 깨졌거나, 존재하는 Linear 이슈 번호가 서로 불일치할 때만 표시합니다.
 ```
 
 ---
@@ -138,21 +168,13 @@ AI 코드 리뷰는 다음 순서로 진행합니다:
 
 | 항목 | 필수 | 검증 내용 |
 |------|------|----------|
-| Title | ✅ | Linear 이슈 번호 포함, 명확한 설명 |
+| Title | ✅ | 명확한 설명. Linear 이슈 번호는 있으면 검증하고, standalone 작업이면 없어도 실패 처리하지 않음 |
 | Description | ✅ | 기능 상세 설명 작성 |
 | Part (FE/BE) | ✅ | 해당 파트 선택 |
-| Target Branch | ✅ | develop (master 아님) |
+| Target Branch | ✅ | 저장소의 실제 통합 대상 브랜치와 일치 (main/develop 등) |
 | 연관 백로그 | 권장 | `#이슈번호` 형식 |
 | 테스트 코드 | ✅ | 체크 여부 확인 |
 | 정적 분석 | ✅ | 체크 여부 확인 |
-
-### 4.2 변경 규모 검증
-
-| 변경 라인 | 상태 | 권고 |
-|----------|------|------|
-| 1-200 | ✅ 적정 | - |
-| 201-500 | ⚠️ 주의 | 분할 검토 권장 |
-| 500+ | ❌ 과다 | MR 분할 필요 |
 
 ---
 
@@ -306,9 +328,24 @@ catch (ResourceNotFoundException e) {
 
 ## 6. 리뷰 결과 작성 형식
 
+리뷰 코멘트는 아래 구조를 그대로 사용합니다. 승인 가능한 PR/MR도 최소 구조를 생략하지 않습니다.
+
+### 댓글 문체
+
+- 실제 변경·검증 결과를 짧고 쉬운 문장으로 적는다. 내부 API 용어보다 독자가 보는 기능·화면 이름을 쓴다.
+- 판정과 남은 지적 수를 먼저 적고, 판단 근거는 요약 표에 둔다. 상세에는 지적과 필요한 근거만 남기며 같은 설명·변경 목록·작업 과정을 반복하지 않는다. 별도 `확인 사항` 제목은 붙이지 않는다.
+- 삭제·유지·미지원 사실을 직접 쓴다. 서로 다른 절차를 불필요하게 연결하거나 `혼동하지 않습니다` 같은 간접 표현을 쓰지 않는다.
+- 실제 사용 검증과 설치 등 관련 미검증 경로를 구분한다. 이전 제약 목록이나 이번 저장소·변경과 관계없는 검사를 나열하지 않는다. 관련 미검증이 없으면 생략한다.
+- 간결하게 써도 SHA·판정·지적의 위치·영향·조치·차단 사유·검증 근거·기존 이력은 보존한다.
+
+**금지 사항:**
+- 별도 기계용 판정 블록을 쓰지 않습니다. 본문의 전체 판정·상세 지적·차단 사유를 일치시킵니다.
+- 이슈가 0건이라는 이유로 요약 표, 검증 섹션, 리뷰 히스토리를 생략하지 않습니다.
+- 검색/업데이트 기준인 `# MR 코드 리뷰 결과` 제목을 변경하지 않습니다.
+
 ### 6.1 전체 요약
 
-```markdown
+````markdown
 # MR 코드 리뷰 결과
 
 ## 요약
@@ -317,20 +354,114 @@ catch (ResourceNotFoundException e) {
 |------|------|
 | 브랜치명 | ✅ Pass |
 | 커밋 메시지 | ⚠️ 1건 수정 필요 |
+| Diff 완전성 | ✅ Pass |
+| Linear Scope | ✅ Pass 또는 ➖ N/A |
 | 코드 품질 | ✅ Pass |
 | 보안 | ✅ Pass |
 | 성능 | ⚠️ 개선 권장 |
 | 테스트 | ❌ 테스트 추가 필요 |
 
-**전체 판정:** ⚠️ 수정 후 승인 권장
-```
+**전체 판정:** ❌ FAIL · 수정 필요
+
+- 리뷰 기준: `{head SHA}` · `{YYYY-MM-DD HH:mm KST}`
+- 차단 사유: 없음
+- 남은 지적은 상세 리뷰에 위치·영향·조치·중요도·자동 수정 가능 여부로 작성한다.
+````
+
+### 6.1.1 승인 가능 PR/MR 최소 템플릿
+
+이슈가 0건인 경우에도 아래 수준의 구조를 유지합니다.
+
+````markdown
+# MR 코드 리뷰 결과
+
+## 요약
+
+| 항목 | 결과 |
+|------|------|
+| 브랜치명 | ✅ Pass |
+| 커밋 메시지 | ✅ Pass |
+| Diff 완전성 | ✅ Pass |
+| Linear Scope | ✅ Pass 또는 ➖ N/A - standalone 작업 |
+| 코드 품질 | ✅ Pass |
+| 보안 | ✅ Pass |
+| 성능 | ✅ Pass |
+| 테스트 | ✅ Pass |
+
+**전체 판정:** ✅ PASS
+
+- 리뷰 기준: `{head SHA}` · `{YYYY-MM-DD HH:mm KST}`
+- 남은 지적: Critical 0, Warning 0
+- 차단 사유: 없음
+- 수동 병합 필요
+
+## 브랜치명 검증
+
+**브랜치:** `{branch}`
+
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| Type Prefix | ✅ | `{type}` |
+| Linear 이슈 번호 | ✅ 또는 ➖ N/A | `{issue_or_standalone}` |
+| 네이밍 규칙 | ✅ | kebab-case 준수 |
+| 타입-작업 일치 | ✅ | `{work_type}` |
+
+## 커밋 메시지 검증
+
+**총 커밋 수:** {commit_count}개
+
+| 커밋 | Linear 이슈 | Type | 상태 | 비고 |
+|------|-------------|------|------|------|
+| `{commit_subject}` | ✅ 또는 ➖ N/A | ✅ `{type}` | ✅ | `{note}` |
+
+## Diff 완전성
+
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| PR/MR 메타데이터 | ✅ | 조회 완료 |
+| 전체 커밋 | ✅ | `{commit_count}`개 커밋 확인 |
+| 변경 파일 | ✅ | `{file_count}`개 파일 확인 |
+| base-to-head diff | ✅ | 전체 diff 검토 |
+| 대용량/누락 diff | ✅ | 해당 없음 또는 별도 조회 완료 |
+
+## 상세 리뷰
+
+✅ 지적 없음
+
+## 검증
+
+- `{verification_command_or_check}` 통과
+
+---
+
+## 📜 리뷰 히스토리
+
+| # | 일시 | head | 판정 | 지적 (C/W/I) | 변화 |
+|---|------|------|------|-----------------|------|
+| 1 | `{YYYY-MM-DD HH:mm KST}` | `{short SHA}` | ✅ PASS | 0/0/0 | 최초 리뷰 |
+````
+
+### 6.1.2 본문 판정과 후속 처리
+
+별도 기계용 판정 블록 없이 사람이 읽는 리뷰 본문을 판단 기준으로 사용한다.
+
+- 현재 head SHA와 리뷰 기준 SHA가 일치하는 댓글의 전체 판정·상세 지적·차단 사유를 함께 확인한다. 예전 이력 행을 현재 판정으로 읽지 않는다.
+- **PASS**: Critical 0, Warning 0, 전체 diff 확인 완료, 차단 사유 없음. 지적이 없으면 상세 리뷰에 `지적 없음`을 명시한다. standalone 작업의 Linear Scope N/A는 실패가 아니다.
+- **FAIL · 수정 필요**: 수정할 Critical/Warning 또는 품질·보안·성능·테스트 문제가 남아 있다. 각 지적의 `autofix-safe`만 자동 수정하며 `manual-required`·`owner-decision`은 사용자 판단을 요청한다. Info만으로 자동 수정을 시작하지 않는다.
+- **FAIL · 검토 차단**: 인증·diff 누락·필수 자료 부족 등으로 판단할 수 없다. 사유와 필요한 조치를 적고 자동 수정을 시작하지 않는다.
+- 판정이 없거나 여러 현재 판정이 충돌하거나, PASS인데 수정할 지적이 남아 있으면 통과로 추정하지 않는다. 댓글 후보가 여러 개이거나 SHA가 다를 때도 멈추고 확인·재리뷰한다.
+- 기존 댓글의 `승인`·`승인 가능`은 PASS 후보, `수정 후 승인 권장`·`수정 필요`는 FAIL로 읽되 위 조건을 동일하게 확인한다. 과거 기계용 블록만으로 통과시키지 않는다. 본문에 판단 근거가 없으면 새로 리뷰한다.
+- 댓글 갱신 시 기존 제목 접두사·댓글 ID·히스토리는 보존한다. 과거 기계용 블록은 제거하고 본문 판정으로 통일한다. 형식 변경만으로 리뷰 SHA·시각·판정을 새로 만들지 않는다.
+- PASS여도 실제 approve·merge는 사람이 한다. submit의 Draft 해제는 별도의 현재 SHA·CI·충돌 조건을 만족해야 한다.
 
 ### 6.2 상세 코멘트 형식
 
-```markdown
+모든 actionable finding은 `Confidence: NN/100`을 제목에 포함합니다. 80 미만은 게시하지 않습니다. 이번 diff에서 변경되지 않은 선행 문제도 게시하지 않습니다.
+
+````markdown
 ### 📁 파일: `TraceQueryController.java`
 
-#### Line 45-50: 🔴 Critical - N+1 Query 문제
+#### Line 45-50: 🔴 Critical · Confidence: 95/100 — N+1 Query 문제
 
 **현재 코드:**
 ```java
@@ -351,7 +482,7 @@ List<Trace> findByIdsWithSpans(@Param("ids") List<Long> ids);
 
 ---
 
-#### Line 78: 🟡 Warning - 하드코딩된 값
+#### Line 78: 🟡 Warning · Confidence: 85/100 — 하드코딩된 값
 
 **현재 코드:**
 ```java
@@ -369,6 +500,8 @@ if (size > MAX_PAGE_SIZE) {
 }
 ```
 
+**수정 분류:** `autofix-safe`
+
 ---
 
 ### 📦 파일: `trace_callback.py` (대용량 파일)
@@ -380,32 +513,52 @@ if (size > MAX_PAGE_SIZE) {
 - 파일 크기: +646 lines
 - 신규 파일로 전체 내용 검토 완료
 - 특이 사항 없음
-```
+````
 
 ### 6.3 심각도 레벨
 
-| 레벨 | 아이콘 | 의미 | 조치 |
-|------|--------|------|------|
-| Critical | 🔴 | 버그, 보안 취약점 | 반드시 수정 |
-| Warning | 🟡 | 개선 권장 사항 | 수정 권장 |
-| Info | 🔵 | 제안, 스타일 | 선택적 수정 |
-| Praise | 🟢 | 좋은 코드 | 칭찬/참고 |
+| 레벨 | 아이콘 | 의미 | 게시 조건 | 조치 |
+|------|--------|------|----------|------|
+| Critical | 🔴 | 버그, 보안 취약점 | Confidence 80 이상 | 반드시 수정 |
+| Warning | 🟡 | 개선 권장 사항 | Confidence 80 이상 | 수정 권장 |
+| Info | 🔵 | 제안, 스타일 | Confidence 80 이상 | 선택적 수정 |
+| Praise | 🟢 | 좋은 코드 | 구체 근거가 있을 때 | 칭찬/참고 |
+
+### 6.3.1 자동 수정 분류
+
+모든 Critical/Warning/Info 지적사항에는 아래 중 하나를 붙입니다.
+
+| 분류 | 의미 |
+|------|------|
+| `autofix-safe` | Claude Code가 안전하게 수정 가능. 포맷, import, 상수화, 명확한 null check, 작은 테스트 보강 등 |
+| `manual-required` | 아키텍처, DB schema, 외부 API contract, 제품 요구사항 판단이 필요 |
+| `owner-decision` | 여러 해결책이 가능하고 owner 의사결정이 필요한 변경 |
 
 ### 6.4 리뷰 히스토리
+
+- 리뷰 히스토리의 지적 열은 `지적 (C/W/I)`로 쓰고, 값은 Critical/Warning/Info 순서의 숫자만 `0/0/0`처럼 표시한다. 기존 숫자·시각·SHA·판정은 형식 수정만으로 바꾸지 않는다.
+- 표 헤더·구분선·이력 행 사이에 빈 줄을 넣지 않는다. 저장 후 재조회하고 GitHub에서는 렌더링 HTML로 모든 이력이 같은 표에 포함되는지 확인한다.
+
 
 **재리뷰 시 코멘트 하단에 히스토리 테이블을 포함합니다.**
 
 최초 리뷰에서도 히스토리 섹션을 포함하여, 이후 재리뷰 시 기존 코멘트를 업데이트할 때 행을 추가합니다.
+
+**시각 기준:**
+- 모든 `일시` 값은 KST(UTC+9, `Asia/Seoul`) 기준으로 작성합니다.
+- 형식은 `YYYY-MM-DD HH:mm KST`를 사용합니다.
+- 시스템 timezone이 UTC여도 `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M KST'`처럼 KST로 산출합니다.
+- 과거 이력의 시각·SHA·판정·숫자는 보존하고 신규 행만 KST로 작성합니다.
 
 ```markdown
 ---
 
 ## 📜 리뷰 히스토리
 
-| # | 일시 | 판정 | 이슈 (🔴/🟡/🔵) | 변화 |
-|---|------|------|-----------------|------|
+| # | 일시 | head | 판정 | 지적 (C/W/I) | 변화 |
+|---|------|------|------|-----------------|------|
 {{#each history}}
-| {{attempt}} | {{datetime}} | {{verdict}} | {{critical}}/{{warning}}/{{info}} | {{change}} |
+| {{attempt}} | {{datetime}} | {{head_sha}} | {{verdict}} | {{critical}}/{{warning}}/{{info}} | {{change}} |
 {{/each}}
 ```
 
@@ -418,8 +571,8 @@ if (size > MAX_PAGE_SIZE) {
 ```markdown
 ## 📜 리뷰 히스토리
 
-| # | 일시 | 판정 | 이슈 (🔴/🟡/🔵) | 변화 |
-|---|------|------|-----------------|------|
-| 1 | 2026-03-03 11:00 | ⚠️ 수정 후 승인 권장 | 0/1/0 | 최초 리뷰 |
-| 2 | 2026-03-03 11:30 | ✅ 승인 | 0/0/0 | 🟡 1건 해소 |
+| # | 일시 | head | 판정 | 지적 (C/W/I) | 변화 |
+|---|------|------|------|-----------------|------|
+| 1 | 2026-03-03 20:00 KST | `{short SHA}` | ❌ FAIL | 0/1/0 | 최초 리뷰 |
+| 2 | 2026-03-03 20:30 KST | `{short SHA}` | ✅ PASS | 0/0/0 | 🟡 1건 해소 |
 ```

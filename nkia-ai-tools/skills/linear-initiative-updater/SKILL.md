@@ -8,7 +8,7 @@ description: Generate initiative status updates by aggregating child project hea
 ## CRITICAL: First Step — Read the References
 
 **BEFORE generating any update, you MUST read:**
-- [guideline-ref.md](../_shared/guideline-ref.md) — 5.4 주간 Initiative Update 템플릿, 7. Health 판단 기준
+- [guideline-ref.md](../_shared/guideline-ref.md) — 5.4 주간 Initiative Update 템플릿, 8. Health 판단 기준
 - [initiative_aggregation.md](references/initiative_aggregation.md) — 프로젝트 Health 집계 및 렌더링 로직
 
 **업데이트 생성 시 반드시 가이드라인의 템플릿과 Health 기준을 따라야 합니다.**
@@ -75,7 +75,7 @@ description: Generate initiative status updates by aggregating child project hea
 
 ### Step 3: Auto-Suggest Initiative Health
 
-[guideline-ref.md "7.2 이니셔티브 Health"](../_shared/guideline-ref.md) 기준에 따라 worst-case 집계로 Health를 자동 제안합니다.
+[guideline-ref.md "8.2 이니셔티브 Health"](../_shared/guideline-ref.md) 기준에 따라 worst-case 집계로 Health를 자동 제안합니다.
 
 판단 로직은 [initiative_aggregation.md Section 3](references/initiative_aggregation.md) 참조
 
@@ -122,5 +122,5 @@ description: Generate initiative status updates by aggregating child project hea
 
 ## Resources
 
-- [guideline-ref.md](../_shared/guideline-ref.md) — 5.4 주간 Initiative Update 템플릿, 7. Health 판단 기준
+- [guideline-ref.md](../_shared/guideline-ref.md) — 5.4 주간 Initiative Update 템플릿, 8. Health 판단 기준
 - [initiative_aggregation.md](references/initiative_aggregation.md) — 프로젝트 Health 수집, Stale 프로젝트 처리, Health 자동 판단, 섹션별 자동 생성, 본문 렌더링, 기존 업데이트 처리, 에러 처리

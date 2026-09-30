@@ -1,8 +1,14 @@
 # NKIA-AI Claude Code Skills
 
-NKIA-AI 팀의 Claude Code 플러그인 마켓플레이스입니다. 개발 워크플로우(kickoff → commit → submit → wrap-up), Linear 이슈/프로젝트/이니셔티브 관리, Confluence·Figma·주간보고 자동화, Polestar 운영/검증 도구를 하나의 플러그인에 모았습니다.
+NKIA-AI 팀의 Claude Code 플러그인 마켓플레이스입니다. 개발 워크플로우(kickoff → submit → 수동 merge → wrap-up), Linear 이슈/프로젝트/이니셔티브 관리, Confluence·Figma·주간보고 자동화, Polestar 운영/검증 도구를 하나의 플러그인에 모았습니다.
 
-현재 버전: **v1.12.3**
+현재 버전: **v1.13.0**
+
+## v1.13.0 — NKIAAI-836 포팅
+
+- Codex `nkia-codex-skills`의 `caff2d6` 기준 이슈·Type·증빙 계약과 제출 흐름 반영
+- Claude의 `/submit`·`/kickoff`·`/wrap-up` 이름과 현재 제공 도구를 사용하며 Codex Goal·앱 도구는 요구하지 않음
+- 기존 이슈·inline 증빙·댓글 이력은 읽기 호환 유지, 실제 Linear 자료의 일괄 변경은 수행하지 않음
 
 ## 설치 방법
 
@@ -21,7 +27,7 @@ NKIA-AI 팀의 Claude Code 플러그인 마켓플레이스입니다. 개발 워�
 개발 한 사이클 동안 아래 순서로 조합해서 사용합니다.
 
 ```
-/kickoff → (개발) → /commit → /submit → (머지) → /wrap-up
+/kickoff → (개발) → /submit → (수동 머지) → /wrap-up
 ```
 
 | 카테고리 | 스킬 | 설명 |
@@ -29,7 +35,7 @@ NKIA-AI 팀의 Claude Code 플러그인 마켓플레이스입니다. 개발 워�
 | **개발 워크플로우** | [kickoff](#kickoff) | Linear 이슈로 작업 시작, 브랜치 생성, In Progress 전환 |
 | | [commit](#commit) | NKIA 컨벤션 커밋 메시지 자동 생성 |
 | | [code-review](#code-review) | GitHub PR / GitLab MR 자동 리뷰 |
-| | [submit](#submit) | 커밋 → 푸시 → PR/MR → 리뷰 루프 오케스트레이터 |
+| | [submit](#submit) | 커밋·푸시 → 증빙·AC 검증 → In Review → Draft PR/MR·리뷰 → Ready |
 | | [wrap-up](#wrap-up) | 머지 후 브랜치 정리 + 증빙 수집 + AC 검증 + In Review 전환 |
 | **Linear 이슈** | [linear-issue-creator](#linear-issue-creator) | 템플릿 기반 이슈 생성 (자연어 / 단계별) |
 | | [linear-issue-evidence](#linear-issue-evidence) | 완료 AC 체크 + 증빙 첨부 |
@@ -59,7 +65,7 @@ Linear 이슈를 읽어 브랜치를 만들고, 이슈를 **In Progress**로 전
 
 **주요 기능:**
 - Linear 이슈 정보 조회 (title, description, labels, AC)
-- 레포 유형에 맞는 **최신 버전 develop 브랜치** 기반으로 feature 브랜치 생성
+- 저장소 정본의 실제 통합 base와 정식 Type에 맞는 작업 브랜치 생성
 - 이슈 상태 전환 (Todo → In Progress)
 - 설계 AC가 있는 경우 설계 문서 scaffold 생성
 - uncommitted 변경사항 사전 점검 및 안내
@@ -146,20 +152,21 @@ glab auth login --hostname cims2.nkia.net:8443      # 회사 GitLab
 
 ### submit
 
-개발 완료 후 **커밋 → 푸시 → PR/MR 생성 → 코드 리뷰 → 자동 수정** 루프까지 한 번에 실행하는 오케스트레이터 스킬입니다.
+개발 완료된 Linear 실행 이슈를 **커밋·푸시 → 증빙 등록 → 기능 AC 검증 → In Review → Draft PR/MR → 코드리뷰·수정 → Ready** 순서로 제출합니다.
 
 **주요 기능:**
-- `/commit` 워크플로우로 커밋
-- 원격 푸시
-- PR/MR 생성 (레포 유형에 맞는 제목, 타겟 브랜치, 본인 assignee)
-- `/code-review` 워크플로우로 리뷰 실행
-- 지적사항 자동 수정 → 재커밋 → 재리뷰 (최대 3회)
-- **merge는 절대 실행하지 않음** (사용자가 직접 수행)
+- `/commit`으로 변경을 커밋하고 push된 SHA에 증빙·검증 연결
+- AC 아래 짧은 실제 결과, 장문은 Linear document, 이미지는 attachment로 저장
+- 모든 기능 AC 통과 후 In Review 전환과 Draft PR/MR 생성·Linear 연결
+- `/code-review`로 전체 diff 검토, 안전한 수정·재검증 최대 3회
+- 현재 SHA의 AC·리뷰·필수 CI 통과 후 Ready 전환, 수동 merge 대기
+- 기존 단독 validator와 머지 후 `/wrap-up` 경로 유지
 
 **사용 예시:**
 ```bash
-/submit                    # 타겟 브랜치 자동 판별
-/submit develop-ui-chat    # 타겟 브랜치 직접 지정
+/submit                    # 현재 작업과 실제 통합 대상 확인
+/submit NKIAAI-836         # 대상 Linear 이슈 지정
+/submit develop-ui-chat    # 대상 브랜치 지정 (저장소 정책 확인)
 ```
 
 ---
@@ -191,11 +198,12 @@ PR/MR 머지 후의 마무리 작업(브랜치 정리 → 증빙 수집 → AC �
 Linear 이슈를 템플릿 기반으로 빠르게 생성합니다.
 
 **주요 기능:**
-- 9가지 작업 템플릿 지원 (빌드/배포, 데이터 작업, 평가, 기능 개발, 기능 개선, 리팩토링, 리서치, 버그 수정, 문서)
+- 11개 작업 입력 유형 지원, 문제·변경 내용·완료 조건·범위의 공통 4절 본문 사용
 - 자연어 또는 회의록 입력으로 이슈 자동 생성
-- 구체적인 DoD / AC 자동 생성
+- 결과 중심 `AC-01` ID와 AC 아래 `증빙 예정:` 불릿 생성
 - 마감일 기반 사이클 자동 배정
-- 작업 타입별 라벨 자동 적용
+- 실제 프로젝트 하나·활성 Type 그룹 라벨 하나 지정, 저장 후 메타데이터 재조회
+- 스토리 포인트 산정·입력과 별도 AC 승인 접미사 미사용
 
 **사용 예시:**
 ```bash
