@@ -90,6 +90,8 @@ Linear 이슈 없이 진행되는 standalone 작업은 Linear 이슈 번호를 `
 
 저장소의 최신 브랜치·커밋 규칙 정본을 우선 적용한다. `lucida-next`는 `docs/05-개발가이드/거버넌스/README.md`가 연결하는 현재 규칙을 읽고 검증한다. prefix·scope·Linear ID 위치를 과거 규칙으로 고정하지 않는다. 아래 기본 NKIA 규칙은 정본이 없는 저장소에만 적용한다.
 
+- git이 만든 기본 병합 커밋 메시지(`Merge branch '…'`, `Merge remote-tracking branch '…' into …`, `Merge pull request #…`)는 저장소 규칙과 관계없이 허용한다. 형식 위반·지적으로 보고하지 않고 새 메시지로 다시 쓰라고 요구하지 않는다. 병합 커밋을 사람이 직접 쓴 경우에만 일반 커밋 규칙을 적용한다.
+
 ### 3.1.1 기본 NKIA 커밋 메시지 규칙
 
 **정규식 패턴:**
