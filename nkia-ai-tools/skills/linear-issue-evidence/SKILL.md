@@ -5,17 +5,21 @@ description: Update evidence on Linear issue AC items — check completed items 
 
 # Linear Issue Evidence
 
+## 본문 증빙 계약
+
+먼저 [공통 증빙 계약](../_shared/issue-contract.md)을 읽는다. 원본을 저장·검증하고 대상 AC 아래에 실제 링크·짧은 결과와 필요한 대표 이미지를 표시한다. 재검증 이력은 댓글에 보존하며 본문에는 최신 요약만 유지한다. 기존 `→ 결과물:`은 읽기 호환으로만 유지한다. 체크 상태만으로 PASS하지 않는다.
+
 ## CRITICAL: First Step — Read the Guideline Reference
 
 **BEFORE updating any evidence, you MUST read:**
 - [guideline-ref.md](../_shared/guideline-ref.md) — 이슈 상태, AC 항목 형식, AI-Verification Loop
 - [evidence_gathering_methods.md](references/evidence_gathering_methods.md) — **Section 0 (삽입 형식) 필수**, 증빙 유형 식별 및 수집 방법
 
-**증빙 업데이트 시 반드시 가이드라인의 AC 형식을 따라야 합니다.**
+**새 증빙에는 공통 계약을 우선 적용하고, 기존 증빙은 읽기 호환을 유지합니다.**
 
 ## CRITICAL: 실제 출력은 반드시 코드 블록으로 감쌀 것
 
-**테스트 결과, 로그, diff, 쿼리 결과 등 터미널 출력을 포함하는 증빙은 반드시 마크다운 코드 블록(```)으로 감싸서 Linear description에 삽입합니다.** 코드 블록 없이 인라인 텍스트로 삽입하면 가독성이 크게 떨어집니다.
+짧은 테스트·로그·쿼리 결과는 AC 아래 증빙 불릿에 코드 블록으로 직접 넣는다. 장문은 이슈 Resources의 Add document로 저장하고 해당 document URL을 링크한다. 장문 텍스트를 파일 attachment로 올리지 않는다.
 
 상세 형식과 적용 대상은 [evidence_gathering_methods.md Section 0](references/evidence_gathering_methods.md) 참조
 
@@ -27,13 +31,14 @@ description: Update evidence on Linear issue AC items — check completed items 
 
 **하는 일:**
 - 완료된 AC 항목 자동 판단
-- AC에 명시된 증빙 유형에 따라 실제 증빙 수집 (PR 조회, 테스트 실행, 스크린샷 캡처 등)
+- AC에 명시된 증빙 유형에 따라 실제 증빙 수집 (테스트 실행, document 저장, 스크린샷 캡처 등)
 - AC 항목 체크 (`[ ]` → `[x]`)
-- 증빙 자료 첨부 (`→ 결과물:` 뒤에 실제 링크/경로 삽입)
+- 증빙 자료 첨부 (대상 AC 아래 실제 링크·짧은 결과 표시)
+- **스크린샷은 Linear에 업로드한 뒤 해당 AC 본문 바로 아래에 Markdown 이미지로 삽입**
 - **PR/MR 링크는 이슈 리소스(links)로 첨부** (`save_issue`의 `links` 필드 사용)
 
 **하지 않는 일:**
-- AC 항목 추가/삭제/수정 (내용 변경은 Claude가 직접 처리)
+- AC 조건 추가/삭제/수정 (별도 사용자 요청과 승인 범위에서 처리)
 - 이슈 배경/설명/범위 수정
 
 ---
@@ -71,11 +76,11 @@ Description에서 AC 항목을 파싱합니다.
     상태: In Progress
 
     AC 항목:
-    1. [ ] 브랜치명 검증 패턴 수정 → 결과물: (미첨부)
-    2. [ ] 테스트 작성 및 통과 → 결과물: (미첨부)
-    3. [x] 코드 리뷰 완료 → 결과물: PR #42
+    1. [ ] 브랜치명 검증 패턴 수정
+    2. [ ] 테스트 작성 및 통과
+    3. [x] 코드 리뷰 완료
 
-    진행률: 1/3 (33%)
+    기능 AC 진행률: 0/2 (0%). 기존 코드리뷰 절차 항목은 원문·체크 상태를 보존하고 분모에서 제외.
 
     ===========================
 
@@ -89,7 +94,7 @@ Description에서 AC 항목을 파싱합니다.
 - git 상태, 최근 커밋 등 환경 정보
 
 **증빙 유형 결정:**
-AC 항목의 `→ 결과물:` 뒤에 이슈 생성 시 명시된 증빙 유형(예: "PR 링크", "테스트 결과")을 따릅니다.
+AC 아래 `증빙 예정:`에 적힌 자료와 확인 내용을 기준으로 수집한다. 실제 저장·내용 확인 후 같은 불릿을 `증빙: 실제 링크·결과`로 교체한다. 필수 자료가 남으면 예정 안내와 미체크 상태를 유지한다. 기존 결과물 표기는 읽기 호환으로 처리한다.
 
 ### Step 6: Gather Evidence (병렬)
 
@@ -99,30 +104,32 @@ AC 항목의 `→ 결과물:` 뒤에 이슈 생성 시 명시된 증빙 유형(�
 
 증빙 유형 식별 및 유형별 수집 방법은 [evidence_gathering_methods.md](references/evidence_gathering_methods.md) 참조 — PR 조회, 테스트 실행, 스크린샷 캡처, CI/CD 로그 조회, 문서 확인, 데이터 경로 검증, 메트릭 수집, API 응답 확인
 
-**수집 실패 시:** 해당 항목은 건너뛰고 콘솔에 경고를 출력합니다. 수집 성공한 항목만 업데이트합니다. 개별 항목의 실패가 다른 항목의 수집을 중단시키지 않습니다.
+**수집 실패 시:** 나머지 자료 수집은 계속한다. 실패한 기능 AC는 최신 본문에서 미체크로 두고 예정 자료·실패 이유를 보존한다. 이전 체크를 그대로 완료 근거로 사용하지 않는다. 실제 확인한 자료만 증빙으로 적용하며 제출 절차 AC·다른 AC는 보존한다.
 
 ### Step 7: Preview & Confirm
 
-**⚠️ CRITICAL: 반드시 `AskUserQuestion`으로 사용자 확인 후 적용합니다.**
+**⚠️ CRITICAL: 반드시 사용자에게 확인 후 적용합니다.**
 
-여러 세션에서 동시에 증빙을 업데이트하면 description이 꼬일 수 있으므로, 적용 전에 반드시 사용자가 확인합니다.
+적용 전 미리보기를 제공한다. 같은 대상과 적용을 이미 승인받았다면 반복 질문하지 않고 최신 본문을 재조회해 적용한다.
 
 수집된 증빙을 미리보기로 보여주고 확인합니다:
 
     === 증빙 업데이트 미리보기 ===
 
-    1. [x] AC #1: writer 전파 → 결과물: 코드 변경 (AI MR !64)
-    2. [x] AC #4: AP toolCalls DB 저장 → 결과물: 코드 변경 (AP MR !20)
+    - [x] **AC-01** writer 변경이 대상 경로에 반영된다.
+      - 증빙: [검증 리포트](실제 URL) · 대상·방법·통과/실패 수·통과율
+    - [x] **AC-04** toolCalls가 DB에 저장된다.
+      - 증빙: [API·DB 확인 결과](실제 URL) · 관찰한 결과
 
-    공통:
-    3. [x] 코드 리뷰 완료 → 이슈 리소스에 MR 첨부
-         🔗 AP MR !20
+    PR/MR은 별도 resource로 연결한다. 제출 절차 AC는 체크하지 않는다.
 
     이대로 적용하시겠습니까?
 
     ===========================
 
-`AskUserQuestion`으로 확인:
+스크린샷이 있으면 미리보기에 AC별 파일명과 삽입 대상 AC를 표시합니다. 적용 시에는 파일명만 기록하지 않고 업로드 후 생성된 asset URL을 해당 AC 본문에 inline 이미지로 삽입합니다.
+
+사용자에게 확인:
 - 질문: "이대로 증빙을 적용하시겠습니까?"
 - 선택지: "적용", "수정 필요", "취소"
 
@@ -134,7 +141,7 @@ Linear API의 `save_issue`는 description을 **전체 교체**합니다. 이전�
 
 **이 규칙은 `save_issue`를 호출할 때마다 적용됩니다.** 같은 세션에서 2번 연속 호출하더라도 2번째 호출 직전에 반드시 re-fetch해야 합니다.
 
-1. `mcp__plugin_linear_linear__get_issue`로 이슈 재조회
+1. `mcp__linear__get_issue`로 이슈 재조회
 2. 최신 description에서 AC 항목 재파싱
 3. **수정 대상 AC만 변경, 나머지 AC는 절대 건드리지 않음**
 4. `save_issue`로 업데이트
@@ -148,7 +155,16 @@ Linear API의 `save_issue`는 description을 **전체 교체**합니다. 이전�
 
 **1) Description 업데이트**: AC 항목 체크 + 증빙 텍스트 삽입 → `mcp__linear__save_issue`로 description 업데이트
 
-**2) PR/MR 링크는 이슈 리소스로 첨부**: 공통 AC의 "코드 리뷰 완료" 항목이 있으면, 수집된 PR/MR URL을 `save_issue`의 `links` 필드로 첨부합니다. description 텍스트에 PR URL을 삽입하지 않습니다.
+**스크린샷 삽입 규칙:**
+
+1. 스크린샷을 Linear에 업로드하여 영구 asset URL을 얻습니다.
+2. 최신 description을 다시 조회합니다.
+3. 대상 AC의 결과물 요약 바로 아래에 `![AC 설명](asset_url)` 형식으로 삽입합니다.
+4. 바로 봐야 하는 대표 이미지만 삽입하고 나머지는 링크로 표시합니다.
+5. 파일명만 적거나 이슈 attachment 목록에만 올리는 방식은 완료 증빙으로 인정하지 않습니다.
+6. 다른 AC에 이미 삽입된 이미지 Markdown은 수정하거나 삭제하지 않습니다.
+
+**2) PR/MR 링크는 이슈 리소스로 첨부**: 해당 이슈의 PR/MR이 실제 존재하면 같은 URL이 이미 연결됐는지 확인하고 수집된 PR/MR URL을 `save_issue`의 `links` 필드로 첨부합니다. description 텍스트에 PR URL을 삽입하지 않습니다. 저장 후 attachments를 재조회합니다. PR 생성 전 증빙에서는 PR을 요구하지 않습니다.
 
     mcp__linear__save_issue({
       id: "issue-uuid",
@@ -160,33 +176,30 @@ Linear API의 `save_issue`는 description을 **전체 교체**합니다. 이전�
 
     === 증빙 업데이트 적용 ===
 
-    1. [x] 브랜치명 검증 패턴 수정 → 결과물: CI 로그 https://ci.example.com/build/123  ← UPDATED
-    2. [x] 테스트 작성 및 통과 → 결과물: pytest 5/5 passed  ← UPDATED
+    - [x] **AC-01** 허용된 브랜치명은 통과하고 잘못된 이름은 거절된다.
+      - 증빙: [테스트 리포트](실제 URL) · 대상 테스트 5/5 PASS
 
-    공통:
-    3. [x] 코드 리뷰 완료 → 이슈 리소스에 PR/MR 링크 첨부  ← RESOURCE ADDED
-         🔗 PR #43 https://github.com/org/repo/pull/43
-
-    진행률: 3/3 (100%)
+    기능 AC: 1/1. PR/MR resource 저장 확인.
 
     ===========================
 
-### Step 9: Manual Upload Guide
+### Step 9: Manual Upload Fallback
 
-증빙 중 로컬 파일(스크린샷, 동영상 등)이 포함된 경우, 적용 완료 후 사용자에게 안내합니다.
+자동 업로드와 AC 본문 삽입은 Step 8에서 완료합니다. Linear 업로드 API가 없거나 업로드에 실패한 경우에만 수동 업로드를 안내합니다.
 
     === 수동 업로드 필요 ===
 
-    다음 파일은 Linear에 직접 업로드해주세요:
+    다음 파일은 Linear에 직접 업로드한 뒤 asset URL을 알려주세요:
 
     1. 📷 스크린샷: temp/playwright-mcp/nkiaai-137/result.png
        → AC #2 "테스트 작성 및 통과" 증빙
 
-    업로드 방법: Linear 이슈 → 코멘트 또는 첨부파일로 드래그 앤 드롭
+    업로드 방법: Linear 이슈 → 첨부파일로 드래그 앤 드롭 → 생성된 이미지 URL 확인
+    후속 작업: 해당 URL을 AC #2 본문 바로 아래 Markdown 이미지로 삽입
 
     ===========================
 
-**판단 기준:** 증빙 값이 URL(`http://`, `https://`)이 아닌 로컬 파일 경로이면 수동 업로드 대상으로 분류합니다.
+**판단 기준:** 증빙 값이 URL(`http://`, `https://`)이 아닌 로컬 파일 경로이고 Linear 업로드 도구도 사용할 수 없을 때만 수동 업로드 대상으로 분류합니다. 수동 업로드 안내만 한 상태에서는 AC를 체크하지 않습니다.
 
 ---
 
@@ -198,7 +211,7 @@ Linear API의 `save_issue`는 description을 **전체 교체**합니다. 이전�
 |----------|------|------|-----------|
 | PR/MR 링크 | URL | `https://github.com/org/repo/pull/42` | - |
 | CI/CD 로그 | URL | `https://ci.example.com/build/123` | - |
-| 스크린샷 | 파일 경로 | `temp/playwright-mcp/nkiaai-137/result.png` | **필요** |
+| 스크린샷 | AC 본문 inline 이미지 | `![AC #2 결과](https://uploads.linear.app/...)` | 업로드 도구 없을 때만 |
 | 동영상 | 파일 경로 | `temp/playwright-mcp/nkiaai-137/demo.mp4` | **필요** |
 | 테스트 결과 | 요약 + 실제 출력 | `pytest 5/5 passed` + 터미널 출력 | - |
 | 문서 링크 | URL | `https://confluence.example.com/page/123` | - |
@@ -214,7 +227,7 @@ Linear API의 `save_issue`는 description을 **전체 교체**합니다. 이전�
 
 | 스킬 | 연동 |
 |-----|------|
-| `/linear-issue-creator` | 이슈 생성 시 AC에 `→ 결과물:` 플레이스홀더 포함 |
+| `/linear-issue-creator` | 결과 중심 AC와 하위 `증빙 예정:` 불릿 생성; 증빙 게이트에서 실제 자료로 교체 |
 | `/linear-issue-validator` | 증빙 첨부 후 별도 세션에서 객관적 검증 |
 
 ---

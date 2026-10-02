@@ -1,5 +1,9 @@
 # Kickoff Workflow — 브랜치 생성 규칙
 
+## 저장소 정본 우선
+
+사용자 지정 base·prefix와 저장소 최신 규칙을 우선한다. 버전별 develop을 쓰는 저장소에만 아래 조회를 적용한다. main 중심 저장소는 실제 default branch, `lucida-next`는 개발 가이드 정본의 통합 branch를 확인한다. 새 브랜치는 `feat/`·`fix/`·`refactor/`·`docs/`·`chore/` 등 유형 prefix를 사용하며 `codex/`를 생성하지 않는다. 저장소의 다른 UI 브랜치 규칙보다 사용자 지정 유형 prefix를 우선한다.
+
 ## 0. 기본 개념 — 버전별 develop 브랜치
 
 사이클마다 버전이 찍힌 개발 브랜치가 새로 뽑힙니다. 사이클이 끝나면 그 브랜치는 `develop`으로 머지되고, 다시 `develop`에서 다음 버전 브랜치가 나옵니다. Kickoff에서는 **최신 버전 브랜치**를 base로 feature 브랜치를 뽑습니다.
@@ -59,19 +63,20 @@
 
 ## 2. 일반 레포 브랜치 생성 — `{prefix}/{team-key}-{no}-{slug}`
 
-### Label → Prefix 매핑
+### 정식 Type → Prefix 매핑
 
-| Label | Prefix |
-|-------|--------|
-| `feature` | `feature/` |
-| `improve` | `feature/` |
-| `bug` | `fix/` |
-| `refactor` | `refactor/` |
-| `research` | `feature/` |
-| `build` | `config/` |
-| `data` | `feature/` |
-| `document` | `docs/` |
-| 기타/없음 | `feature/` |
+활성 `Type` 그룹의 라벨을 읽는다. 표시 이름이 같은 다른 그룹·옛 domain 라벨은 사용하지 않는다.
+
+| Type | Prefix |
+|---|---|
+| Feature / Improvement | `feat/` |
+| Bug | `fix/` |
+| Refactoring | `refactor/` |
+| Documentation | `docs/` |
+| Build | `build/` |
+| Research / Investigation / Evaluation / Task | `chore/` |
+
+Type 미지정·중복이면 목적과 기존 이슈를 확인한다. 라벨이나 이슈를 임의 재분류하지 않는다. 브랜치 설명에서는 옛 AC 승인 접미사를 제외한다.
 
 ### Slug 생성
 
@@ -100,7 +105,7 @@ Section 1에서 캐싱한 `$BASE`를 base로 feature 브랜치를 뽑습니다.
 
 ---
 
-## 3. UI 레포 브랜치 생성 — `develop-10.x.y_z-chat-{function}`
+## 3. 기존 UI 레포 브랜치 규칙 (읽기 호환) — `develop-10.x.y_z-chat-{function}`
 
 > **UI 레포는 별도 브랜치 컨벤션을 사용합니다.** 일반 레포처럼 `feature/{이슈번호}-{slug}` 형태가 아니라, 부모 버전 브랜치를 그대로 확장한 `{version}-chat-{function}` 계층 구조를 씁니다. 따라서 Linear 이슈 번호는 **브랜치명이 아닌 커밋 메시지에만** 포함됩니다.
 
@@ -108,7 +113,7 @@ Section 1에서 캐싱한 `$BASE`를 base로 feature 브랜치를 뽑습니다.
 
     master → develop → develop-10.x.y_z-chat → develop-10.x.y_z-chat-{function}
 
-module은 `chat` 고정이므로 사용자에게 확인하지 않습니다.
+아래 형식은 기존 UI branch를 해석하는 참고다. 새 작업에서는 사용자 지정 유형 prefix와 저장소 정본을 우선한다. module은 기존 형식에서 `chat`으로 해석한다.
 
 ### Function 추론
 
@@ -145,7 +150,7 @@ Section 1에서 캐싱한 `$BASE`(예: `develop-10.2.4_3-chat`)를 base로 featu
 
 ## 4. 타겟 브랜치 판별 (참고)
 
-kickoff에서는 직접 사용하지 않지만, `/submit` 스킬에서 사용하는 타겟 브랜치 기본값은 **feature 브랜치를 뽑은 base 버전 브랜치와 동일**합니다.
+kickoff에서는 직접 사용하지 않지만, `/submit` 스킬에서 사용하는 타겟 브랜치는 **이 작업에서 실제 사용한 base 기록과 저장소 정본**으로 결정합니다. 새 사이클의 최신 버전으로 기존 작업의 대상을 자동 변경하지 않습니다.
 
 | 레포 | 기본 타겟 |
 |------|----------|
@@ -154,7 +159,7 @@ kickoff에서는 직접 사용하지 않지만, `/submit` 스킬에서 사용하
 | lucida-chat-ai | 최신 `develop-10.x.y_z` |
 | 기타 | 최신 `develop-10.x.y_z` |
 
-> 이전에 사용하던 `develop`, `develop-sandbox`, `develop-ui-chat` 같은 고정 base는 더 이상 사용하지 않습니다.
+> 이 표는 버전별 develop을 쓰는 저장소의 예입니다. 모든 저장소에 같은 패턴을 강제하지 않습니다.
 
 ---
 

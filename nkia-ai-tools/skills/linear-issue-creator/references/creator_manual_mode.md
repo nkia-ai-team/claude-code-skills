@@ -1,5 +1,9 @@
 # Manual Mode Workflow
 
+스토리 포인트는 산정하거나 요청하지 않고 `estimate`를 전송하지 않는다. 별도 AC 승인과 제목 접미사를 생성하지 않는다.
+
+먼저 [공통 계약](../../_shared/issue-contract.md)을 읽고 4절 본문, Type 하나·프로젝트 하나, 생성 후 저장값 검증을 적용한다. 수집된 검증 방법·참고사항은 관련 절에 통합하며 5·6절을 생성하지 않는다.
+
 템플릿 기반으로 정보를 단계별로 수집하여 이슈를 생성합니다.
 
 ---
@@ -11,15 +15,7 @@
 ```
 Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 
-1. Issue Layer (v1.3):
-   1) Feature  — 사용자가 체감하는 기능 (Linear Issue, body = §5.1.a)
-   2) Task     — Feature 하위 세부 작업 (Linear Sub-issue, body = §5.1.b, parent 필수)
-   3) Standalone — 위계에 안 들어가는 단발성 이슈 (body = §5.1 공통 6섹션)
-
-   (작업 템플릿이 "새로운 기능 개발/기능 개선/리팩토링" 이면 Feature 기본,
-    parent Feature 지정 시 Task 로 전환됩니다.)
-
-2. 작업 템플릿:
+1. 작업 템플릿:
    1) 빌드/배포
    2) 데이터 작업
    3) 평가
@@ -29,21 +25,18 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
    7) 리서치
    8) 버그 수정
    9) 문서 작업
+   10) 기술 조사 (Investigation)
+   11) 팀 운영·지원 (Task)
 
-3. 팀 이름: (사용 가능한 팀: [팀 목록])
-4. 프로젝트 이름: (선택사항, 없으면 엔터)
-5. 이슈 제목:
-6. 우선순위: (Urgent/High/Normal/Low, 선택사항)
-7. 담당자: (이름/이메일/'me', 선택사항)
-8. 마감일: (YYYY-MM-DD, 선택사항)
-9. Parent Feature 이슈 (Layer=Task 일 때 필수): NKIAAI-### 또는 이슈 URL
+2. 팀 이름: (사용 가능한 팀: [팀 목록])
+3. 프로젝트: (필수, 제품·이니셔티브와 함께 확인)
+4. 이슈 제목:
+5. 우선순위: (Urgent/High/Normal/Low, 선택사항)
+6. 담당자: (이름/이메일/'me', 기본 요청자; 명시적 미할당 가능)
+7. 마감일: (YYYY-MM-DD, 선택사항)
+8. 사이클: (번호/현재/다음/미할당)
+9. 상태: (팀 상태 목록에서 선택, 미지정 시 공통 규칙 적용)
 ```
-
-### Step 1.5: Validate Layer & Parent
-
-- **Layer=Task** 인데 parent 미입력 → 사용자에게 parent Feature 를 묻거나, 적합한 Feature 가 없으면 Layer 를 Feature/Standalone 으로 재선택 안내.
-- **Layer=Feature** 인데 parent 가 지정됨 → parent 가 Project (not Issue) 인지 확인. Issue 가 parent 라면 Task 로 재분류 제안.
-- **Layer=Standalone** 에 parent 입력됨 → parent 무시하고 진행 (안내 메시지).
 
 ## Step 2: Suggest Improved Title
 
@@ -56,19 +49,9 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 
 사용자에게 묻지 않고 개선된 제목을 바로 적용합니다.
 
-## Step 3: Collect Template-Specific Details with DoD/AC
+## Step 3: Collect Template-Specific Details with AC
 
-선택된 작업 템플릿에 맞는 상세 정보와 DoD/AC를 수집합니다.
-
-**본문 구조는 Step 1 의 Layer 에 따라 분기합니다:**
-
-| Layer | 수집 항목 |
-|-------|---------|
-| Feature | 목적, 주요 내용, 범위(포함/제외), **상세 완료 조건** (AC 3~5개), 하위 Task 목록(선택) |
-| Task | 작업 내용, **간단 완료 조건** (한 줄씩, 보통 1~3개) |
-| Standalone | 6섹션 (배경, 목표, AC, 범위, 검증, 참고) — 작업 템플릿별 가이드 적용 |
-
-> Task 본문에는 Feature 의 상세 완료 조건 전체를 복사하지 않습니다. 해당 작업 자체의 완료 여부만 간단히 체크하세요 (guideline-ref.md §5.1.b).
+선택된 작업 템플릿에 맞는 상세 정보와 결과 중심 AC·증빙 예정을 수집합니다.
 
 **See `references/issue_templates.md` for template-specific markdown templates and collection fields.**
 
@@ -81,9 +64,9 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 
 3. 완료 조건 (AC) - 3~5개 권장:
    예시:
-   - [ ] 데이터 파이프라인 실행 완료 → 결과물: 저장 경로 {{storage_path}}
-   - [ ] 목표 데이터 {{record_count}}건 이상 수집 → 결과물: 데이터 경로 {{data_path}}
-   - [ ] 품질 기준 충족 (Null < {{null_threshold}}%) → 결과물: 품질 리포트 {{quality_report}}
+   - [ ] 데이터 파이프라인 실행 완료
+   - [ ] 합의한 건수 이상 데이터 조회 가능
+   - [ ] 합의한 결측률 기준 충족
 
 입력:
 - [ ]
@@ -93,61 +76,44 @@ Linear 이슈를 생성하겠습니다. 다음 정보를 입력해주세요:
 4. 범위 (선택, 포함/제외):
 5. 검증 방법 (선택):
 6. 참고사항 (선택, 데이터 소스/포맷/저장 위치):
+7. 각 AC의 증빙 예정 (자료 종류·확인할 내용):
 ```
 
 ## Step 4: Apply Issue Type and Labels Automatically
 
-템플릿 기반 자동 매핑:
-1. Linear 이슈 타입 결정 (Task/Feature/Research/Bug)
-2. 템플릿별 라벨 적용 (Capitalize 정확히 일치 — Linear 라벨은 case-sensitive)
-3. 내용 기반 추가 도메인 라벨
+[공통 계약](../../_shared/issue-contract.md)에 따라 활성 정식 Type 라벨을 조회하고 실제 ID 하나를 선택한다. 옛 domain 라벨을 자동 적용하지 않는다.
 
-**⚠️ 라벨 검증 (필수):** `mcp__linear__list_issue_labels(team)` 로 워크스페이스 라벨을 먼저 조회하고, 매핑된 라벨이 실제로 존재하는지 확인. 없으면 폴백 적용 (`Refactor` → `Improvement`, `Document` → `Task`, `Data` → `Task`, `Infra` → 스킵). 모든 폴백도 부재 시 라벨 없이 생성 + 사용자 안내.
+## Step 4.5: Resolve Project and Parent
 
-**See `references/issue_templates.md` Section "작업 템플릿 → 이슈 타입 자동 매핑", "라벨 체계", and "생성 직전 라벨 검증".**
+공통 계약에 따라 제품·이니셔티브·프로젝트 설명을 대조해 실제 프로젝트 ID 하나를 지정한다. 이름·키워드만으로 결정하지 않는다. 하위 Task이면 실제 부모 이슈 ID와 범위를 확인해 연결한다. 미결정 정보는 한 번에 확인하고 저장을 보류한다.
 
-## Step 4.5: Auto-assign Project Based on Content
+## Step 4.6: Resolve Metadata
 
-1. `mcp__linear__list_projects`로 팀의 활성 프로젝트 조회
-2. 이슈 제목/설명 키워드와 프로젝트 이름 매칭
-3. 높은 신뢰도 매칭 시만 할당 (강제 할당 금지)
-
-## Step 4.6: Auto-assign Cycle Based on Due Date
-
-`due_date` 제공 시:
-1. `mcp__linear__list_cycles`로 사이클 조회
-2. `startsAt <= due_date < endsAt`인 사이클 선택
+[SKILL.md의 Metadata Resolution & Verification](../SKILL.md#metadata-resolution--verification-auto--manual-공통)에 따라 담당자·사이클·상태를 결정한다. 이미 제공된 값은 다시 묻지 않는다.
 
 ## Step 5: Show Preview and Confirm
 
 ```
 === 생성될 이슈 미리보기 ===
 
-Layer: [Feature / Task / Standalone]
-Parent: [Feature 이슈 ID + 제목] (Layer=Task 일 때만)
 제목: [개선된 제목]
 타입: [자동 매핑된 이슈 타입]
 팀: [팀]
-프로젝트: [프로젝트명] (자동 매칭됨) 또는 (없음)
+프로젝트: [프로젝트명] (이니셔티브·실제 ID 확인)
 우선순위: [우선순위]
 담당자: [담당자]
 마감일: [마감일]
-사이클: [자동 배정된 사이클]
-라벨: [자동 선택된 라벨들]
+사이클: [사이클 번호/이름 또는 명시적 미할당]
+상태: [실제 팀 상태]
+Type: [정식 그룹에서 선택한 라벨 ID]
 
 --- 설명 ---
-[Layer 에 맞는 본문 마크다운]
+[마크다운 내용]
 --------------
 
-미리보기 확인 없이 바로 생성합니다. 수정이 필요하면 Linear에서 직접 수정합니다.
+등록 지시와 필요한 정보가 있으면 바로 생성한다. 미결정 정보만 한 번에 확인한다.
 ```
 
 ## Step 6: Create the Issue
 
-`mcp__linear__create_issue`로 이슈 생성:
-- Auto-assigned project ID
-- Auto-assigned cycle ID
-- Template-based labels
-- **Layer=Task 인 경우 `parentId` 필드에 Step 1 의 parent Feature 이슈 ID 지정 → Linear Sub-issue 로 생성됨**
-
-결과 URL 표시. Layer=Feature 생성 후 하위 Task 목록이 본문에 있으면, 사용자에게 "하위 Task 들도 같은 흐름으로 이어서 생성할까요?" 안내.
+공통 Metadata Resolution & Verification 규칙대로 `save_issue`에 **title, team, description, assignee, cycle, state**와 확인한 부모 연결과 필수 project·정식 Type ID labels 및 결정된 선택 필드를 전달한다. 반환값 또는 `get_issue`로 세 메타데이터를 검증하고, 누락은 동일 이슈를 수정한다. 최종 결과에 링크·담당자·사이클·상태를 표시한다.

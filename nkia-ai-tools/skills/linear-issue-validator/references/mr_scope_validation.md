@@ -1,5 +1,7 @@
 # MR Scope Validation
 
+[공통 계약](../../_shared/issue-contract.md)에 따라 제출 절차 AC는 기능 커버리지 판정에서 제외하고 원문·체크를 보존한다. 신규 AC ID·하위 증빙·Linear document와 기존 inline 증빙을 읽는다. 이 참조는 단독 validator의 PR/MR 경로에만 적용한다. `/submit`은 PR 생성 전 push된 SHA 기준으로 검증하며 이 PR 선행 조건을 적용하지 않는다.
+
 이슈 스코프 파싱, MR 커버리지 검증, MR Diff 분석 방법을 정의합니다.
 
 ---
