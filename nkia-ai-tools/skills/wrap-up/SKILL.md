@@ -5,6 +5,10 @@ description: Post-merge cleanup — switch to target branch, pull latest, prune 
 
 # Wrap-up — 마무리
 
+## 새 제출 흐름과 호환
+
+[공통 계약](../_shared/issue-contract.md)을 따른다. `/submit`에서 이미 저장한 증빙·검증 댓글·PR 링크를 재사용하며 같은 자료를 중복 업로드하지 않는다. 실제 merge 이후 새 동작·증빙이 달라졌을 때 필요한 범위만 보강·검증한다. 제출 절차 AC는 원문·체크를 보존하고 기능 판정에서 제외한다. 포인트·별도 AC 승인은 요구하지 않는다. `Done`을 자동 설정하거나 `Done`에서 `In Review`로 되돌리지 않는다.
+
 ## CRITICAL: First Step — Read the References
 
 **증빙 수집 및 검증 시 반드시 참조:**
@@ -50,14 +54,7 @@ PR/MR 머지 후 브랜치 정리부터 증빙 등록, AC 검증, 이슈 상태 
 
 #### Step 1: Switch & Update
 
-**타겟 브랜치 판별** (레포 이름으로 자동 판별):
-
-| 레포 | 전환 브랜치 |
-|------|-----------|
-| lucida-ui | `develop-ui-chat` |
-| lucida-chat-ap | `develop` |
-| lucida-chat-ai | `develop-sandbox` |
-| 기타 | `develop` |
+실제로 merged된 PR/MR의 base/target을 조회해 전환한다. 저장소 정본과 작업 기록으로 확인하며 레포 이름만으로 고정 `develop` 대상을 고르지 않는다.
 
 상세는 [wrapup_workflow.md Section 1](references/wrapup_workflow.md) 참조
 
@@ -122,7 +119,7 @@ PR/MR 머지 후 브랜치 정리부터 증빙 등록, AC 검증, 이슈 상태 
 
 **사용자가 업로드 완료를 알리면:**
 1. `mcp__plugin_linear_linear__get_issue`로 이슈 재조회
-2. `mcp__plugin_linear_linear__extract_images`로 업로드된 미디어 확인
+2. 실제 제공하는 `extract_images` 도구에 이슈 Markdown 내용을 전달해 업로드된 미디어 확인
 3. 이미지 내용을 실제 열람하여 적절한 AC 항목에 자동 매핑
 4. `mcp__plugin_linear_linear__save_issue`로 description 증빙 텍스트 업데이트
 
@@ -170,7 +167,7 @@ PR/MR 머지 후 브랜치 정리부터 증빙 등록, AC 검증, 이슈 상태 
 
 #### Step 8: Transition to In Review
 
-모든 AC 통과 시 `AskUserQuestion`으로 확인 후 In Review로 전환합니다.
+모든 기능 AC가 통과했을 때 현재 상태를 다시 확인한다. 이미 `In Review`·`Done`이면 상태를 유지한다. 그 외에는 기존 상태 전환 승인이 있으면 재질문 없이 적용하고, 없으면 `AskUserQuestion`으로 확인한다.
 
     이슈를 'In Review' 상태로 이동하시겠습니까?
 

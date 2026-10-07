@@ -90,7 +90,7 @@ description: Generate weekly project status updates by collecting issue-level ac
 
 ### Step 4: Auto-Suggest Health
 
-수집된 데이터와 [guideline-ref.md "7. Health 판단 기준"](../_shared/guideline-ref.md) 에 따라 Health를 자동 제안합니다.
+수집된 데이터와 [guideline-ref.md "8. Health 판단 기준"](../_shared/guideline-ref.md) 에 따라 Health를 자동 제안합니다.
 
 판단 로직은 [data_collection.md Section 4](references/data_collection.md) 참조
 
@@ -132,6 +132,6 @@ description: Generate weekly project status updates by collecting issue-level ac
 
 ## Resources
 
-- [guideline-ref.md](../_shared/guideline-ref.md) — 5.3 주간 Project Update 템플릿, 7. Health 판단 기준
+- [guideline-ref.md](../_shared/guideline-ref.md) — 5.3 주간 Project Update 템플릿, 8. Health 판단 기준
 - [data_collection.md](references/data_collection.md) — 주간 범위 계산, 이슈 조회 필터, 이슈 분류 로직, Health 자동 판단 로직
 - [update_rendering.md](references/update_rendering.md) — 업데이트 본문 렌더링, 이전 업데이트 비교, 사용자 입력 수집, 기존 업데이트 처리, 에러 처리

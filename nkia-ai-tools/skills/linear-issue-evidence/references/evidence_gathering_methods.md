@@ -1,33 +1,33 @@
+# 저장 위치 규칙
+
+[공통 계약](../../_shared/issue-contract.md)에 따라 짧은 결과·로그는 AC 아래 코드 블록으로 직접 표시한다. 장문 문서·로그는 이슈 Resources → Add document에 해당하는 Linear document로 작성해 링크한다. 이미지·바이너리만 파일 attachment를 사용한다.
+
 # Evidence Gathering Methods
 
 증빙 유형별 실제 수집 방법을 정의합니다.
 
-AC 항목의 `→ 결과물:` 뒤에 명시된 증빙 유형을 파악하고, 해당 유형에 맞는 수집 방법을 실행합니다.
+AC의 관찰 가능한 결과에서 필요한 증빙 유형을 정한다. 기존 `→ 결과물:`은 읽기 호환으로만 파싱한다.
 
 ---
 
-## 0. CRITICAL: Linear Description 삽입 형식
+## 0. 원본 리포트 형식
 
-**증빙을 Linear issue description에 삽입할 때 반드시 아래 형식을 따릅니다.**
+아래 코드 블록은 짧으면 AC 아래에 직접 넣고, 길면 Linear document 본문에 넣는다. AC 문장에 증빙 안내를 덧붙이지 않고 하위 증빙 불릿을 사용한다.
 
 ### 구조: 요약 텍스트 + 코드 블록
 
 "요약 + 실제 출력" 2단 구조의 증빙은, **실제 출력 부분을 반드시 마크다운 코드 블록(```)으로 감싸서** 삽입합니다. 코드 블록 없이 인라인 텍스트로 삽입하면 Linear에서 가독성이 크게 떨어집니다.
 
-**올바른 형식 (Good):**
+**표시 예 (값은 실제 실행 결과로 채운다):**
 
-    - [x] AC 항목 설명 → 결과물: 요약 텍스트
-          ↳ 추가 설명 (MR 링크, 주요 변경 등)
+    - [x] **AC-01** 요구한 결과가 확인된다.
+      - 증빙: 대상·방법·통과/실패 수·통과율
+        ```text
+        실행한 명령
+        실제 출력 (민감정보 마스킹)
+        ```
 
-          ```
-          $ 실행 명령어
-          실제 터미널 출력 전체
-          ```
-
-**잘못된 형식 (Bad):**
-
-    - [x] AC 항목 설명 → 결과물: 요약 텍스트
-          ↳ 추가 설명. 테스트 결과: `test_a PASSED test_b PASSED 5 passed in 0.04s`
+장문은 같은 내용을 Linear document에 저장하고 해당 AC 아래에서 실제 document URL을 링크한다.
 
 ### 적용 대상
 
@@ -44,8 +44,8 @@ AC 항목의 `→ 결과물:` 뒤에 명시된 증빙 유형을 파악하고, �
 | API 응답 | O | curl 명령어 + JSON 응답 |
 | 데이터 경로 | O | ls + wc + head 출력 |
 | PR/MR 링크 | X | URL만 (이슈 리소스로 첨부) |
-| 스크린샷 | X | 파일 경로만 (수동 업로드) |
-| 문서 링크 | X | URL만 |
+| 스크린샷 | X | Linear 업로드 후 해당 AC 본문 아래 Markdown 이미지 삽입 |
+| 장문 문서·로그 | 로그는 O | Linear document 생성 후 문서 URL |
 
 ### CRITICAL: 원본 출력을 가공 없이 사용
 
@@ -54,6 +54,7 @@ AC 항목의 `→ 결과물:` 뒤에 명시된 증빙 유형을 파악하고, �
 - `$ 실행 명령어` 뒤에 오는 출력은 실제 실행 결과를 그대로 복사
 - 줄바꿈, 공백, 포맷팅을 임의로 변경하지 않음
 - 출력이 너무 길면 앞뒤만 잘라내되(tail/head), 내용 자체를 가공하지 않음
+- 토큰·비밀번호·개인정보는 게시 전에 마스킹하고 마스킹 사실을 표시한다. 원본 보존 규칙이 민감정보 공개를 허용하지 않는다.
 - "요약" 줄은 코드 블록 바깥에 별도로 작성하고, 코드 블록 안은 원본만
 
 **Bad (AI가 가공한 텍스트):**
@@ -82,20 +83,17 @@ AC 항목의 `→ 결과물:` 뒤에 명시된 증빙 유형을 파악하고, �
 
 AC 항목에서 증빙 유형을 자동 판별합니다.
 
-| 키워드 패턴 | 증빙 유형 | 예시 |
-|------------|----------|------|
-| `PR`, `MR`, `Pull Request`, `Merge Request`, `PR 링크` | PR/MR 링크 | `→ 결과물: PR 링크 {{pr_link}}` |
-| `테스트`, `test`, `pytest`, `jest`, `통과` | 테스트 결과 | `→ 결과물: 테스트 결과 {{test_result}}` |
-| `스크린샷`, `screenshot`, `캡처` | 스크린샷 | `→ 결과물: 스크린샷 {{screenshot_path}}` |
-| `CI`, `CD`, `빌드`, `build`, `파이프라인`, `pipeline` | CI/CD 로그 | `→ 결과물: CI 빌드 로그 {{ci_url}}` |
-| `문서`, `document`, `Confluence`, `wiki` | 문서 링크 | `→ 결과물: 설계 문서 {{doc_url}}` |
-| `데이터`, `경로`, `path`, `파일` | 데이터 경로 | `→ 결과물: 데이터 경로 {{data_path}}` |
-| `메트릭`, `metric`, `정확도`, `accuracy`, `성능` | 메트릭 결과 | `→ 결과물: 정확도 {{accuracy}}` |
-| `API`, `엔드포인트`, `endpoint`, `응답` | API 응답 | `→ 결과물: API 응답 {{api_response}}` |
-| `코드`, `변경`, `diff`, `리팩토링`, `구현`, `전환` | 코드 변경 | `→ 결과물: {{diff_summary}}` |
-| `로그`, `서버 로그`, `스트리밍 로그`, `docker`, `컨테이너` | 애플리케이션/Docker 로그 | `→ 결과물: 스트리밍 로그 {{log_summary}}` |
-| `DB`, `데이터베이스`, `저장`, `MongoDB`, `PostgreSQL`, `MySQL`, `쿼리` | DB 쿼리 증빙 | `→ 결과물: DB 데이터 {{query_result}}` |
-| `SSE`, `이벤트`, `event`, `발행`, `전달` | 이벤트 로그 | `→ 결과물: 이벤트 로그 {{event_log}}` |
+| AC에서 확인할 결과 | 자료 |
+|---|---|
+| 테스트·회귀·경계 동작 | 실제 테스트 출력, 대상·명령·PASS/FAIL·미실행 |
+| UI·화면·상태 전환 | 해당 상태가 보이는 스크린샷 |
+| 빌드·배포·실행 상태 | CI/CD 로그·상태 확인 결과 |
+| 문서·조사·설계 | 실제 결과 문서와 요구사항 대조 |
+| 데이터·DB 저장 | 조회 조건·결과·건수·샘플 |
+| API·이벤트 전달 | 실제 응답·이벤트·로그 |
+| 성능·정확도 | 측정 조건·기준·실제 지표 |
+
+코드 diff는 구현 확인 자료이며 실행 결과를 대체하지 않는다. PR/MR은 별도 이슈 resource로 연결하며 제출 절차 AC를 새로 만들지 않는다.
 
 식별 불가 시 텍스트 기반 증빙으로 처리합니다.
 
@@ -109,18 +107,16 @@ AC 항목에서 증빙 유형을 자동 판별합니다.
     gh pr list --head $(git branch --show-current) --json url,number,title,state,reviewDecision,mergedAt
 
     # PR이 있으면 URL + 상태 정보 추출
-    # PR이 없으면 → 수집 실패 (PR 미생성 상태)
+    # PR이 없으면 링크 등록은 생략한다. 기능 증빙 수집을 막지 않는다.
 
 ### GitLab MR
 
-    # GitLab self-hosted: ~/.config/glab-cli/config.yml에서 토큰 사전 추출
-    # ⚠️ config 키에 포트가 없을 수 있음 (예: cims2.nkia.net vs cims2.nkia.net:8443)
-    #    → 포트 제외 호스트명으로도 매칭
-    # config에 없으면 환경변수 확인 (GITLAB_TOKEN, GITLAB_PRIVATE_TOKEN)
-    # 토큰 확보 후:
-    GITLAB_TOKEN={token} GITLAB_HOST={hostname} glab mr list --source-branch $(git branch --show-current)
+    # GitLab self-hosted: 저장된 glab 인증 상태 확인
+    glab auth status --hostname {hostname}
+    # 인증 확인 후 hostname을 명시하여 조회
+    glab mr list --source-branch $(git branch --show-current)
 
-    # 토큰 확보 실패 또는 glab 미설치 시 → 수집 실패, 사용자에게 URL 직접 입력 안내
+    # 인증 실패 또는 glab 미설치 시 → 수집 실패, 사용자에게 URL 직접 입력 안내
 
 ### 수집 결과 형식
 
@@ -247,7 +243,7 @@ AC 항목에서 테스트 대상을 파악하여 적절한 범위로 실행합�
 
 ### Playwright MCP 사용
 
-CLAUDE.md 증빙 스크린샷 규칙을 따릅니다:
+저장소 CLAUDE.md의 증빙 스크린샷 규칙이 있으면 따릅니다:
 - 저장 경로: `temp/playwright-mcp/{이슈번호 소문자}/`
 - 컴포넌트/UI: 해당 요소 + 주변 컨텍스트가 보이도록 상위 컨테이너 캡처
 - 전체 화면: viewport 전체 캡처
@@ -295,7 +291,7 @@ browser_resize를 호출하지 않으면 Playwright MCP 기본 viewport(약 780�
 **3) AC당 독립 캡처**
 
 - AC 하나에 "스크린샷 N장"이면 N장 각각 별도 파일로 캡처
-- **다른 AC의 스크린샷을 공유하지 않음** — AC마다 독립적으로 캡처
+- 같은 화면이 여러 AC를 실제로 증명하면 하나를 공유하고 자료 제목에 해당 AC ID를 함께 적는다. 서로 다른 상태를 요구하는 AC는 각 상태를 캡처한다.
 - 파일명: `ac{N}-{설명}.png` (예: `ac5-tool-call-ui.png`, `ac6-full-flow.png`)
 
 **전략 수립 예시:**
@@ -341,24 +337,12 @@ browser_resize를 호출하지 않으면 Playwright MCP 기본 viewport(약 780�
 | 에러 상태 | 의도하지 않은 에러 페이지 표시 | 페이지 새로고침 후 재촬영 |
 | UI 상태 불일치 | AC가 "펼친 상태"를 요구하는데 접혀있음 | 해당 요소 클릭하여 펼친 후 재촬영 |
 | AC 증명 불충분 | 스크린샷 내용이 AC의 요구사항을 증명하지 못함 | 다른 영역/상태로 변경 후 재촬영 |
-| **다른 AC와 동일한 화면** | 이전에 캡처한 다른 AC의 스크린샷과 사실상 같은 화면 | **다른 UI 상태/페이지로 이동 후 재촬영** |
+| **필요 상태 누락** | 다른 상태를 요구하는 AC인데 동일 상태만 캡처함 | 해당 AC가 요구한 UI 상태로 이동 후 재촬영 |
 | **해상도 부족** | FHD(1920×1080) 미달 — 작은 뷰포트로 캡처됨 | **browser_resize(1920, 1080) 재실행 후 재촬영** |
 
-### ⚠️ CRITICAL: AC간 스크린샷 중복 감지
+### AC와 캡처 상태 연결
 
-**서로 다른 AC의 스크린샷이 사실상 동일한 화면을 보여주면 안 됩니다.**
-
-캡처 후 검증 시, **이전에 캡처한 다른 AC의 스크린샷과 비교**하여:
-- 같은 페이지, 같은 스크롤 위치, 같은 UI 상태인 경우 → **부적합**
-- 각 AC가 서로 다른 것을 증명해야 하므로 반드시 다른 화면/상태여야 함
-
-**예시 (308 이슈에서 발생한 실제 문제):**
-
-    AC 1: "중단 버튼 클릭 시 EventSource 즉시 종료" → 중단 버튼 클릭 직후 화면
-    AC 4: "취소 후 히스토리에서 중단된 대화 정상 표시" → 히스토리 목록에서 중단된 대화 선택 화면
-
-    → 두 AC가 서로 다른 시점/화면을 보여줘야 함
-    → 같은 "(중단됨)" 화면을 찍으면 AC 4의 "히스토리에서 표시" 증명 불가
+동일 화면을 재사용할 때는 각 AC에서 확인할 내용이 실제로 보이는지 대조한다. 취소 직후 상태와 히스토리 재조회처럼 서로 다른 동작·시점을 요구하면 각각 캡처한다. 같은 원본을 여러 번 업로드하지 않는다.
 
 **3회 실패 시:**
 
@@ -374,7 +358,21 @@ browser_resize를 호출하지 않으면 Playwright MCP 기본 viewport(약 780�
 
 ### 수집 결과 형식
 
-    temp/playwright-mcp/nkiaai-137/login-screen.png
+스크린샷을 Linear에 업로드한 뒤 해당 AC 결과물 요약 바로 아래에 삽입합니다.
+
+    - [x] 로그인 성공 화면이 표시된다 → 결과물: 스크린샷 2장
+
+      ![AC #2 로그인 성공](https://uploads.linear.app/.../login-success.png)
+
+      ![AC #2 로그인 완료](https://uploads.linear.app/.../login-complete.png)
+
+**필수 규칙:**
+
+- 캡처 파일마다 Linear 업로드를 완료하고 반환된 asset URL을 AC와 매핑합니다.
+- Markdown 이미지는 증빙 대상 AC 본문 바로 아래에 삽입합니다.
+- 로컬 파일명만 `→ 결과물:`에 기록하면 안 됩니다.
+- 이슈 attachment 목록에만 업로드하고 AC 본문에 이미지를 삽입하지 않으면 안 됩니다.
+- 업로드 API를 사용할 수 없을 때만 수동 업로드와 asset URL 회수를 안내하며, inline 삽입 전에는 해당 스크린샷 증빙을 완료로 처리하지 않습니다.
 
 ---
 
@@ -389,8 +387,8 @@ browser_resize를 호출하지 않으면 Playwright MCP 기본 viewport(약 780�
 
 ### GitLab CI
 
-    # GitLab self-hosted: 위 "GitLab MR" 섹션과 동일하게 config에서 토큰 사전 확보
-    GITLAB_TOKEN={token} GITLAB_HOST={hostname} glab ci list --branch $(git branch --show-current)
+    # GitLab self-hosted: 위 "GitLab MR" 섹션과 동일하게 저장된 glab 인증 상태 확인
+    glab ci list --branch $(git branch --show-current)
 
 ### Jenkins
 
@@ -416,7 +414,7 @@ browser_resize를 호출하지 않으면 Playwright MCP 기본 viewport(약 780�
 
     GitLab CI "test" passed (1m 12s) https://cims2.nkia.net:8443/gitlab/project/-/jobs/456
 
-    $ GITLAB_TOKEN={token} glab ci view 456
+    $ glab ci view 456
     Name:    test
     Status:  passed
     Duration: 1m 12s
@@ -446,7 +444,7 @@ MCP 미연결 시 수집 실패로 처리합니다.
 
 ### 기타 문서
 
-AC에 URL이 이미 명시되어 있으면 해당 URL을 사용합니다. 미명시 시 수집 실패.
+장문 설계·검증 보고서·로그는 원문을 확보해 `save_document`의 issue·title·content로 이슈 Resources에 document를 생성하거나 기존 ID를 갱신한다. 재조회 후 document URL을 AC·검증 댓글에서 링크한다. 파일 업로드·GitHub/GitLab blob 링크로 대신하지 않는다. 짧은 결과·로그는 AC 아래 코드 블록으로 직접 표시한다. 원문 확보·document 저장에 실패하면 미검증으로 남긴다.
 
 ### 수집 결과 형식
 
@@ -797,7 +795,7 @@ DB 접속 불가 시 수집 실패.
 | PR/MR 미생성 | `WARNING: 현재 브랜치에 PR/MR이 없습니다` |
 | 파일 미존재 | `WARNING: {{path}} 경로에 파일이 없습니다` |
 | 테스트 실행 실패 | `WARNING: 테스트 실행에 실패했습니다 — {{error}}` |
-| glab 인증 실패 (fallback 성공) | fallback으로 토큰 확보 후 정상 진행 (WARNING 없음) |
+| glab 기본 context 실패 (hostname 명시 성공) | hostname을 명시하여 정상 진행 (WARNING 없음) |
 | 인증 필요 (fallback 포함 전부 실패) | `WARNING: 인증이 필요합니다 — 수동으로 증빙을 첨부해주세요` |
 
 ### 실패 시 동작
@@ -806,3 +804,9 @@ DB 접속 불가 시 수집 실패.
 2. 콘솔에 WARNING 출력
 3. 나머지 항목은 정상 진행
 4. Step 7 (Apply Changes)에서 수집 성공한 항목만 업데이트
+
+## 브라우저·테스트 범위
+
+개발 Nova UI는 `http://localhost:13081`, 배포 환경은 해당 호스트의 `13080`을 사용한다. 이 작업에서 연 세션은 작업 종료·오류 시 정상 close를 시도하고 잔존 여부를 확인한다. 다른 작업의 브라우저를 일괄 종료하지 않는다.
+
+테스트는 AC·변경 호출부·의존 관계의 영향 범위부터 실행한다. 일반 개발에서 전체 `npm run typecheck`를 기본 실행하지 않는다. 전체 검사는 명시 요청·릴리스·필수 게이트가 있을 때만 실행하고 미실행 범위는 결과에 적는다.

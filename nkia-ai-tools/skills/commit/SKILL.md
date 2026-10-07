@@ -5,6 +5,10 @@ description: Generate commit messages following NKIA team conventions. Analyzes 
 
 # Commit Message Generator Skill
 
+## 저장소 규칙 우선
+
+커밋 생성·브랜치와 커밋 검증 전에 저장소의 최신 개발 규칙 정본을 읽는다. 아래 예시·정규식은 정본이 없는 경우의 기본값이다. `lucida-next`는 `docs/05-개발가이드/거버넌스/README.md`가 연결하는 현재 커밋 규칙을 읽고 한글·영문 prefix를 고정 가정하지 않는다. 충돌 시 정본을 우선하고 차이를 알린다.
+
 ## Overview
 
 Git 커밋 시 NKIA 팀 컨벤션에 맞는 커밋 메시지를 자동 생성합니다.

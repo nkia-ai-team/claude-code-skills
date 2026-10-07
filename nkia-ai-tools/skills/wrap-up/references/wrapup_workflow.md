@@ -6,16 +6,7 @@
 
 ### 판별 규칙
 
-git remote URL에서 레포 이름을 추출하여 판별:
-
-    git remote get-url origin
-
-| 레포 | 전환 브랜치 |
-|------|-----------|
-| lucida-ui | `develop-ui-chat` |
-| lucida-chat-ap | `develop` |
-| lucida-chat-ai | `develop-sandbox` |
-| 기타 | `develop` |
+실제로 merged된 PR/MR의 base/target과 저장소 정본·작업 기록을 확인한다. 레포 이름만으로 `develop`·`develop-sandbox`를 고르지 않는다. 미확인 상태에서 branch를 정리하지 않는다.
 
 ### 브랜치 정리 명령
 
@@ -67,7 +58,7 @@ git remote URL에서 레포 이름을 추출하여 판별:
 ### 공통 AC 처리
 
 "코드 리뷰 완료", "전체 흐름 정상 동작" 같은 공통 AC는:
-- **코드 리뷰 완료:** 현재 레포의 MR 링크만 리소스에 추가 (다른 레포 MR은 건드리지 않음)
+- **코드 리뷰 완료:** 제출 절차 AC의 문구·체크를 유지하고 기능 판정에서는 제외한다. 실제 MR 링크는 리소스에서 중복 여부를 확인해 연결한다.
 - **전체 흐름 테스트:** 모든 레포 배포 후 수집해야 하므로, 마지막 레포에서 wrap-up 시 수집하거나 수동 업로드 대상으로 안내
 
 ---
